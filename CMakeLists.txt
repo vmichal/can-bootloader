@@ -5,6 +5,8 @@ project(Bootloader CXX C ASM)
 
 set(SRC
         Bootloader/main.cpp
+        Bootloader/main.hpp
+        BSP/entry_point.cpp
         stm32f10x_conf.h
         Drivers/Cmsis/core_cm3.h
         Drivers/Cmsis/stm32f10x.h

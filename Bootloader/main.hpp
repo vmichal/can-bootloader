@@ -6,12 +6,10 @@
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
 
+#pragma once
+
 namespace boot {
 
-	void main() {
-
-	}
+	void main();
 
 }
-
-
