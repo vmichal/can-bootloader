@@ -1,0 +1,18 @@
+image: xorly/arm-none-eabi-gcc
+
+build:
+  stage: build
+
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+  script:
+    - mkdir build
+    - cd    build
+    - cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake ..
+    - ninja
+
+  artifacts:
+    paths:
+      - build/*.elf
+      - build/*.hex
