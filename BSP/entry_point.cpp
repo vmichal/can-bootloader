@@ -20,21 +20,21 @@ namespace bsp {
 
 	/* Tries to start the application, or returns to enter the bootloader.*/
 	extern "C" void try_start_application() {
-		boot::ApplicationJumpTable const jumpTable = boot::jumpTable; //copy the jump table from flash
-
 		using namespace boot;
-		if (jumpTable.magic1_ != ApplicationJumpTable::magic1_value
-			|| jumpTable.magic2_ != ApplicationJumpTable::magic2_value
-			|| jumpTable.magic3_ != ApplicationJumpTable::magic3_value)
+
+		if (!jumpTable.checkMagics())
 			return; //Magics do not match. Enter the bootloader
 
-		if (BKP->DR1 == ApplicationJumpTable::backup_reg_bootloader_request)
-			return;
+		switch (BackupDomain::bootControlRegister) {
+		case BackupDomain::application_magic: break; //continue to jump into the bootloader
+		case BackupDomain::bootloader_magic: return; //return to enter the bootloader
+		default: return; //TODO indicate that there is some error in the Backup register
+		}
 
 		if (!ufsel::bit::all_cleared(jumpTable.interruptVector_, ufsel::bit::bitmask_of_width(9)))
 			return; //The interrupt table is not properly aligned
 
-		SCB->VTOR = jumpTable.interruptVector_;
+		SCB->VTOR = jumpTable.interruptVector_; //Set the address of application's interrupt vector
 
 		reinterpret_cast<void(*)()>(jumpTable.entryPoint_)(); //Jump to the main application
 	}

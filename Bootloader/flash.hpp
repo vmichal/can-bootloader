@@ -14,6 +14,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "stm32f10x.h"
+
 namespace boot {
 
 	enum class AddressSpace {
@@ -58,19 +60,33 @@ namespace boot {
 		static AddressSpace addressOrigin(std::uint32_t address);
 	};
 
-	struct ApplicationJumpTable {
-		constexpr static std::uint32_t magic1_value = 0xb16'b00b5;
-		constexpr static std::uint32_t magic2_value = 0xcafe'babe;
-		constexpr static std::uint32_t magic3_value = 0xdead'beef;
-
+	struct BackupDomain {
 		//Writing this value to the Backup register 1 requests entering the bootloader after reset
-		constexpr static std::uint16_t backup_reg_bootloader_request = 0x4B1D;
+		constexpr static std::uint16_t bootloader_magic = 0xB007;
+		constexpr static std::uint16_t application_magic = 0xC0DE;
+
+		inline static std::uint16_t volatile& bootControlRegister = BKP->DR1;
+
+	};
+
+	struct ApplicationJumpTable {
+		constexpr static std::uint32_t expected_magic1_value = 0xb16'b00b5;
+		constexpr static std::uint32_t expected_magic2_value = 0xcafe'babe;
+		constexpr static std::uint32_t expected_magic3_value = 0xdead'beef;
+
 
 		std::uint32_t magic1_;
 		std::uint32_t entryPoint_;
 		std::uint32_t magic2_;
 		std::uint32_t interruptVector_;
 		std::uint32_t magic3_;
+
+		//Returns true iff all magics are valid
+		bool checkMagics() const {
+			return magic1_ == expected_magic1_value
+				|| magic2_ == expected_magic2_value
+				|| magic3_ == expected_magic3_value;
+		}
 	};
 
 	inline ApplicationJumpTable jumpTable __attribute__((section("jumpTableSection")));
