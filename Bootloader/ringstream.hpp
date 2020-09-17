@@ -7,6 +7,10 @@
 
 inline constexpr size_t kRingStreamBufferSize = 1024;
 
+namespace boot {
+    class CanManager;
+}
+
 class RingStream {
     friend class CanProtocol;
 public:
@@ -19,6 +23,8 @@ private:
     ringbuf_t ringbuf;
 
     uint8_t buffer[kRingStreamBufferSize];
+
+    friend class boot::CanManager;
 };
 
 #endif

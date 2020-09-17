@@ -68,15 +68,15 @@ enum Bootloader_State {
     Bootloader_State_Error = 4,
 };
 
-enum Bootloader_WriteStatus {
+enum Bootloader_WriteResult {
     /* Write was performed successfully. */
-    Bootloader_WriteStatus_Ok = 0,
+    Bootloader_WriteResult_Ok = 0,
     /* Requested address was not in any of the beforehand specified erasable pages */
-    Bootloader_WriteStatus_NotInErasableMemory = 1,
-    /* Requested address was not in the flash */
-    Bootloader_WriteStatus_NotInFlash = 2,
+    Bootloader_WriteResult_InvalidMemory = 1,
     /* Requested address has already been written */
-    Bootloader_WriteStatus_NotWriteable = 3,
+    Bootloader_WriteResult_AlreadyWritten = 2,
+    /* Write command timeouted */
+    Bootloader_WriteResult_Timeout = 3,
 };
 
 /*
@@ -151,7 +151,7 @@ typedef struct Bootloader_DataAck_t {
 	uint32_t	Address;
 
 	/* Identifies the result of previous write operation. */
-	enum Bootloader_WriteStatus	Result;
+	enum Bootloader_WriteResult	Result;
 } Bootloader_DataAck_t;
 
 
@@ -243,11 +243,13 @@ int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Addres
 int Bootloader_get_Data(Bootloader_Data_t* data_out);
 void Bootloader_Data_on_receive(int (*callback)(Bootloader_Data_t* data));
 
-int Bootloader_send_ExitReq_s(const Bootloader_ExitReq_t* data);
-int Bootloader_send_ExitReq(enum Bootloader_BootTarget Target);
+int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out);
+int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
+int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
+void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 
 int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data);
-int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteStatus Result);
+int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result);
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
 int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, uint32_t* Value_out);
@@ -282,10 +284,6 @@ inline bool need_to_send<Bootloader_BootloaderBeacon_t>() {
 
 inline int send(const Bootloader_BootloaderBeacon_t& data) {
     return Bootloader_send_BootloaderBeacon_s(&data);
-}
-
-inline int send(const Bootloader_ExitReq_t& data) {
-    return Bootloader_send_ExitReq_s(&data);
 }
 
 inline int send(const Bootloader_DataAck_t& data) {

@@ -6,6 +6,8 @@ Bootloader_EntryReq_t Bootloader_EntryReq_data;
 int32_t Bootloader_BootloaderBeacon_last_sent;
 CAN_msg_status_t Bootloader_Data_status;
 Bootloader_Data_t Bootloader_Data_data;
+CAN_msg_status_t Bootloader_ExitReq_status;
+Bootloader_ExitReq_t Bootloader_ExitReq_data;
 CAN_msg_status_t Bootloader_Handshake_status;
 Bootloader_Handshake_t Bootloader_Handshake_data;
 int32_t Bootloader_SoftwareBuild_last_sent;
@@ -15,6 +17,7 @@ void candbInit(void) {
     canInitMsgStatus(&Bootloader_EntryReq_status, -1);
     Bootloader_BootloaderBeacon_last_sent = -1;
     canInitMsgStatus(&Bootloader_Data_status, -1);
+    canInitMsgStatus(&Bootloader_ExitReq_status, -1);
     canInitMsgStatus(&Bootloader_Handshake_status, -1);
     Bootloader_SoftwareBuild_last_sent = -1;
     Bootloader_SerialOutput_last_sent = -1;
@@ -132,18 +135,36 @@ void Bootloader_Data_on_receive(int (*callback)(Bootloader_Data_t* data)) {
     Bootloader_Data_status.on_receive = (void (*)(void)) callback;
 }
 
-int Bootloader_send_ExitReq_s(const Bootloader_ExitReq_t* data) {
-    uint8_t buffer[1];
-    buffer[0] = (data->Target & 0x0F);
-    int rc = txSendCANMessage(bus_UNDEFINED, Bootloader_ExitReq_id, buffer, sizeof(buffer));
-    return rc;
+int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out) {
+    if (length < 1)
+        return 0;
+
+    data_out->Target = (enum Bootloader_BootTarget) ((bytes[0] & 0x0F));
+    return 1;
 }
 
-int Bootloader_send_ExitReq(enum Bootloader_BootTarget Target) {
-    uint8_t buffer[1];
-    buffer[0] = (Target & 0x0F);
-    int rc = txSendCANMessage(bus_UNDEFINED, Bootloader_ExitReq_id, buffer, sizeof(buffer));
-    return rc;
+int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out) {
+    if (length < 1)
+        return 0;
+
+    *Target_out = (enum Bootloader_BootTarget) ((bytes[0] & 0x0F));
+    return 1;
+}
+
+int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out) {
+    if (!(Bootloader_ExitReq_status.flags & CAN_MSG_RECEIVED))
+        return 0;
+
+    if (data_out)
+        memcpy(data_out, &Bootloader_ExitReq_data, sizeof(Bootloader_ExitReq_t));
+
+    int flags = Bootloader_ExitReq_status.flags;
+    Bootloader_ExitReq_status.flags &= ~CAN_MSG_PENDING;
+    return flags;
+}
+
+void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data)) {
+    Bootloader_ExitReq_status.on_receive = (void (*)(void)) callback;
 }
 
 int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data) {
@@ -156,7 +177,7 @@ int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data) {
     return rc;
 }
 
-int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteStatus Result) {
+int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result) {
     uint8_t buffer[4];
     buffer[0] = Address;
     buffer[1] = (Address >> 8);
@@ -321,6 +342,17 @@ void candbHandleMessage(uint32_t timestamp, int bus, CAN_ID_t id, const uint8_t*
 
         if (Bootloader_Data_status.on_receive)
             ((int (*)(Bootloader_Data_t*)) Bootloader_Data_status.on_receive)(&Bootloader_Data_data);
+
+        break;
+    }
+    case Bootloader_ExitReq_id: {
+        if (!Bootloader_decode_ExitReq_s(payload, payload_length, &Bootloader_ExitReq_data))
+            break;
+
+        canUpdateMsgStatusOnReceive(&Bootloader_ExitReq_status, timestamp);
+
+        if (Bootloader_ExitReq_status.on_receive)
+            ((int (*)(Bootloader_ExitReq_t*)) Bootloader_ExitReq_status.on_receive)(&Bootloader_ExitReq_data);
 
         break;
     }

@@ -8,30 +8,43 @@
 
 #include "main.hpp"
 #include "bootloader.hpp"
+#include "canmanager.hpp"
 #include "tx2/tx.h"
 #include "can_Bootloader.h"
 
+#include <library/timer.hpp>
+#include <BSP/gpio.hpp>
 namespace boot {
 
 	Bootloader bootloader;
+	CanManager canManager;
 
 	void setupCanCallbacks() {
 		Bootloader_Data_on_receive([](Bootloader_Data_t * data) -> int {
 			std::uint32_t const address = data->Address << 2;
 
-			if (data->HalfwordAccess)
-				bootloader.write(address, static_cast<std::uint16_t>(data->Word));
-			else
-				bootloader.write(address, static_cast<std::uint32_t>(data->Word));
+			WriteStatus const ret = data->HalfwordAccess 
+				? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
+				: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
+
+			canManager.SendDataAck(address, ret);
 
 			return 0;
-
 			});
 
 		Bootloader_Handshake_on_receive([](Bootloader_Handshake_t * data) -> int {
-			bootloader.handshake(static_cast<Register>(data->Register), data->Value);
+			Register const reg = regToReg(data->Register);
+			auto const response = bootloader.processHandshake(reg, data->Value);
+
+			canManager.SendHandshakeAck(reg, response, data->Value);
 			return 0;
 		});
+
+		Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t * data) {
+			Bootloader::resetToApplication();
+			return 0;
+			});
+
 	}
 
 	void main() {
@@ -44,7 +57,7 @@ namespace boot {
 
 			txProcess();
 
-
+			canManager.Update();
 
 		}
 
@@ -52,8 +65,12 @@ namespace boot {
 
 	extern "C" [[noreturn]] void HardFault_Handler() {
 
-		for (;;) {
+		canManager.FlushSerialOutput();
 
+		for (;;) {
+			BlockingDelay(100_ms);
+			gpio::LED_Blue_Toggle();
+			gpio::LED_Orange_Toggle();
 		}
 
 	}

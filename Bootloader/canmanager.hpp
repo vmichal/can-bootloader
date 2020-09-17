@@ -8,6 +8,9 @@
 
 #pragma once
 
+#include "flash.hpp"
+#include "bootloader.hpp"
+
 namespace boot {
 
 
@@ -21,6 +24,11 @@ namespace boot {
 
 	public:
 		void Update();
+
+		void SendDataAck(std::uint32_t, WriteStatus) const;
+		void SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const;
+
+		void FlushSerialOutput() const;
 
 
 	};

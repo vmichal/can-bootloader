@@ -9,6 +9,7 @@
 
 #include "bootloader.hpp"
 #include "flash.hpp"
+#include "stm32f10x.h"
 
 #include <library/assert.hpp>
 namespace boot {
@@ -51,11 +52,21 @@ namespace boot {
 	}
 
 
-	HandshakeResponse Bootloader::handshake(Register reg, std::uint32_t value) {
+	HandshakeResponse Bootloader::processHandshake(Register reg, std::uint32_t value) {
 		return HandshakeResponse::PageProtected; //TODO implement
 
 	}
 
+
+	void Bootloader::resetToApplication() {
+		BKP->DR1 = 0x00'00; //Clear the bootloaderEntryRequest
+
+		ufsel::bit::set(std::ref(SCB->AIRCR),
+			0x5fA << SCB_AIRCR_VECTKEYSTAT_Pos, //magic value required for write to succeed
+			SCB_AIRCR_SYSRESETREQ); //Start the system reset
+
+		for (;;); //wait for reset
+	}
 
 
 }
