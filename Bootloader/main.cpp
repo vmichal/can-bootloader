@@ -41,11 +41,28 @@ namespace boot {
 		});
 
 		Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t * data) {
+			debug_printf(("Exiting the bootloader.\r\n"));
+			canManager.FlushSerialOutput();
+
 			Bootloader::resetToApplication();
 			return 0;
 			});
 
 	}
+
+	/*Transaction protocol:
+	The communication uses messages Handshake and Data and their corresponding Acknowledgements
+	For every sent message a corresponding ack must be awaited to make sure the system performed requested operation.
+	Steps 1-6 use the message Handshake. Step 7 uses the message Data
+	1) The master must write 0x696c6548 to the TransactionMagic register
+	2) The master sends the size of flashed binary
+	3) The master sends the number of pages that will need to be erased
+	4) [repeated] The master sends addresses of flash pages that need to be erased
+	5) The master sends the entry point address
+	6) The master sends the address of the interrupt service routine table
+
+	7) The master sends pair of address and data word that will be written to the flash
+	*/
 
 	void main() {
 

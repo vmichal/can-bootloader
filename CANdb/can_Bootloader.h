@@ -40,6 +40,10 @@ enum Bootloader_HandshakeResponse {
     Bootloader_HandshakeResponse_PageProtected = 3,
     /* The specified number of pages to erase (sent during handshake) and the actual number of erase requests do not match. Reported only after the erasing process ends. */
     Bootloader_HandshakeResponse_ErasedPageCountMismatch = 4,
+    /* Available flash memory cannot fit the requested number of bytes. */
+    Bootloader_HandshakeResponse_BinaryTooBig = 5,
+    /* Received address of the interrupt vector is not aligned */
+    Bootloader_HandshakeResponse_InterruptVectorAddressNotAligned = 6,
 };
 
 enum Bootloader_Register {
@@ -51,19 +55,31 @@ enum Bootloader_Register {
     Bootloader_Register_NumPagesToErase = 2,
     /* Address of a flash page to erase */
     Bootloader_Register_PageToErase = 3,
+    /* Size in bytes of the firmware to be flashed. */
+    Bootloader_Register_FirmwareSize = 4,
+    /* Magic value. Writing 0x696c6548 starts and ends the transaction. */
+    Bootloader_Register_TransacionMagic = 5,
 };
 
 enum Bootloader_State {
     /* Bootloader is ready to commence handshake with the flashing system */
     Bootloader_State_Ready = 0,
-    /* The device and the flashing master are performing handshake sequence */
-    Bootloader_State_Handshake = 1,
+    /* Bootloader received transaction magic and has started listening for data. */
+    Bootloader_State_TransactionStarted = 1,
+    /* The device has received the expected size of flashed binary. */
+    Bootloader_State_ReceivedFirmwareSize = 2,
+    /* The device received number of pages to erase */
+    Bootloader_State_ReceivedNumPagestoErase = 3,
+    /* The device is erasing requested pages */
+    Bootloader_State_ErasingPages = 4,
+    /* The device received the address of entry point */
+    Bootloader_State_ReceivedEntryPoint = 5,
+    /* The device received the address of Interrupt vector */
+    Bootloader_State_ReceivedInterruptVector = 6,
     /* Bootloader is currently receiving bytes over the bus */
-    Bootloader_State_ReceivingData = 2,
-    /* Device is busy flashing received data */
-    Bootloader_State_Flashing = 3,
+    Bootloader_State_ReceivingData = 7,
     /* Some error occured. //TODO make it more concrete */
-    Bootloader_State_Error = 4,
+    Bootloader_State_Error = 8,
 };
 
 enum Bootloader_WriteResult {
@@ -164,7 +180,7 @@ typedef struct Bootloader_DataAck_t {
  * Configuration message sent by the flashing master to the bootloader.
  */
 typedef struct Bootloader_Handshake_t {
-	/* Which value (lets call them registers) is currently configured */
+	/* Which register is currently configured */
 	enum Bootloader_Register	Register;
 
 	/* Value for selected register */

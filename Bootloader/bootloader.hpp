@@ -23,7 +23,9 @@ namespace boot {
 		EntryPoint,
 		InterruptVector,
 		NumPagesToErase,
-		PageToErase
+		PageToErase,
+		FirmwareSize,
+		TransactionMagic
 	};
 
 	constexpr Bootloader_Register regToReg(Register r) {
@@ -36,6 +38,11 @@ namespace boot {
 			return Bootloader_Register_NumPagesToErase;
 		case Register::PageToErase:
 			return Bootloader_Register_PageToErase;
+
+		case Register::FirmwareSize:
+			return Bootloader_Register_FirmwareSize;
+		case Register::TransactionMagic:
+			return Bootloader_Register_TransacionMagic;
 		}
 		assert_unreachable();
 	}
@@ -49,6 +56,10 @@ namespace boot {
 			return Register::NumPagesToErase;
 		case Bootloader_Register_PageToErase:
 			return Register::PageToErase;
+		case Bootloader_Register_FirmwareSize:
+			return Register::FirmwareSize;
+		case Bootloader_Register_TransacionMagic:
+			return Register::TransactionMagic;
 		}
 		assert_unreachable();
 	}
@@ -75,6 +86,14 @@ namespace boot {
 	public:
 		enum class Status {
 			Ready,
+			TransactionStarted,
+			ReceivedFirmwareSize,
+			ReceivedNumPagestoErase,
+			ErasingPages,
+			ReceivedEntryPoint,
+			ReceivedInterruptVector,
+			ReceivingData,
+			Error
 		};
 
 	private:

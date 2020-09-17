@@ -33,6 +33,14 @@ namespace {
 		using namespace boot;
 		switch (s) {
 		case Bootloader::Status::Ready: return Bootloader_State_Ready;
+		case Bootloader::Status::ErasingPages: return Bootloader_State_ErasingPages;
+		case Bootloader::Status::Error: return Bootloader_State_Error;
+		case Bootloader::Status::ReceivedEntryPoint: return Bootloader_State_ReceivedEntryPoint;
+		case Bootloader::Status::ReceivedFirmwareSize: return Bootloader_State_ReceivedFirmwareSize;
+		case Bootloader::Status::ReceivedInterruptVector: return Bootloader_State_ReceivedInterruptVector;
+		case Bootloader::Status::ReceivedNumPagestoErase: return Bootloader_State_ReceivedNumPagestoErase;
+		case Bootloader::Status::ReceivingData: return Bootloader_State_ReceivingData;
+		case Bootloader::Status::TransactionStarted: return Bootloader_State_TransactionStarted;
 
 		}
 		assert_unreachable();
