@@ -1,0 +1,3 @@
+[submodule "ufsel"]
+	path = ufsel
+	url = ../ufsel.git

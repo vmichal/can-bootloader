@@ -8,6 +8,8 @@
 
 #include <Bootloader/main.hpp>
 
+#include "stm32f10x.h"
+
 namespace bsp {
 
 	extern "C" void pre_main() {
@@ -15,6 +17,10 @@ namespace bsp {
 	}
 
 	extern "C" int main() {
+
+	}
+
+	extern "C" void HardFault_Handler() {
 
 	}
 
