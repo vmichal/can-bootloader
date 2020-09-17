@@ -6,8 +6,13 @@ include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/BitOperations.cmake")
 
 set(SRC
         Bootloader/main.cpp
-        Bootloader/main.hpp
+        Bootloader/bootloader.cpp
+        Bootloader/canmanager.cpp
+        Bootloader/ringstream.cpp
         BSP/entry_point.cpp
+        BSP/can.cpp
+        BSP/gpio.cpp
+        BSP/timer.cpp
         stm32f10x_conf.h
         Drivers/Cmsis/core_cm3.h
         Drivers/Cmsis/stm32f10x.h
@@ -57,6 +62,9 @@ set(SRC
         Drivers/StdPeriph/Src/stm32f10x_tim.c
         Drivers/StdPeriph/Src/stm32f10x_usart.c
         Drivers/StdPeriph/Src/stm32f10x_wwdg.c
+        CANdb/tx2_can.c
+        CANdb/tx2_ringbuf.c
+        CANdb/can_Bootloader.c
 
         startup/startup_stm32f105xc.s
         )
@@ -66,7 +74,9 @@ add_executable(${PROJECT_NAME}.elf ${SRC} ${CAN_SRC})
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
         Drivers/Cmsis
         Drivers/StdPeriph/Inc
+        CANdb
         .
+        ufsel/include
         )
 
 
