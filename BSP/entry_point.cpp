@@ -18,6 +18,8 @@
 
 namespace bsp {
 
+	using namespace ufsel;
+
 	/* Tries to start the application, or returns to enter the bootloader.*/
 	extern "C" void try_start_application() {
 		using namespace boot;
@@ -25,21 +27,24 @@ namespace bsp {
 		if (!jumpTable.checkMagics())
 			return; //Magics do not match. Enter the bootloader
 
+		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain
+
 		switch (BackupDomain::bootControlRegister) {
 		case BackupDomain::application_magic: break; //continue to jump into the bootloader
 		case BackupDomain::bootloader_magic: return; //return to enter the bootloader
 		default: return; //TODO indicate that there is some error in the Backup register
 		}
 
-		if (!ufsel::bit::all_cleared(jumpTable.interruptVector_, ufsel::bit::bitmask_of_width(9)))
+		//Disable clock to backup registers (to make the application feel as if no bootloader was present)
+		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
+
+		if (!bit::all_cleared(jumpTable.interruptVector_, bit::bitmask_of_width(9)))
 			return; //The interrupt table is not properly aligned
 
 		SCB->VTOR = jumpTable.interruptVector_; //Set the address of application's interrupt vector
 
 		reinterpret_cast<void(*)()>(jumpTable.entryPoint_)(); //Jump to the main application
 	}
-
-	using namespace ufsel;
 
 	//Initializes system clock to max frequencies: 72MHz SYSCLK, AHB, APB2; 32MHz APB1
 	extern "C" void pre_main() {
