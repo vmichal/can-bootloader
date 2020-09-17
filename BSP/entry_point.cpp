@@ -70,7 +70,7 @@ namespace bsp {
 		SystemTimer::Initialize();
 	}
 
-	extern "C" int main(void) {
+	extern "C" int main() {
 
 		MicrosecondTimer::Initialize();
 

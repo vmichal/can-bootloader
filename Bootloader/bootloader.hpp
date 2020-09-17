@@ -58,6 +58,13 @@ namespace boot {
 		assert_unreachable();
 	}
 
+	constexpr char const* to_string(Bootloader_BootTarget target) {
+		switch (target) {
+		case Bootloader_BootTarget_AMS: return "AMS";
+		}
+		return "unknown";
+	}
+
 
 
 	enum class HandshakeResponse {
@@ -79,6 +86,8 @@ namespace boot {
 
 
 	public:
+		constexpr static Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
+
 		static void resetToApplication();
 
 		WriteStatus write(std::uint32_t address, std::uint16_t half_word);

@@ -49,22 +49,24 @@ namespace boot {
 
 	void main() {
 
+		debug_printf(("Entering bootloader of %s\r\n", to_string(Bootloader::thisUnit)));
+
 		txInit();
 
 		setupCanCallbacks();
 
 		for (;;) { //main loop
 
-			txProcess();
-
 			canManager.Update();
 
+			txProcess();
 		}
 
 	}
 
 	extern "C" [[noreturn]] void HardFault_Handler() {
 
+		printf("HardFault\r\n");
 		canManager.FlushSerialOutput();
 
 		for (;;) {
