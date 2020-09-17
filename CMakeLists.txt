@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.6)
 project(Bootloader CXX C ASM)
 
-
+include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/QueryRepositoryState.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/BitOperations.cmake")
 
 set(SRC
         Bootloader/main.cpp
