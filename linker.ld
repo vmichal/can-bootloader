@@ -57,19 +57,24 @@ _Min_Stack_Size = 0x800; /* required amount of stack, at least 2 KiB */
 
 FlashStart = 0x08000000;
 FlashSize = 256K;
-BootloaderSize = 16K;
+BootloaderSize = 14K;
+ApplicationJumpTableSize = 2K;
 
 
 /* Specify the memory areas */
 MEMORY
 {
-FLASH(rx)           : ORIGIN = FlashStart, LENGTH = BootloaderSize
-ApplicationFlash(rx): ORIGIN = FlashStart + BootloaderSize, LENGTH = FlashSize - BootloaderSize
-RAM (xrw)           : ORIGIN = 0x20000000, LENGTH = 64K
+FLASH(rx)                : ORIGIN = FlashStart, LENGTH = BootloaderSize
+JumpTableFlash(rx)       : ORIGIN = FlashStart + BootloaderSize, LENGTH = ApplicationJumpTableSize
+ApplicationFlash(rx)     : ORIGIN = FlashStart + BootloaderSize + ApplicationJumpTableSize, LENGTH = FlashSize - BootloaderSize
+RAM (xrw)                : ORIGIN = 0x20000000, LENGTH = 64K
 }
 
 bootloader_flash_start = ORIGIN(FLASH);
 bootloader_flash_end = ORIGIN(FLASH) + LENGTH(FLASH);
+
+jumpTable_start = ORIGIN(JumpTableFlash);
+jumpTable_end = ORIGIN(JumpTableFlash) + LENGTH(JumpTableFlash);
 
 available_flash_start = ORIGIN(ApplicationFlash);
 available_flash_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
@@ -205,6 +210,12 @@ SECTIONS
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
+
+  .jumpTableSection(NOLOAD) : 
+  {
+   . = ALIGN(4);
+   KEEP(*(jumpTableSection))
+  } > JumpTableFlash
 
 
   /* Remove information from the standard libraries */

@@ -19,7 +19,7 @@ namespace boot {
 		case AddressSpace::AvailableFlash:
 			break;
 
-		case AddressSpace::BootloaderFlash:
+		case AddressSpace::BootloaderFlash: case AddressSpace::JumpTable:
 			return WriteStatus::MemoryProtected;
 
 		case AddressSpace::RAM: case AddressSpace::Unknown:
