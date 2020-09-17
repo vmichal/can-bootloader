@@ -5,16 +5,49 @@
  *
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
-#include "bootloader.hpp"
+#include <algorithm>
 
+#include "bootloader.hpp"
+#include "flash.hpp"
+
+#include <library/assert.hpp>
 namespace boot {
 
-	WriteStatus Bootloader::write(std::uint32_t address, std::uint16_t half_word) {
-		return WriteStatus::NotInErasableMemory; //TODO implement
-	}
-	WriteStatus Bootloader::write(std::uint32_t address, std::uint32_t word) {
-		return WriteStatus::NotInErasableMemory; //TODO implement
+	WriteStatus Bootloader::checkBeforeWrite(std::uint32_t const address) {
+		switch (Flash::addressOrigin(address)) {
 
+		case AddressSpace::AvailableFlash:
+			break;
+
+		case AddressSpace::BootloaderFlash:
+			return WriteStatus::MemoryProtected;
+
+		case AddressSpace::RAM: case AddressSpace::Unknown:
+			return WriteStatus::NotInFlash;
+		}
+
+		assert(Flash::isAvailableAddress(address));
+
+		std::uint32_t const pageAligned = Flash::makePageAligned(address);
+
+		if (!std::find(std::begin(erased_pages_), std::end(erased_pages_), pageAligned))
+			return WriteStatus::NotInErasedMemory;
+
+		return WriteStatus::Ok; //Everything seems ok, try to write
+	}
+
+	WriteStatus Bootloader::write(std::uint32_t address, std::uint16_t half_word) {
+		if (WriteStatus const ret = checkBeforeWrite(address); ret != WriteStatus::Ok)
+			return ret;
+
+		return Flash::Write(address, half_word);
+	}
+
+	WriteStatus Bootloader::write(std::uint32_t address, std::uint32_t word) {
+		if (WriteStatus const ret = checkBeforeWrite(address); ret != WriteStatus::Ok)
+			return ret;
+
+		return Flash::Write(address, word);
 	}
 
 

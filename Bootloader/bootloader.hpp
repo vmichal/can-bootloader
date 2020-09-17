@@ -9,6 +9,10 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
+#include <type_traits>
+
+#include "flash.hpp"
 
 namespace boot {
 
@@ -20,12 +24,7 @@ namespace boot {
 		PageToErase
 	};
 
-	enum class WriteStatus {
-		Ok,
-		NotInErasableMemory,
-		NotInFlash,
-		NotWriteable
-	};
+
 
 	enum class HandshakeResponse {
 		Ok,
@@ -37,6 +36,12 @@ namespace boot {
 
 
 	class Bootloader {
+
+		std::array<std::uint32_t, Flash::pageCount> erased_pages_;
+		std::size_t erased_pages_count_;
+
+
+		WriteStatus checkBeforeWrite(std::uint32_t address);
 
 	public:
 

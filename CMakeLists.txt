@@ -8,6 +8,7 @@ set(SRC
         Bootloader/main.cpp
         Bootloader/bootloader.cpp
         Bootloader/canmanager.cpp
+        Bootloader/flash.cpp
         Bootloader/ringstream.cpp
         BSP/entry_point.cpp
         BSP/can.cpp

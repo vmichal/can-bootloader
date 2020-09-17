@@ -55,13 +55,27 @@ ENTRY(Reset_Handler)
 _Min_Heap_Size = 0;      /* required amount of heap. None is required right now*/
 _Min_Stack_Size = 0x800; /* required amount of stack, at least 2 KiB */
 
+FlashStart = 0x08000000;
+FlashSize = 256K;
+BootloaderSize = 16K;
+
+
 /* Specify the memory areas */
 MEMORY
 {
-FLASH (rx)          : ORIGIN = 0x08000000, LENGTH = 254K
-FLASH_LastPage(rw)  : ORIGIN = 0x0803F800, LENGTH = 2K
+FLASH(rx)           : ORIGIN = FlashStart, LENGTH = BootloaderSize
+ApplicationFlash(rx): ORIGIN = FlashStart + BootloaderSize, LENGTH = FlashSize - BootloaderSize
 RAM (xrw)           : ORIGIN = 0x20000000, LENGTH = 64K
 }
+
+bootloader_flash_start = ORIGIN(FLASH);
+bootloader_flash_end = ORIGIN(FLASH) + LENGTH(FLASH);
+
+available_flash_start = ORIGIN(ApplicationFlash);
+available_flash_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
+
+ram_start = ORIGIN(RAM);
+ram_end = ORIGIN(RAM) + LENGTH(RAM);
 
 /* Highest address of the user mode stack */
 _estack = ORIGIN(RAM) + LENGTH(RAM); /* end of RAM */
@@ -192,13 +206,6 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
-
-  /*Section reserved for the BMS temperature map.*/
-  .BmsMapSection(NOLOAD) : 
-    {
-        pBMSMapAddress = .;
-        KEEP(*(BmsMapSection))
-    } >FLASH_LastPage
 
   /* Remove information from the standard libraries */
   /DISCARD/ :
