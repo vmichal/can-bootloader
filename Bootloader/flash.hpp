@@ -40,6 +40,7 @@ namespace boot {
 		static constexpr std::size_t pageCount = 128; //taken from the reference manual
 		static constexpr std::uint32_t pageSize = 1 << 11; //taken from the reference manual
 		static constexpr std::uint32_t pageAlignmentMask = pageSize - 1;
+		static std::size_t const availableMemory;
 
 		static bool ErasePage(std::uint32_t pageAddress);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);

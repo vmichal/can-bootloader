@@ -47,12 +47,10 @@ enum Bootloader_Register {
     Bootloader_Register_EntryPoint = 0,
     /* Address of the isr vector. Must be aligned to 512B boundary (lower 9 bits cleared) */
     Bootloader_Register_InterruptVector = 1,
-    /* The size of available flash memory in bytes. */
-    Bootloader_Register_FlashSize = 2,
     /* The number of flash pages to be erased */
-    Bootloader_Register_NumPagesToErase = 3,
+    Bootloader_Register_NumPagesToErase = 2,
     /* Address of a flash page to erase */
-    Bootloader_Register_PageToErase = 4,
+    Bootloader_Register_PageToErase = 3,
 };
 
 enum Bootloader_State {
@@ -113,8 +111,15 @@ typedef struct Bootloader_BootloaderBeacon_t {
 
 	/* Current state of the bootloader */
 	enum Bootloader_State	State;
+
+	/* Available flash size in kibibytes. */
+	uint16_t	FlashSize;
 } Bootloader_BootloaderBeacon_t;
 
+#define Bootloader_BootloaderBeacon_FlashSize_OFFSET	((float)0)
+#define Bootloader_BootloaderBeacon_FlashSize_FACTOR	((float)1)
+#define Bootloader_BootloaderBeacon_FlashSize_MIN	((float)0)
+#define Bootloader_BootloaderBeacon_FlashSize_MAX	((float)65535)
 
 /*
  * Stream of data to be flashed into the MCU.
@@ -235,7 +240,7 @@ int Bootloader_send_EntryAck_s(const Bootloader_EntryAck_t* data);
 int Bootloader_send_EntryAck(enum Bootloader_BootTarget Target);
 
 int Bootloader_send_BootloaderBeacon_s(const Bootloader_BootloaderBeacon_t* data);
-int Bootloader_send_BootloaderBeacon(enum Bootloader_BootTarget Unit, enum Bootloader_State State);
+int Bootloader_send_BootloaderBeacon(enum Bootloader_BootTarget Unit, enum Bootloader_State State, uint16_t FlashSize);
 int Bootloader_BootloaderBeacon_need_to_send(void);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);

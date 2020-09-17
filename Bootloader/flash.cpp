@@ -16,6 +16,8 @@ namespace boot {
 		extern char jumpTable_start[], jumpTable_end[];
 	}
 
+	std::size_t const Flash::availableMemory = available_flash_end - available_flash_start;
+
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
 		__disable_irq();
 		FLASH_Unlock();

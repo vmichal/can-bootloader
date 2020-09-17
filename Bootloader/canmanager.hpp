@@ -18,9 +18,12 @@ namespace boot {
 
 		void SendSoftwareBuild() const;
 		void SendSerialOutput() const;
+		void SendBootloaderBeacon() const;
 
 		template<int periph>
 		static bool hasEmptyMailbox();
+
+		Bootloader const& bootloader_;
 
 	public:
 		void Update();
@@ -30,6 +33,7 @@ namespace boot {
 
 		void FlushSerialOutput() const;
 
+		CanManager(Bootloader const& bootloader) : bootloader_{bootloader} {}
 
 	};
 

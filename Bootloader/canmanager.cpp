@@ -28,6 +28,15 @@ namespace {
 		}
 		assert_unreachable();
 	}
+
+	Bootloader_State toCan(boot::Bootloader::Status s) {
+		using namespace boot;
+		switch (s) {
+		case Bootloader::Status::Ready: return Bootloader_State_Ready;
+
+		}
+		assert_unreachable();
+	}
 }
 
 namespace boot {
@@ -91,6 +100,14 @@ namespace boot {
 		send(message);
 	}
 
+	void CanManager::SendBootloaderBeacon() const {
+		Bootloader_BootloaderBeacon_t message;
+		message.State = toCan(bootloader_.status());
+		message.Unit = Bootloader::thisUnit;
+		message.FlashSize = Flash::availableMemory / 1024;
+
+		send(message);
+	}
 
 	void CanManager::FlushSerialOutput() const {
 
@@ -108,6 +125,9 @@ namespace boot {
 
 		if (need_to_send<Bootloader_SerialOutput_t>())
 			SendSerialOutput();
+
+		if (need_to_send<Bootloader_BootloaderBeacon_t>())
+			SendBootloaderBeacon();
 
 	}
 

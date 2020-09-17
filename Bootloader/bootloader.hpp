@@ -22,7 +22,6 @@ namespace boot {
 	enum class Register {
 		EntryPoint,
 		InterruptVector,
-		FlashSize,
 		NumPagesToErase,
 		PageToErase
 	};
@@ -33,8 +32,6 @@ namespace boot {
 			return Bootloader_Register_EntryPoint;
 		case Register::InterruptVector:
 			return Bootloader_Register_InterruptVector;
-		case Register::FlashSize:
-			return Bootloader_Register_FlashSize;
 		case Register::NumPagesToErase:
 			return Bootloader_Register_NumPagesToErase;
 		case Register::PageToErase:
@@ -48,8 +45,6 @@ namespace boot {
 			return Register::EntryPoint;
 		case Bootloader_Register_InterruptVector:
 			return Register::InterruptVector;
-		case Bootloader_Register_FlashSize:
-			return Register::FlashSize;
 		case Bootloader_Register_NumPagesToErase:
 			return Register::NumPagesToErase;
 		case Bootloader_Register_PageToErase:
@@ -77,16 +72,22 @@ namespace boot {
 
 
 	class Bootloader {
+	public:
+		enum class Status {
+			Ready,
+		};
 
+	private:
 		std::array<std::uint32_t, Flash::pageCount> erased_pages_;
 		std::size_t erased_pages_count_;
-
+		Status status_ = Status::Ready;
 
 		WriteStatus checkBeforeWrite(std::uint32_t address);
 
 
 	public:
 		constexpr static Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
+		Status status() const { return status_; }
 
 		static void resetToApplication();
 

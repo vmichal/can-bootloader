@@ -17,7 +17,7 @@
 namespace boot {
 
 	Bootloader bootloader;
-	CanManager canManager;
+	CanManager canManager{bootloader};
 
 	void setupCanCallbacks() {
 		Bootloader_Data_on_receive([](Bootloader_Data_t * data) -> int {
