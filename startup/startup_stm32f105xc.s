@@ -107,7 +107,6 @@ LoopFillZerobss:
   cmp r2, r3
   bcc FillZerobss
 /* Call the clock system intitialization function.*/
-    bl try_start_application
     bl  pre_main
 /* Call static constructors */
     bl __libc_init_array

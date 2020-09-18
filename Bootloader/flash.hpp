@@ -62,9 +62,10 @@ namespace boot {
 	};
 
 	struct BackupDomain {
+		constexpr static std::uint16_t reset_value = 0x00'00; //value after power reset. Enter the application
 		//Writing this value to the Backup register 1 requests entering the bootloader after reset
 		constexpr static std::uint16_t bootloader_magic = 0xB007;
-		constexpr static std::uint16_t application_magic = 0xC0DE;
+		constexpr static std::uint16_t application_magic = 0xC0DE; //enter the application
 
 		inline static std::uint16_t volatile& bootControlRegister = BKP->DR1;
 
@@ -83,7 +84,7 @@ namespace boot {
 		std::uint32_t magic3_;
 
 		//Returns true iff all magics are valid
-		bool checkMagics() const {
+		bool magicValid() const {
 			return magic1_ == expected_magic1_value
 				|| magic2_ == expected_magic2_value
 				|| magic3_ == expected_magic3_value;

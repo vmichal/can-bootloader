@@ -19,6 +19,18 @@
 
 namespace boot {
 
+	enum class EntryReason {
+		DontEnter, //Bootloader will not be entered
+		InvalidMagic, //Either no firmware is flashed, or there has been a memory corruption
+		UnalignedInterruptVector, //The application's interrupt vector is not aligned properly
+		InvalidEntryPoint, //The entry point pointer does not point into flash
+
+		backupRegisterCorrupted, //The backup register contained value different from 0 (reset value) or application_magic
+		Requested, //The bootloader was requested
+	};
+
+	inline EntryReason bootloadeEntryReason;
+
 	enum class Register {
 		EntryPoint,
 		InterruptVector,
@@ -68,7 +80,25 @@ namespace boot {
 		switch (target) {
 		case Bootloader_BootTarget_AMS: return "AMS";
 		}
-		return "unknown";
+		return "UNKNOWN";
+	}
+
+	constexpr char const* explain_enter_reason(EntryReason reason) {
+		switch (reason) {
+		case EntryReason::backupRegisterCorrupted:
+			return "BKP register corrupted.";
+		case EntryReason::DontEnter:
+			return "Don't enter.";
+		case EntryReason::InvalidEntryPoint:
+			return "App entry point invalid.";
+		case EntryReason::InvalidMagic:
+			return "Invalid jump table magic.";
+		case EntryReason::Requested:
+			return "Bootloader requested.";
+		case EntryReason::UnalignedInterruptVector:
+			return "App isr vector not aligned.";
+		}
+		return "UNKNOWN";
 	}
 
 
@@ -100,6 +130,7 @@ namespace boot {
 		std::array<std::uint32_t, Flash::pageCount> erased_pages_;
 		std::size_t erased_pages_count_;
 		Status status_ = Status::Ready;
+		static inline EntryReason entryReason_ = EntryReason::DontEnter;
 
 		WriteStatus checkBeforeWrite(std::uint32_t address);
 
@@ -116,6 +147,8 @@ namespace boot {
 
 		HandshakeResponse processHandshake(Register reg, std::uint32_t value);
 
+		static void setEntryReason(EntryReason);
+		static EntryReason entryReason() { return entryReason_; }
 	};
 
 }

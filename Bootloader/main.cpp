@@ -66,7 +66,10 @@ namespace boot {
 
 	void main() {
 
-		debug_printf(("Entering bootloader of %s\r\n", to_string(Bootloader::thisUnit)));
+		auto const reason = explain_enter_reason(Bootloader::entryReason());
+		auto const unitName = to_string(Bootloader::thisUnit);
+
+		debug_printf(("Entering bootloader of %s (%s)\r\n", unitName, reason));
 
 		txInit();
 
