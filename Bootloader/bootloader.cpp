@@ -83,6 +83,24 @@ namespace boot {
 		return HandshakeResponse::Ok;
 	}
 
+	void Bootloader::finishTransaction() const {
+		assert(firmware_.size_ == firmware_.writtenBytes_);
+		assert(Flash::addressOrigin(firmware_.interruptVector_) == AddressSpace::AvailableFlash);
+		assert(Flash::addressOrigin(firmware_.entryPoint_) == AddressSpace::AvailableFlash);
+		assert(ufsel::bit::all_cleared(firmware_.entryPoint_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
+
+		//The page must have been cleared before
+		auto const empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
+		assert(jumpTable.magic1_ == empty && jumpTable.magic2_ == empty && jumpTable.magic3_ == empty);
+
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic1_), ApplicationJumpTable::expected_magic1_value);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic2_), ApplicationJumpTable::expected_magic2_value);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic3_), ApplicationJumpTable::expected_magic3_value);
+
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.entryPoint_), firmware_.entryPoint_);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware_.interruptVector_);
+	}
+
 	HandshakeResponse Bootloader::processHandshake(Register reg, std::uint32_t value) {
 
 		switch (status_) {
@@ -208,6 +226,7 @@ namespace boot {
 			if (firmware_.writtenBytes_ != firmware_.size_)
 				return HandshakeResponse::NumWrittenBytesMismatch;
 
+			finishTransaction();
 			status_ = Status::Ready; //Transaction magic received. Let's call this transaction finished
 			return HandshakeResponse::Ok;
 

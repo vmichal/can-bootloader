@@ -159,6 +159,9 @@ namespace boot {
 
 		WriteStatus checkBeforeWrite(std::uint32_t address);
 
+		//Sets the jumpTable
+		void finishTransaction() const;
+
 		constexpr static auto magic_ = "Heli";
 	public:
 		constexpr static std::uint32_t transactionMagic = magic_[0] << 24 | magic_[1] << 16 | magic_[2] << 8 | magic_[3];
