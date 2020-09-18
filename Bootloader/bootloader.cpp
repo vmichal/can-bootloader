@@ -71,10 +71,11 @@ namespace boot {
 		for (;;); //wait for reset
 	}
 
-	void Bootloader::setEntryReason(EntryReason reason) {
+	void Bootloader::setEntryReason(EntryReason reason, int appErrorCode) {
 		assert(entryReason_ == EntryReason::DontEnter); //Make sure this is called only once
 
 		entryReason_ = reason;
+		appErrorCode_ = appErrorCode;
 	}
 
 

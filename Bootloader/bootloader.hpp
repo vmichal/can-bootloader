@@ -27,6 +27,7 @@ namespace boot {
 
 		backupRegisterCorrupted, //The backup register contained value different from 0 (reset value) or application_magic
 		Requested, //The bootloader was requested
+		ApplicationReturned, //The application returned from main
 	};
 
 	inline EntryReason bootloadeEntryReason;
@@ -97,6 +98,8 @@ namespace boot {
 			return "Bootloader requested.";
 		case EntryReason::UnalignedInterruptVector:
 			return "App isr vector not aligned.";
+		case EntryReason::ApplicationReturned:
+			return "Application returned from main.";
 		}
 		return "UNKNOWN";
 	}
@@ -131,6 +134,7 @@ namespace boot {
 		std::size_t erased_pages_count_;
 		Status status_ = Status::Ready;
 		static inline EntryReason entryReason_ = EntryReason::DontEnter;
+		static inline int appErrorCode_ = 0;
 
 		WriteStatus checkBeforeWrite(std::uint32_t address);
 
@@ -147,7 +151,9 @@ namespace boot {
 
 		HandshakeResponse processHandshake(Register reg, std::uint32_t value);
 
-		static void setEntryReason(EntryReason);
+		static void setEntryReason(EntryReason, int appErrorCode = 0);
+
+		static int appErrorCode() { return appErrorCode_; }
 		static EntryReason entryReason() { return entryReason_; }
 	};
 

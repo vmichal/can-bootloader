@@ -50,6 +50,12 @@ namespace boot {
 
 	}
 
+	void latchAfterAppReturned() {
+		debug_printf(("Running firmware returned value %d.\r\nLatching until system reset.\r\n", Bootloader::appErrorCode()));
+		canManager.FlushSerialOutput();
+		for (;;);
+	}
+
 	/*Transaction protocol:
 	The communication uses messages Handshake and Data and their corresponding Acknowledgements
 	For every sent message a corresponding ack must be awaited to make sure the system performed requested operation.
@@ -66,10 +72,14 @@ namespace boot {
 
 	void main() {
 
+
 		auto const reason = explain_enter_reason(Bootloader::entryReason());
 		auto const unitName = to_string(Bootloader::thisUnit);
 
 		debug_printf(("Entering bootloader of %s (%s)\r\n", unitName, reason));
+
+		if (Bootloader::entryReason() == EntryReason::ApplicationReturned)
+			latchAfterAppReturned();
 
 		txInit();
 

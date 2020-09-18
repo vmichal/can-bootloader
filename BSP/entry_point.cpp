@@ -78,19 +78,26 @@ namespace bsp {
 
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
 
-		boot::EntryReason const reason = bootloader_requested();
+		boot::EntryReason reason = bootloader_requested();
+		int app_return_value = 0;
 
 		if (reason == boot::EntryReason::DontEnter) {
 			//Disable clock to backup registers (to make the application feel as if no bootloader was present)
 			bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
 
 			SCB->VTOR = boot::jumpTable.interruptVector_; //Set the address of application's interrupt vector
-			reinterpret_cast<void(*)()>(boot::jumpTable.entryPoint_)(); //Jump to the main application
+			//TODO maybe estabilish the application's stack pointer, bur probably not and then restore it to our stack pointer
+			app_return_value = reinterpret_cast<int(*)()>(boot::jumpTable.entryPoint_)(); //Jump to the main application
+
+			/*Restore the address of bootloader's interrupt vector (must be tha same as the initial
+			vaule after reset, since it must have been loaded by the MCU at reset).*/
+			SCB->VTOR = 0; 
+
+			reason = boot::EntryReason::ApplicationReturned;
 		}
 
-		//reached only if we have to enter the bootloader
-		boot::Bootloader::setEntryReason(reason); //Store the entry reason for later
-
+		//Reached only if we have to enter the bootloader or the application returned from it's main
+		boot::Bootloader::setEntryReason(reason, app_return_value);
 		configure_system_clock();
 	}
 

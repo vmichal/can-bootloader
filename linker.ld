@@ -57,7 +57,7 @@ _Min_Stack_Size = 0x800; /* required amount of stack, at least 2 KiB */
 
 FlashStart = 0x08000000;
 FlashSize = 256K;
-BootloaderSize = 14K;
+BootloaderSize = 16K;
 ApplicationJumpTableSize = 2K;
 
 
