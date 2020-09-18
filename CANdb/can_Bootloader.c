@@ -171,6 +171,20 @@ void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data)) 
     Bootloader_ExitReq_status.on_receive = (void (*)(void)) callback;
 }
 
+int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data) {
+    uint8_t buffer[1];
+    buffer[0] = (data->Confirmed ? 1 : 0);
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_ExitAck_id, buffer, sizeof(buffer));
+    return rc;
+}
+
+int Bootloader_send_ExitAck(uint8_t Confirmed) {
+    uint8_t buffer[1];
+    buffer[0] = (Confirmed ? 1 : 0);
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_ExitAck_id, buffer, sizeof(buffer));
+    return rc;
+}
+
 int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data) {
     uint8_t buffer[4];
     buffer[0] = data->Address;

@@ -120,6 +120,15 @@ namespace boot {
 		send(msg);
 	}
 
+	void CanManager::SendExitAck(bool ok) const {
+		Bootloader_ExitAck_t message;
+		message.Confirmed = ok;
+
+		for (; !CanManager::hasEmptyMailbox<2>(););
+		send(message);
+	}
+
+
 	void CanManager::SendDataAck(std::uint32_t const address, WriteStatus const status) const {
 		Bootloader_DataAck_t message;
 

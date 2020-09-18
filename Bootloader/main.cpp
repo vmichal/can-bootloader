@@ -42,11 +42,17 @@ namespace boot {
 		});
 
 		Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t * data) {
+			if (bootloader.status() != Bootloader::Status::Ready) {
+				debug_printf(("Cannot exit bootloader right now.\r\n"));
+				canManager.SendExitAck(false);
+				return 1;
+			}
+			canManager.SendExitAck(true);
 			debug_printf(("Exiting the bootloader.\r\n"));
 			canManager.FlushSerialOutput();
 
 			Bootloader::resetToApplication();
-			return 0;
+			return 0; //Not reached
 			});
 
 	}

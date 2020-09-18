@@ -18,6 +18,7 @@ enum { Bootloader_EntryAck_id = 0x5F1 };
 enum { Bootloader_BootloaderBeacon_id = 0x5F2 };
 enum { Bootloader_Data_id = 0x5F3 };
 enum { Bootloader_ExitReq_id = 0x5F5 };
+enum { Bootloader_ExitAck_id = 0x5F6 };
 enum { Bootloader_DataAck_id = 0x5F8 };
 enum { Bootloader_Handshake_id = 0x5FA };
 enum { Bootloader_HandshakeAck_id = 0x5FB };
@@ -175,6 +176,17 @@ typedef struct Bootloader_ExitReq_t {
 
 
 /*
+ * Acknowledgement for a request to leave the bootloader.
+ * Carries information, whether the unit can transition from the bootloader to the main firmware at the moment.
+ * This transition is prohibited during the process of erasing or flashing. In that case only a power down can cause the bootloader to quit.
+ */
+typedef struct Bootloader_ExitAck_t {
+	/* True iff the unit is switching from the bootloader to firmware. */
+	uint8_t	Confirmed;
+} Bootloader_ExitAck_t;
+
+
+/*
  * Acknowledgement that the bootloader successfully received word of data. It is not necessary that the word has already been written.
  */
 typedef struct Bootloader_DataAck_t {
@@ -279,6 +291,9 @@ int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootload
 int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
 void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 
+int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
+int Bootloader_send_ExitAck(uint8_t Confirmed);
+
 int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data);
 int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result);
 
@@ -315,6 +330,10 @@ inline bool need_to_send<Bootloader_BootloaderBeacon_t>() {
 
 inline int send(const Bootloader_BootloaderBeacon_t& data) {
     return Bootloader_send_BootloaderBeacon_s(&data);
+}
+
+inline int send(const Bootloader_ExitAck_t& data) {
+    return Bootloader_send_ExitAck_s(&data);
 }
 
 inline int send(const Bootloader_DataAck_t& data) {

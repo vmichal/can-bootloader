@@ -167,6 +167,7 @@ namespace boot {
 		constexpr static Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
 		Status status() const { return status_; }
 
+		[[noreturn]]
 		static void resetToApplication();
 		HandshakeResponse tryErasePage(std::uint32_t address);
 

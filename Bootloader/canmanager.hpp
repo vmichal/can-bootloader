@@ -29,6 +29,7 @@ namespace boot {
 		void Update();
 
 		void SendDataAck(std::uint32_t, WriteStatus) const;
+		void SendExitAck(bool) const;
 		void SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const;
 
 		void FlushSerialOutput() const;
