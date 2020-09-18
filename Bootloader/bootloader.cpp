@@ -15,6 +15,9 @@
 namespace boot {
 
 	WriteStatus Bootloader::checkBeforeWrite(std::uint32_t const address) {
+		if (status_ != Status::ReceivingData)
+			return WriteStatus::NotReady;
+
 		switch (Flash::addressOrigin(address)) {
 
 		case AddressSpace::AvailableFlash:
@@ -41,6 +44,7 @@ namespace boot {
 		if (WriteStatus const ret = checkBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
+		firmware_.writtenBytes_ += sizeof(half_word);
 		return Flash::Write(address, half_word);
 	}
 
@@ -48,13 +52,169 @@ namespace boot {
 		if (WriteStatus const ret = checkBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
+		firmware_.writtenBytes_ += sizeof(word);
 		return Flash::Write(address, word);
 	}
 
+	HandshakeResponse Bootloader::tryErasePage(std::uint32_t address) {
+
+		if (!ufsel::bit::all_cleared(address, ufsel::bit::bitmask_of_width(11))) //pages are 2KiB wide
+			return HandshakeResponse::PageAddressNotAligned;
+
+		AddressSpace const space = Flash::addressOrigin(address);
+		switch (space) {
+		case AddressSpace::AvailableFlash:
+			break;
+		case AddressSpace::BootloaderFlash:
+		case AddressSpace::JumpTable:
+			return HandshakeResponse::PageProtected;
+		case AddressSpace::RAM:
+		case AddressSpace::Unknown:
+			return HandshakeResponse::AddressNotInFlash;
+		}
+
+		if (std::find(std::begin(erased_pages_), std::next(std::begin(erased_pages_),erased_pages_count_), address))
+			return HandshakeResponse::PageAlreadyErased;
+
+		erased_pages_[erased_pages_count_++] = address;
+		debug_printf(("Erasing page at %0lx\r\n", address));
+		Flash::ErasePage(address);
+
+		return HandshakeResponse::Ok;
+	}
 
 	HandshakeResponse Bootloader::processHandshake(Register reg, std::uint32_t value) {
-		return HandshakeResponse::PageProtected; //TODO implement
 
+		switch (status_) {
+		case Status::Ready: {//We are waiting for write to the magic register
+			if (reg != Register::TransactionMagic)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			if (value != transactionMagic)
+				return HandshakeResponse::InvalidTransactionMagic;
+
+			status_ = Status::TransactionStarted;
+			return HandshakeResponse::Ok;
+		}
+
+		case Status::TransactionStarted: {//We are waiting for the size of binary
+			if (reg != Register::FirmwareSize)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			//value holds the size of firmware in bytes.
+			debug_printf(("Firmware has size %ld bytes.\r\n", value));
+
+			if (value > Flash::availableMemory)
+				return HandshakeResponse::BinaryTooBig;
+
+			firmware_.size_ = value;
+			status_ = Status::ReceivedFirmwareSize;
+			return HandshakeResponse::Ok;
+		}
+
+		case Status::ReceivedFirmwareSize: {//Waiting for the number of pages
+			if (reg != Register::NumPagesToErase)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			debug_printf(("Will erase %ld flash pages\r\n", value));
+			if (value >= Flash::pageCount || value == 0)
+				return HandshakeResponse::NotEnoughPages;
+
+			firmware_.numPagesToErase_ = value;
+			status_ = Status::ReceivedNumPagestoErase;
+			return HandshakeResponse::Ok;
+		}
+
+		case Status::ReceivedNumPagestoErase: { //We are expectiong the first page to erase
+
+			if (reg != Register::PageToErase) //We have to erase at least one page.
+				return HandshakeResponse::HandshakeSequenceError;
+
+			if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
+				return result;
+
+			//We have erased one of the pages of flash. It meas that we are really commited
+			Flash::ErasePage(Flash::jumpTableAddress); //Clear the memory location with jump table
+
+			status_ = Status::ErasingPages;
+			return HandshakeResponse::Ok;
+		}
+		case Status::ErasingPages: { //We are expecting either more pages to erase 
+			switch (reg) {
+			case Register::PageToErase: {
+				if (erased_pages_count_ >= firmware_.numPagesToErase_)
+					return HandshakeResponse::ErasedPageCountMismatch;
+
+				if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
+					return result;
+
+				return HandshakeResponse::Ok;
+			}
+			case Register::EntryPoint: {
+				if (erased_pages_count_ != firmware_.numPagesToErase_)
+					return HandshakeResponse::ErasedPageCountMismatch;
+
+				debug_printf(("Received entry point at %0lx\r\n", value));
+				switch (Flash::addressOrigin(value)) {
+				case AddressSpace::AvailableFlash:
+					break; //Entry point in available application flash is expected
+
+				case AddressSpace::BootloaderFlash:
+				case AddressSpace::JumpTable:
+					return HandshakeResponse::PageProtected;
+
+				case AddressSpace::RAM:
+				case AddressSpace::Unknown:
+					return HandshakeResponse::AddressNotInFlash;
+				}
+
+				firmware_.entryPoint_ = value;
+				status_ = Status::ReceivedEntryPoint;
+				return HandshakeResponse::Ok;
+			}
+			default: //Any other register is an error tight now
+				return HandshakeResponse::HandshakeSequenceError;
+			}
+		}
+		case Status::ReceivedEntryPoint: //We are expecting the interrupt vector
+			if (reg != Register::InterruptVector)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			debug_printf(("Received isr vector at %0lx\r\n", value));
+			//TODO replace nine by some named constant
+			if (!ufsel::bit::all_cleared(value, ufsel::bit::bitmask_of_width(9))) //The interrupt vector is not aligned to 512B boundary.
+				return HandshakeResponse::InterruptVectorNotAligned;
+
+			firmware_.interruptVector_ = value;
+			return HandshakeResponse::Ok;
+
+		case Status::ReceivedInterruptVector: //Expecting one more transaction magic
+			if (reg != Register::TransactionMagic)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			if (value != transactionMagic)
+				return HandshakeResponse::InvalidTransactionMagic;
+
+			status_ = Status::ReceivingData;
+			return HandshakeResponse::Ok;
+
+		case Status::ReceivingData: //Expecting a transaction magic that would end the transaction
+			if (reg != Register::TransactionMagic)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			if (value != transactionMagic)
+				return HandshakeResponse::InvalidTransactionMagic;
+
+			if (firmware_.writtenBytes_ != firmware_.size_)
+				return HandshakeResponse::NumWrittenBytesMismatch;
+
+			status_ = Status::Ready; //Transaction magic received. Let's call this transaction finished
+			return HandshakeResponse::Ok;
+
+		case Status::Error:
+			return HandshakeResponse::HandshakeSequenceError;
+		}
+		assert_unreachable();
 	}
 
 

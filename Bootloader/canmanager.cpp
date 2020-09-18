@@ -24,7 +24,8 @@ namespace {
 
 		case boot::WriteStatus::Ok: return Bootloader_WriteResult_Ok;
 
-		case boot::WriteStatus::Timeout: return Bootloader_WriteResult_Timeout;
+		case boot::WriteStatus::Timeout: case boot::WriteStatus::NotReady:
+			return Bootloader_WriteResult_Timeout;
 		}
 		assert_unreachable();
 	}
@@ -32,16 +33,49 @@ namespace {
 	Bootloader_State toCan(boot::Bootloader::Status s) {
 		using namespace boot;
 		switch (s) {
-		case Bootloader::Status::Ready: return Bootloader_State_Ready;
-		case Bootloader::Status::ErasingPages: return Bootloader_State_ErasingPages;
-		case Bootloader::Status::Error: return Bootloader_State_Error;
-		case Bootloader::Status::ReceivedEntryPoint: return Bootloader_State_ReceivedEntryPoint;
-		case Bootloader::Status::ReceivedFirmwareSize: return Bootloader_State_ReceivedFirmwareSize;
-		case Bootloader::Status::ReceivedInterruptVector: return Bootloader_State_ReceivedInterruptVector;
-		case Bootloader::Status::ReceivedNumPagestoErase: return Bootloader_State_ReceivedNumPagestoErase;
-		case Bootloader::Status::ReceivingData: return Bootloader_State_ReceivingData;
-		case Bootloader::Status::TransactionStarted: return Bootloader_State_TransactionStarted;
 
+		case Bootloader::Status::Ready: return Bootloader_State_Ready;
+		case Bootloader::Status::TransactionStarted: return Bootloader_State_TransactionStarted;
+		case Bootloader::Status::ReceivedFirmwareSize: return Bootloader_State_ReceivedFirmwareSize;
+		case Bootloader::Status::ReceivedNumPagestoErase: return Bootloader_State_ReceivedNumPagestoErase;
+		case Bootloader::Status::ErasingPages: return Bootloader_State_ErasingPages;
+		case Bootloader::Status::ReceivedEntryPoint: return Bootloader_State_ReceivedEntryPoint;
+		case Bootloader::Status::ReceivedInterruptVector: return Bootloader_State_ReceivedInterruptVector;
+		case Bootloader::Status::ReceivingData: return Bootloader_State_ReceivingData; 
+		case Bootloader::Status::Error: return Bootloader_State_Error;
+		}
+		assert_unreachable();
+	}
+
+	Bootloader_HandshakeResponse toCan(boot::HandshakeResponse response) {
+		using namespace boot;
+
+		switch (response) {
+		case HandshakeResponse::Ok:
+			return Bootloader_HandshakeResponse_OK;
+
+		case HandshakeResponse::PageAddressNotAligned:
+			return Bootloader_HandshakeResponse_PageAddressNotAligned;
+		case HandshakeResponse::AddressNotInFlash:
+			return Bootloader_HandshakeResponse_AddressNotInFlash;
+		case HandshakeResponse::PageProtected:
+			return Bootloader_HandshakeResponse_PageProtected;
+		case HandshakeResponse::ErasedPageCountMismatch:
+			return Bootloader_HandshakeResponse_ErasedPageCountMismatch;
+		case HandshakeResponse::InvalidTransactionMagic:
+			return Bootloader_HandshakeResponse_InvalidTransactionMagic;
+		case HandshakeResponse::HandshakeSequenceError:
+			return Bootloader_HandshakeResponse_HandshakeSequenceError;
+		case HandshakeResponse::InterruptVectorNotAligned:
+			return Bootloader_HandshakeResponse_InterruptVectorNotAligned;
+		case HandshakeResponse::BinaryTooBig:
+			return Bootloader_HandshakeResponse_BinaryTooBig;
+		case HandshakeResponse::PageAlreadyErased:
+			return Bootloader_HandshakeResponse_PageAlreadyErased;
+		case HandshakeResponse::NotEnoughPages:
+			return Bootloader_HandshakeResponse_NotEnoughPages;
+		case HandshakeResponse::NumWrittenBytesMismatch:
+			return Bootloader_HandshakeResponse_NumWrittenBytesMismatch;
 		}
 		assert_unreachable();
 	}

@@ -60,15 +60,16 @@ namespace boot {
 	/*Transaction protocol:
 	The communication uses messages Handshake and Data and their corresponding Acknowledgements
 	For every sent message a corresponding ack must be awaited to make sure the system performed requested operation.
-	Steps 1-6 use the message Handshake. Step 7 uses the message Data
-	1) The master must write 0x696c6548 to the TransactionMagic register
+	Steps 1-7 use the message Handshake. Step 8 uses the message Data
+	1) The master must write 0x48656c69 to the TransactionMagic register
 	2) The master sends the size of flashed binary
 	3) The master sends the number of pages that will need to be erased
 	4) [repeated] The master sends addresses of flash pages that need to be erased
 	5) The master sends the entry point address
 	6) The master sends the address of the interrupt service routine table
+	7) Transaction magic must be sent by the master.
 
-	7) The master sends pair of address and data word that will be written to the flash
+	8) The master sends pair of address and data word that will be written to the flash
 	*/
 
 	/*TODO Big assumption is that the firmware is valid. We do not check this right now, 
@@ -87,7 +88,7 @@ namespace boot {
 			latchAfterAppReturned();
 			break;
 		case EntryReason::backupRegisterCorrupted:
-			debug_printf(("Used backup register (address %p) has value %0lx.\r\n", &BackupDomain::bootControlRegister, BackupDomain::bootControlRegister));
+			debug_printf(("Used backup register (address %p) has value %0x.\r\n", &BackupDomain::bootControlRegister, BackupDomain::bootControlRegister));
 			break;
 		case EntryReason::DontEnter:
 			assert_unreachable();

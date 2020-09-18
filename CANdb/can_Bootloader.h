@@ -43,7 +43,17 @@ enum Bootloader_HandshakeResponse {
     /* Available flash memory cannot fit the requested number of bytes. */
     Bootloader_HandshakeResponse_BinaryTooBig = 5,
     /* Received address of the interrupt vector is not aligned */
-    Bootloader_HandshakeResponse_InterruptVectorAddressNotAligned = 6,
+    Bootloader_HandshakeResponse_InterruptVectorNotAligned = 6,
+    /* Written transaction magic did not match the expected value. */
+    Bootloader_HandshakeResponse_InvalidTransactionMagic = 7,
+    /* Handshake is performed out of order. */
+    Bootloader_HandshakeResponse_HandshakeSequenceError = 8,
+    /* The specified page was already erased */
+    Bootloader_HandshakeResponse_PageAlreadyErased = 9,
+    /* There are not that many pages available */
+    Bootloader_HandshakeResponse_NotEnoughPages = 10,
+    /* The number of bytes written does not match the number of expected bytes */
+    Bootloader_HandshakeResponse_NumWrittenBytesMismatch = 11,
 };
 
 enum Bootloader_Register {
@@ -57,7 +67,7 @@ enum Bootloader_Register {
     Bootloader_Register_PageToErase = 3,
     /* Size in bytes of the firmware to be flashed. */
     Bootloader_Register_FirmwareSize = 4,
-    /* Magic value. Writing 0x696c6548 starts and ends the transaction. */
+    /* Magic value. Writing 0x48656c69 starts and ends the transaction. */
     Bootloader_Register_TransacionMagic = 5,
 };
 

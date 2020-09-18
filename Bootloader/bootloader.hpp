@@ -114,7 +114,14 @@ namespace boot {
 		PageAddressNotAligned,
 		AddressNotInFlash,
 		PageProtected,
-		ErasedPageCountMismatch
+		ErasedPageCountMismatch,
+		BinaryTooBig,
+		InterruptVectorNotAligned,
+		InvalidTransactionMagic,
+		HandshakeSequenceError,
+		PageAlreadyErased,
+		NotEnoughPages,
+		NumWrittenBytesMismatch
 	};
 
 
@@ -132,21 +139,36 @@ namespace boot {
 			Error
 		};
 
+
+
 	private:
+		struct FirmwareData {
+			std::uint32_t size_ = 0;
+			std::uint32_t writtenBytes_ = 0;
+			std::uint32_t entryPoint_ = 0;
+			std::uint32_t interruptVector_ = 0;
+			std::uint32_t numPagesToErase_ = 0;
+		};
+
 		std::array<std::uint32_t, Flash::pageCount> erased_pages_;
 		std::size_t erased_pages_count_;
 		Status status_ = Status::Ready;
+		FirmwareData firmware_;
 		static inline EntryReason entryReason_ = EntryReason::DontEnter;
 		static inline int appErrorCode_ = 0;
 
 		WriteStatus checkBeforeWrite(std::uint32_t address);
 
-
+		constexpr static auto magic_ = "Heli";
 	public:
+		constexpr static std::uint32_t transactionMagic = magic_[0] << 24 | magic_[1] << 16 | magic_[2] << 8 | magic_[3];
+
+
 		constexpr static Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
 		Status status() const { return status_; }
 
 		static void resetToApplication();
+		HandshakeResponse tryErasePage(std::uint32_t address);
 
 		WriteStatus write(std::uint32_t address, std::uint16_t half_word);
 		WriteStatus write(std::uint32_t address, std::uint32_t word);
@@ -159,6 +181,8 @@ namespace boot {
 		static int appErrorCode() { return appErrorCode_; }
 		static EntryReason entryReason() { return entryReason_; }
 	};
+
+	static_assert(Bootloader::transactionMagic == 0x48656c69); //This value is stated in the protocol description
 
 }
 

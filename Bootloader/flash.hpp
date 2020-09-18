@@ -32,7 +32,8 @@ namespace boot {
 		MemoryProtected,
 		NotInFlash,
 		AlreadyWritten,
-		Timeout
+		Timeout,
+		NotReady
 	};
 
 	struct Flash {
@@ -41,6 +42,7 @@ namespace boot {
 		static constexpr std::uint32_t pageSize = 1 << 11; //taken from the reference manual
 		static constexpr std::uint32_t pageAlignmentMask = pageSize - 1;
 		static std::size_t const availableMemory;
+		static std::uint32_t const jumpTableAddress;
 
 		static bool ErasePage(std::uint32_t pageAddress);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);
