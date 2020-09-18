@@ -31,8 +31,14 @@ namespace bsp {
 		if (!bit::all_cleared(boot::jumpTable.interruptVector_, bit::bitmask_of_width(9))) //TODO maybe make this width configurable?
 			return boot::EntryReason::UnalignedInterruptVector; //The interrupt table is not properly aligned to the 512 B boundary
 
+		//Application entry point is saved as the second word of the interrupt table
+		std::uint32_t const * const interruptVector = reinterpret_cast<std::uint32_t const *>(boot::jumpTable.interruptVector_);
+		if (boot::jumpTable.entryPoint_ != interruptVector[1]) //If they do not match, enter the bootloader
+			return boot::EntryReason::EntryPointMismatch;
+
 		if (boot::Flash::addressOrigin(boot::jumpTable.entryPoint_) != boot::AddressSpace::AvailableFlash)
 			return boot::EntryReason::InvalidEntryPoint;
+
 
 		switch (boot::BackupDomain::bootControlRegister) {
 		case boot::BackupDomain::reset_value: //enter the application after power reset

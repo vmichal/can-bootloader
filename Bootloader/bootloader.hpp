@@ -24,6 +24,7 @@ namespace boot {
 		InvalidMagic, //Either no firmware is flashed, or there has been a memory corruption
 		UnalignedInterruptVector, //The application's interrupt vector is not aligned properly
 		InvalidEntryPoint, //The entry point pointer does not point into flash
+		EntryPointMismatch, //The entry point is not the same as the second word of interrupt vector
 
 		backupRegisterCorrupted, //The backup register contained value different from 0 (reset value) or application_magic
 		Requested, //The bootloader was requested
@@ -92,6 +93,8 @@ namespace boot {
 			return "Don't enter.";
 		case EntryReason::InvalidEntryPoint:
 			return "App entry point invalid.";
+		case EntryReason::EntryPointMismatch:
+			return "Entry point address mismatch.";
 		case EntryReason::InvalidMagic:
 			return "Invalid jump table magic.";
 		case EntryReason::Requested:
