@@ -13,6 +13,7 @@
 #include "can_Bootloader.h"
 
 #include <library/timer.hpp>
+#include <BSP/can.hpp>
 #include <BSP/gpio.hpp>
 namespace boot {
 
@@ -82,6 +83,7 @@ namespace boot {
 			latchAfterAppReturned();
 
 		txInit();
+		bsp::can::enableIRQs(); //Enable reception from CAN
 
 		setupCanCallbacks();
 

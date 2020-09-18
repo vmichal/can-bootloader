@@ -107,7 +107,7 @@ namespace bsp {
 
 		gpio::Initialize();
 
-		Init_CAN_Interfaces();
+		can::Initialize();
 
 		gpio::LED_Blue_On();
 		gpio::LED_Orange_On();

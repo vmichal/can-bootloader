@@ -6,13 +6,18 @@
 
 
 #include "stm32f10x.h"
+#include <library/units.hpp>
 
-#define CAN1_BAUDRATE   500
-#define CAN2_BAUDRATE   1000
+constexpr Frequency can1_frequency = 500'000_Hz;
+constexpr Frequency can2_frequency = 1'000'000_Hz;
 
-void Init_CAN_Interfaces(void);
+namespace bsp::can {
 
+	void Initialize();
 
+	void enableIRQs();
+	void disableIRQs();
+}
 
 
 #endif /*__CAN_H */
