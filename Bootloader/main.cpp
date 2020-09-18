@@ -71,6 +71,9 @@ namespace boot {
 	7) The master sends pair of address and data word that will be written to the flash
 	*/
 
+	/*TODO Big assumption is that the firmware is valid. We do not check this right now, 
+	because every CAN message has CRC of its own. We may check this in the future.*/
+
 	void main() {
 
 
