@@ -55,6 +55,7 @@ ENTRY(Reset_Handler)
 _Min_Heap_Size = 0;      /* required amount of heap. None is required right now*/
 _Min_Stack_Size = 0x800; /* required amount of stack, at least 2 KiB */
 
+/*Includes a MEMORY command defining address space available to the application*/
 INCLUDE ../bootloader-aware-memory-map.ld
 
 bootloader_flash_start = ORIGIN(FLASH);
