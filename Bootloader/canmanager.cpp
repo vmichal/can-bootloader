@@ -16,15 +16,19 @@
 namespace {
 	Bootloader_WriteResult toCan(boot::WriteStatus s) {
 		switch (s) {
-		case boot::WriteStatus::AlreadyWritten: return Bootloader_WriteResult_AlreadyWritten;
+		case boot::WriteStatus::AlreadyWritten:
+			return Bootloader_WriteResult_AlreadyWritten;
+		
 		case boot::WriteStatus::MemoryProtected:
 		case boot::WriteStatus::NotInErasedMemory:
 		case boot::WriteStatus::NotInFlash:
 			return Bootloader_WriteResult_InvalidMemory;
 
-		case boot::WriteStatus::Ok: return Bootloader_WriteResult_Ok;
+		case boot::WriteStatus::Ok:
+			return Bootloader_WriteResult_Ok;
 
-		case boot::WriteStatus::Timeout: case boot::WriteStatus::NotReady:
+		case boot::WriteStatus::Timeout:
+		case boot::WriteStatus::NotReady:
 			return Bootloader_WriteResult_Timeout;
 		}
 		assert_unreachable();
@@ -170,9 +174,8 @@ namespace boot {
 
 	void CanManager::Update() {
 
-		if (need_to_send<Bootloader_SoftwareBuild_t>()) {
+		if (need_to_send<Bootloader_SoftwareBuild_t>())
 			SendSoftwareBuild();
-		}
 
 		if (need_to_send<Bootloader_SerialOutput_t>())
 			SendSerialOutput();

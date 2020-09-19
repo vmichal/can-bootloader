@@ -1,7 +1,7 @@
 /*
  * eForce CAN Bootloader
  *
- * Written by Vojtìch Michal
+ * Written by Vojtï¿½ch Michal
  *
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
@@ -28,8 +28,8 @@ namespace boot {
 	public:
 		void Update();
 
-		void SendDataAck(std::uint32_t, WriteStatus) const;
-		void SendExitAck(bool) const;
+		void SendDataAck(std::uint32_t address, WriteStatus result) const;
+		void SendExitAck(bool exitPossible) const;
 		void SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const;
 
 		void FlushSerialOutput() const;
