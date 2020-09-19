@@ -85,11 +85,12 @@ namespace bsp {
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
 
 		boot::EntryReason reason = bootloader_requested();
+		//Disable clock to backup registers (to make the application feel as if no bootloader was present)
+		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
+
 		int app_return_value = 0;
 
 		if (reason == boot::EntryReason::DontEnter) {
-			//Disable clock to backup registers (to make the application feel as if no bootloader was present)
-			bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
 
 			SCB->VTOR = boot::jumpTable.interruptVector_; //Set the address of application's interrupt vector
 			//TODO maybe estabilish the application's stack pointer, bur probably not and then restore it to our stack pointer
