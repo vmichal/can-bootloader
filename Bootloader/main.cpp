@@ -1,7 +1,7 @@
 /*
  * eForce CAN Bootloader
  *
- * Written by Vojtìch Michal
+ * Written by Vojtech Michal
  *
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
@@ -22,6 +22,8 @@ namespace boot {
 
 	void setupCanCallbacks() {
 		Bootloader_Data_on_receive([](Bootloader_Data_t * data) -> int {
+			gpio::LED_Blue_Toggle();
+
 			std::uint32_t const address = data->Address << 2;
 
 			WriteStatus const ret = data->HalfwordAccess 
@@ -34,6 +36,8 @@ namespace boot {
 			});
 
 		Bootloader_Handshake_on_receive([](Bootloader_Handshake_t * data) -> int {
+			gpio::LED_Blue_Toggle();
+
 			Register const reg = regToReg(data->Register);
 			auto const response = bootloader.processHandshake(reg, data->Value);
 
@@ -83,7 +87,6 @@ namespace boot {
 
 	void main() {
 
-
 		auto const reason = explain_enter_reason(Bootloader::entryReason());
 		auto const unitName = to_string(Bootloader::thisUnit);
 
@@ -119,9 +122,11 @@ namespace boot {
 		}
 
 		txInit();
-		bsp::can::enableIRQs(); //Enable reception from CAN
+		canManager.FlushSerialOutput(); //Flush the serial output to get data out as soon as possible
+		gpio::LED_Orange_Off();
 
 		setupCanCallbacks();
+		bsp::can::enableIRQs(); //Enable reception from CAN
 
 		for (;;) { //main loop
 
@@ -136,11 +141,11 @@ namespace boot {
 
 		printf("HardFault\r\n");
 		canManager.FlushSerialOutput();
+		gpio::LED_Orange_On();
 
 		for (;;) {
 			BlockingDelay(100_ms);
 			gpio::LED_Blue_Toggle();
-			gpio::LED_Orange_Toggle();
 		}
 
 	}
