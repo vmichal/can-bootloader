@@ -14,20 +14,9 @@
 #include <array>
 #include <cstdint>
 
-/* We are interested in the following signals:
-	FAN1_RPM -> PA8  -> TIM1_CH1
-	FAN2_RPM -> PA9  -> TIM1_CH2
-	FAN3_RPM -> PA10 -> TIM1_CH3
-	IMD_PWM  -> PC9  -> TIM3_CH4 (remap)
-*/
-
 /* Timer allocation:
-	TIM1 - Channels 1,2,3 input capture - Fan PWM sensing
 	TIM2, TIM5 are chained together for microsecond timing. TIM5 is slave (slow timer)
-	TIM3 - Channel 4 - IMD PWM sensing
-	TIM4 - PWM from channel 1 - Fan control
-	TIM6 - microsecond benchmarking of tasks
-	TIM7 - microsecond benchmarking of main loop duration
+	TIM6, TIM7 - available for microsecond timing
 */
 
 constexpr auto SYS_CLK = 72'000'000_Hz; 
