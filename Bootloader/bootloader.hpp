@@ -13,6 +13,7 @@
 #include <type_traits>
 
 #include <library/assert.hpp>
+#include <library/units.hpp>
 
 #include "flash.hpp"
 #include "can_Bootloader.h"
@@ -20,7 +21,7 @@
 namespace boot {
 
 	enum class EntryReason {
-		DontEnter, //Bootloader will not be entered
+		DontEnter, //Bootloader will not be entered (jump straight to application)
 		InvalidMagic, //Either no firmware is flashed, or there has been a memory corruption
 		UnalignedInterruptVector, //The application's interrupt vector is not aligned properly
 		InvalidEntryPoint, //The entry point pointer does not point into flash
@@ -82,7 +83,7 @@ namespace boot {
 		switch (target) {
 		case Bootloader_BootTarget_AMS: return "AMS";
 		}
-		return "UNKNOWN";
+		assert_unreachable();
 	}
 
 	constexpr char const* explain_enter_reason(EntryReason reason) {
@@ -104,7 +105,7 @@ namespace boot {
 		case EntryReason::ApplicationReturned:
 			return "Application returned from main.";
 		}
-		return "UNKNOWN";
+		assert_unreachable();
 	}
 
 
@@ -143,11 +144,11 @@ namespace boot {
 
 	private:
 		struct FirmwareData {
-			std::uint32_t size_ = 0;
-			std::uint32_t writtenBytes_ = 0;
-			std::uint32_t entryPoint_ = 0;
-			std::uint32_t interruptVector_ = 0;
-			std::uint32_t numPagesToErase_ = 0;
+			InformationSize expectedBytes_ = 0_B; //Set during the handshake. Number of bytes to be written
+			InformationSize writtenBytes_ = 0_B; //The current number of bytes written. It is expected to equal the value expectedBytes_.
+			std::uint32_t entryPoint_ = 0; //Address of the entry point of flashed firmware
+			std::uint32_t interruptVector_ = 0; //Address of the interrupt table of flashed firmware
+			std::uint32_t numPagesToErase_ = 0; //Set during the handshake. Number of flash pages to erase
 		};
 
 		std::array<std::uint32_t, Flash::pageCount> erased_pages_;
@@ -157,7 +158,7 @@ namespace boot {
 		static inline EntryReason entryReason_ = EntryReason::DontEnter;
 		static inline int appErrorCode_ = 0;
 
-		WriteStatus checkBeforeWrite(std::uint32_t address);
+		WriteStatus checkAddressBeforeWrite(std::uint32_t address);
 
 		//Sets the jumpTable
 		void finishTransaction() const;

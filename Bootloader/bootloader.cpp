@@ -14,7 +14,7 @@
 #include <library/assert.hpp>
 namespace boot {
 
-	WriteStatus Bootloader::checkBeforeWrite(std::uint32_t const address) {
+	WriteStatus Bootloader::checkAddressBeforeWrite(std::uint32_t const address) {
 		if (status_ != Status::ReceivingData)
 			return WriteStatus::NotReady;
 
@@ -41,18 +41,18 @@ namespace boot {
 	}
 
 	WriteStatus Bootloader::write(std::uint32_t address, std::uint16_t half_word) {
-		if (WriteStatus const ret = checkBeforeWrite(address); ret != WriteStatus::Ok)
+		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
-		firmware_.writtenBytes_ += sizeof(half_word);
+		firmware_.writtenBytes_ += InformationSize::fromBytes(sizeof(half_word));
 		return Flash::Write(address, half_word);
 	}
 
 	WriteStatus Bootloader::write(std::uint32_t address, std::uint32_t word) {
-		if (WriteStatus const ret = checkBeforeWrite(address); ret != WriteStatus::Ok)
+		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
-		firmware_.writtenBytes_ += sizeof(word);
+		firmware_.writtenBytes_ += InformationSize::fromBytes(sizeof(word));
 		return Flash::Write(address, word);
 	}
 
@@ -84,7 +84,7 @@ namespace boot {
 	}
 
 	void Bootloader::finishTransaction() const {
-		assert(firmware_.size_ == firmware_.writtenBytes_);
+		assert(firmware_.expectedBytes_ == firmware_.writtenBytes_);
 		assert(Flash::addressOrigin(firmware_.interruptVector_) == AddressSpace::AvailableFlash);
 		assert(Flash::addressOrigin(firmware_.entryPoint_) == AddressSpace::AvailableFlash);
 		assert(ufsel::bit::all_cleared(firmware_.entryPoint_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
@@ -125,7 +125,7 @@ namespace boot {
 			if (value > Flash::availableMemory)
 				return HandshakeResponse::BinaryTooBig;
 
-			firmware_.size_ = value;
+			firmware_.expectedBytes_ = InformationSize::fromBytes(value);
 			status_ = Status::ReceivedFirmwareSize;
 			return HandshakeResponse::Ok;
 		}
@@ -223,7 +223,7 @@ namespace boot {
 			if (value != transactionMagic)
 				return HandshakeResponse::InvalidTransactionMagic;
 
-			if (firmware_.writtenBytes_ != firmware_.size_)
+			if (firmware_.writtenBytes_ != firmware_.expectedBytes_)
 				return HandshakeResponse::NumWrittenBytesMismatch;
 
 			finishTransaction();

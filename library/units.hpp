@@ -52,7 +52,17 @@ struct Quantity {
     constexpr static Derived copy(Derived const volatile& rhs) { return Derived{ rhs.raw_value };}
 };
 
+struct InformationSize : public Quantity<std::uintptr_t, InformationSize> {
+    //Internally stores storage size in bytes
 
+	constexpr static InformationSize fromBytes(underlying bytes) { return { bytes }; }
+	constexpr static InformationSize fromKibiBytes(underlying KiB) { return { KiB << 10 }; }
+	constexpr static InformationSize fromMebiBytes(underlying MiB) { return { MiB << 20 }; }
+
+    constexpr underlying toBytes()     const { return raw_value; }
+    constexpr underlying toKibiBytes() const { return raw_value >> 10; }
+    constexpr float      toMebiBytes() const { return raw_value / float(1 << 20); }
+};
 
 struct Voltage : public Quantity<int, Voltage> {
     //Internally stores voltage in microvolts
@@ -178,6 +188,10 @@ constexpr Voltage operator""_mV    (unsigned long long voltage) { return Voltage
 
 constexpr Current operator""_A      (unsigned long long current) { return Current::fromAmps(current); }
 constexpr Current operator""_mA     (unsigned long long current) { return Current::fromMilliamps(current); }
+
+constexpr InformationSize operator""_B   (unsigned long long size) {return InformationSize::fromBytes    (size); }
+constexpr InformationSize operator""_KiB (unsigned long long size) {return InformationSize::fromKibiBytes(size); }
+constexpr InformationSize operator""_MiB (unsigned long long size) {return InformationSize::fromMebiBytes(size); }
 
 static_assert(393_V - 394_V < 0_V, "Sanity check of unit arithmetic.");
 #endif
