@@ -15,7 +15,7 @@
 **
 **  Environment : System Workbench for MCU
 **
-**  Distribution: The file is distributed “as is,” without any warranty
+**  Distribution: The file is distributed as is, without any warranty
 **                of any kind.
 **
 *****************************************************************************
@@ -58,8 +58,8 @@ _Min_Stack_Size = 0x800; /* required amount of stack, at least 2 KiB */
 /*Includes a MEMORY command defining address space available to the application*/
 INCLUDE ../bootloader-aware-memory-map.ld
 
-bootloader_flash_start = ORIGIN(FLASH);
-bootloader_flash_end = ORIGIN(FLASH) + LENGTH(FLASH);
+bootloader_flash_start = ORIGIN(BootloaderFlash);
+bootloader_flash_end = ORIGIN(BootloaderFlash) + LENGTH(BootloaderFlash);
 
 jumpTable_start = ORIGIN(JumpTableFlash);
 jumpTable_end = ORIGIN(JumpTableFlash) + LENGTH(JumpTableFlash);
@@ -76,16 +76,16 @@ _estack = ORIGIN(RAM) + LENGTH(RAM); /* end of RAM */
 /* Define output sections */
 SECTIONS
 {
-  /* The startup code goes first into FLASH */
+  /* The startup code goes first into BootloaderFlash */
   .isr_vector :
   {
     /*Cortex M3 requires the interrupt vector be aligned to 512B boundary if we wanted to relocate it. */
     . = ALIGN(1 << 9);
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
-  } >FLASH
+  } >BootloaderFlash
 
-  /* The program code and other data goes into FLASH */
+  /* The program code and other data goes into BootloaderFlash */
   .text :
   {
     . = ALIGN(4);
@@ -100,7 +100,7 @@ SECTIONS
 
     . = ALIGN(4);
     _etext = .;        /* define a global symbols at end of code */
-  } >FLASH
+  } >BootloaderFlash
 
     /* .ctors .dtors are used for c++ constructors/destructors */
     .ctors :
@@ -109,7 +109,7 @@ SECTIONS
     KEEP(*(SORT(.ctors.*)))
     KEEP(*(.ctors))
     PROVIDE(__ctors_end__ = .);
-    } >FLASH
+    } >BootloaderFlash
 
     .dtors :
     {
@@ -117,44 +117,44 @@ SECTIONS
     KEEP(*(SORT(.dtors.*)))
     KEEP(*(.dtors))
     PROVIDE(__dtors_end__ = .);
-    } >FLASH
+    } >BootloaderFlash
 
-  /* Constant data goes into FLASH */
+  /* Constant data goes into BootloaderFlash */
   .rodata :
   {
     . = ALIGN(4);
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
     . = ALIGN(4);
-  } >FLASH
+  } >BootloaderFlash
 
-  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >FLASH
+  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >BootloaderFlash
   .ARM : {
     __exidx_start = .;
     *(.ARM.exidx*)
     __exidx_end = .;
-  } >FLASH
+  } >BootloaderFlash
 
   .preinit_array     :
   {
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array*))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-  } >FLASH
+  } >BootloaderFlash
   .init_array :
   {
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(SORT(.init_array.*)))
     KEEP (*(.init_array*))
     PROVIDE_HIDDEN (__init_array_end = .);
-  } >FLASH
+  } >BootloaderFlash
   .fini_array :
   {
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP (*(SORT(.fini_array.*)))
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  } >FLASH
+  } >BootloaderFlash
 
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
@@ -169,7 +169,7 @@ SECTIONS
 
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-  } >RAM AT> FLASH
+  } >RAM AT> BootloaderFlash
 
   
   /* Uninitialized data section */
