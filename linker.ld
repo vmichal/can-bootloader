@@ -55,20 +55,7 @@ ENTRY(Reset_Handler)
 _Min_Heap_Size = 0;      /* required amount of heap. None is required right now*/
 _Min_Stack_Size = 0x800; /* required amount of stack, at least 2 KiB */
 
-FlashStart = 0x08000000;
-FlashSize = 256K;
-BootloaderSize = 18K;
-ApplicationJumpTableSize = 2K;
-
-
-/* Specify the memory areas */
-MEMORY
-{
-FLASH(rx)                : ORIGIN = FlashStart, LENGTH = BootloaderSize
-JumpTableFlash(rx)       : ORIGIN = FlashStart + BootloaderSize, LENGTH = ApplicationJumpTableSize
-ApplicationFlash(rx)     : ORIGIN = FlashStart + BootloaderSize + ApplicationJumpTableSize, LENGTH = FlashSize - BootloaderSize
-RAM (xrw)                : ORIGIN = 0x20000000, LENGTH = 64K
-}
+INCLUDE ../bootloader-aware-memory-map.ld
 
 bootloader_flash_start = ORIGIN(FLASH);
 bootloader_flash_end = ORIGIN(FLASH) + LENGTH(FLASH);
