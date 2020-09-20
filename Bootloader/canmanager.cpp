@@ -46,6 +46,7 @@ namespace {
 		case Bootloader::Status::ReceivedEntryPoint: return Bootloader_State_ReceivedEntryPoint;
 		case Bootloader::Status::ReceivedInterruptVector: return Bootloader_State_ReceivedInterruptVector;
 		case Bootloader::Status::ReceivingData: return Bootloader_State_ReceivingData; 
+		case Bootloader::Status::ReceivedChecksum: return Bootloader_State_ReceivedChecksum;
 		case Bootloader::Status::Error: return Bootloader_State_Error;
 		}
 		assert_unreachable();
@@ -80,6 +81,10 @@ namespace {
 			return Bootloader_HandshakeResponse_NotEnoughPages;
 		case HandshakeResponse::NumWrittenBytesMismatch:
 			return Bootloader_HandshakeResponse_NumWrittenBytesMismatch;
+		case HandshakeResponse::EntryPointAddressMismatch:
+			return Bootloader_HandshakeResponse_EntryPointAddressMismatch;
+		case HandshakeResponse::ChecksumMismatch:
+			return Bootloader_HandshakeResponse_ChecksumMismatch;
 		}
 		assert_unreachable();
 	}

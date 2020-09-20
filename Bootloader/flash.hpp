@@ -91,6 +91,9 @@ namespace boot {
 				|| magic2_ == expected_magic2_value
 				|| magic3_ == expected_magic3_value;
 		}
+
+		//Clear the memory location with jump table
+		void invalidate();
 	};
 
 	inline ApplicationJumpTable jumpTable __attribute__((section("jumpTableSection")));

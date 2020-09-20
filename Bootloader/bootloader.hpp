@@ -40,6 +40,7 @@ namespace boot {
 		NumPagesToErase,
 		PageToErase,
 		FirmwareSize,
+		Checksum,
 		TransactionMagic
 	};
 
@@ -56,6 +57,8 @@ namespace boot {
 
 		case Register::FirmwareSize:
 			return Bootloader_Register_FirmwareSize;
+		case Register::Checksum:
+			return Bootloader_Register_Checksum;
 		case Register::TransactionMagic:
 			return Bootloader_Register_TransacionMagic;
 		}
@@ -73,6 +76,8 @@ namespace boot {
 			return Register::PageToErase;
 		case Bootloader_Register_FirmwareSize:
 			return Register::FirmwareSize;
+		case Bootloader_Register_Checksum:
+			return Register::Checksum;
 		case Bootloader_Register_TransacionMagic:
 			return Register::TransactionMagic;
 		}
@@ -122,7 +127,9 @@ namespace boot {
 		HandshakeSequenceError,
 		PageAlreadyErased,
 		NotEnoughPages,
-		NumWrittenBytesMismatch
+		NumWrittenBytesMismatch,
+		EntryPointAddressMismatch,
+		ChecksumMismatch,
 	};
 
 
@@ -137,6 +144,7 @@ namespace boot {
 			ReceivedEntryPoint,
 			ReceivedInterruptVector,
 			ReceivingData,
+			ReceivedChecksum,
 			Error
 		};
 
@@ -149,6 +157,7 @@ namespace boot {
 			std::uint32_t entryPoint_ = 0; //Address of the entry point of flashed firmware
 			std::uint32_t interruptVector_ = 0; //Address of the interrupt table of flashed firmware
 			std::uint32_t numPagesToErase_ = 0; //Set during the handshake. Number of flash pages to erase
+			std::uint32_t checksum_ = 0; //Checksum of already received words
 		};
 
 		std::array<std::uint32_t, Flash::pageCount> erased_pages_;

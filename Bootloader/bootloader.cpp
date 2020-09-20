@@ -44,16 +44,17 @@ namespace boot {
 		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
+		firmware_.checksum_ += half_word;
 		firmware_.writtenBytes_ += InformationSize::fromBytes(sizeof(half_word));
 		return Flash::Write(address, half_word);
 	}
 
 	WriteStatus Bootloader::write(std::uint32_t address, std::uint32_t word) {
-		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
+		std::uint16_t const lower_half = word, upper_half = word >> 16;
+		if (WriteStatus const ret = write(address, lower_half); ret != WriteStatus::Ok)
 			return ret;
 
-		firmware_.writtenBytes_ += InformationSize::fromBytes(sizeof(word));
-		return Flash::Write(address, word);
+		return write(address + 2, upper_half);
 	}
 
 	HandshakeResponse Bootloader::tryErasePage(std::uint32_t address) {
@@ -152,8 +153,7 @@ namespace boot {
 				return result;
 
 			//We have erased one of the pages of flash. It meas that we are really commited
-			Flash::ErasePage(Flash::jumpTableAddress); //Clear the memory location with jump table
-
+			jumpTable.invalidate();
 			status_ = Status::ErasingPages;
 			return HandshakeResponse::Ok;
 		}
@@ -216,15 +216,29 @@ namespace boot {
 			status_ = Status::ReceivingData;
 			return HandshakeResponse::Ok;
 
-		case Status::ReceivingData: //Expecting a transaction magic that would end the transaction
+		case Status::ReceivingData: { //Expecting the checksum
+			if (reg != Register::Checksum)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			if (firmware_.writtenBytes_ != firmware_.expectedBytes_) //A different number of bytes has been written
+				return HandshakeResponse::NumWrittenBytesMismatch;
+
+			if (value != firmware_.checksum_)
+				return HandshakeResponse::ChecksumMismatch;
+
+			std::uint32_t const* isr_vector = reinterpret_cast<std::uint32_t const*>(firmware_.interruptVector_);
+			if (firmware_.entryPoint_ != isr_vector[1]) //The second word of isr vector shall be the address of application's entry point
+				return HandshakeResponse::EntryPointAddressMismatch;
+
+			status_ = Status::ReceivedChecksum;
+			return HandshakeResponse::Ok;
+		}
+		case Status::ReceivedChecksum:
 			if (reg != Register::TransactionMagic)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value != transactionMagic)
+			if (value != transactionMagic) //Invalid magic was given
 				return HandshakeResponse::InvalidTransactionMagic;
-
-			if (firmware_.writtenBytes_ != firmware_.expectedBytes_)
-				return HandshakeResponse::NumWrittenBytesMismatch;
 
 			finishTransaction();
 			status_ = Status::Ready; //Transaction magic received. Let's call this transaction finished

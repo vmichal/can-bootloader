@@ -70,7 +70,7 @@ namespace boot {
 	/*Transaction protocol:
 	The communication uses messages Handshake and Data and their corresponding Acknowledgements
 	For every sent message a corresponding ack must be awaited to make sure the system performed requested operation.
-	Steps 1-7 use the message Handshake. Step 8 uses the message Data
+	Steps 1-7, 9-10 use the message Handshake. Step 8 uses the message Data
 	1) The master must write 0x48656c69 to the TransactionMagic register
 	2) The master sends the size of flashed binary
 	3) The master sends the number of pages that will need to be erased
@@ -80,6 +80,9 @@ namespace boot {
 	7) Transaction magic must be sent by the master.
 
 	8) The master sends pair of address and data word that will be written to the flash
+
+	9) The master send checsum of the written firmware
+	10) The master writes magic value to indicate the end of transaction
 	*/
 
 	/*TODO Big assumption is that the firmware is valid. We do not check this right now, 

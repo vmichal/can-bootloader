@@ -13,17 +13,17 @@ enum {
     bus_UNDEFINED = 2,
 };
 
-enum { Bootloader_EntryReq_id = 0x5F0 };
-enum { Bootloader_EntryAck_id = 0x5F1 };
-enum { Bootloader_BootloaderBeacon_id = 0x5F2 };
-enum { Bootloader_Data_id = 0x5F3 };
-enum { Bootloader_ExitReq_id = 0x5F5 };
-enum { Bootloader_ExitAck_id = 0x5F6 };
-enum { Bootloader_DataAck_id = 0x5F8 };
-enum { Bootloader_Handshake_id = 0x5FA };
-enum { Bootloader_HandshakeAck_id = 0x5FB };
-enum { Bootloader_SoftwareBuild_id = 0x5FD };
-enum { Bootloader_SerialOutput_id = 0x5FF };
+enum { Bootloader_EntryReq_id           = STD_ID(0x5F0) };
+enum { Bootloader_EntryAck_id           = STD_ID(0x5F1) };
+enum { Bootloader_BootloaderBeacon_id   = STD_ID(0x5F2) };
+enum { Bootloader_Data_id               = STD_ID(0x5F3) };
+enum { Bootloader_ExitReq_id            = STD_ID(0x5F5) };
+enum { Bootloader_ExitAck_id            = STD_ID(0x5F6) };
+enum { Bootloader_DataAck_id            = STD_ID(0x5F8) };
+enum { Bootloader_Handshake_id          = STD_ID(0x5FA) };
+enum { Bootloader_HandshakeAck_id       = STD_ID(0x5FB) };
+enum { Bootloader_SoftwareBuild_id      = STD_ID(0x5FD) };
+enum { Bootloader_SerialOutput_id       = STD_ID(0x5FF) };
 
 enum Bootloader_BootTarget {
     /* Accumulator management System */
@@ -55,6 +55,10 @@ enum Bootloader_HandshakeResponse {
     Bootloader_HandshakeResponse_NotEnoughPages = 10,
     /* The number of bytes written does not match the number of expected bytes */
     Bootloader_HandshakeResponse_NumWrittenBytesMismatch = 11,
+    /* The specified entry point does not match the second word in interrupt vector. */
+    Bootloader_HandshakeResponse_EntryPointAddressMismatch = 12,
+    /* Received checksum of the firmware does not match the computed checksum. */
+    Bootloader_HandshakeResponse_ChecksumMismatch = 13,
 };
 
 enum Bootloader_Register {
@@ -68,8 +72,10 @@ enum Bootloader_Register {
     Bootloader_Register_PageToErase = 3,
     /* Size in bytes of the firmware to be flashed. */
     Bootloader_Register_FirmwareSize = 4,
+    /* Checksum of the firmware. Taken as the sum of all transmitted halfwords (16bit) */
+    Bootloader_Register_Checksum = 5,
     /* Magic value. Writing 0x48656c69 starts and ends the transaction. */
-    Bootloader_Register_TransacionMagic = 5,
+    Bootloader_Register_TransacionMagic = 6,
 };
 
 enum Bootloader_State {
@@ -89,8 +95,10 @@ enum Bootloader_State {
     Bootloader_State_ReceivedInterruptVector = 6,
     /* Bootloader is currently receiving bytes over the bus */
     Bootloader_State_ReceivingData = 7,
+    /* The device has received checksum of the firmware. */
+    Bootloader_State_ReceivedChecksum = 8,
     /* Some error occured. //TODO make it more concrete */
-    Bootloader_State_Error = 8,
+    Bootloader_State_Error = 9,
 };
 
 enum Bootloader_WriteResult {

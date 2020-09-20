@@ -105,5 +105,10 @@ namespace boot {
 
 	}
 
+	void ApplicationJumpTable::invalidate() {
+		//This vv better hold if we want to preserve data integrity
+		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
+		Flash::ErasePage(Flash::jumpTableAddress);
+	}
 
 }
