@@ -191,7 +191,7 @@ int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data) {
     buffer[1] = (data->Address >> 8);
     buffer[2] = (data->Address >> 16);
     buffer[3] = ((data->Address >> 24) & 0x3F) | ((data->Result & 0x03) << 6);
-    int rc = txSendCANMessage(bus_UNDEFINED, Bootloader_DataAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_DataAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -201,7 +201,7 @@ int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result
     buffer[1] = (Address >> 8);
     buffer[2] = (Address >> 16);
     buffer[3] = ((Address >> 24) & 0x3F) | ((Result & 0x03) << 6);
-    int rc = txSendCANMessage(bus_UNDEFINED, Bootloader_DataAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_DataAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -246,7 +246,7 @@ int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data) {
     buffer[2] = (data->Value >> 8);
     buffer[3] = (data->Value >> 16);
     buffer[4] = (data->Value >> 24);
-    int rc = txSendCANMessage(bus_UNDEFINED, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -257,7 +257,7 @@ int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloa
     buffer[2] = (Value >> 8);
     buffer[3] = (Value >> 16);
     buffer[4] = (Value >> 24);
-    int rc = txSendCANMessage(bus_UNDEFINED, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -268,7 +268,7 @@ int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data) {
     buffer[2] = (data->CommitSHA >> 16);
     buffer[3] = (data->CommitSHA >> 24);
     buffer[4] = (data->DirtyRepo ? 1 : 0);
-    int rc = txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_SoftwareBuild_last_sent = txGetTimeMillis();
@@ -284,7 +284,7 @@ int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo) {
     buffer[2] = (CommitSHA >> 16);
     buffer[3] = (CommitSHA >> 24);
     buffer[4] = (DirtyRepo ? 1 : 0);
-    int rc = txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_SoftwareBuild_last_sent = txGetTimeMillis();
@@ -307,7 +307,7 @@ int Bootloader_send_SerialOutput_s(const Bootloader_SerialOutput_t* data) {
     buffer[5] = data->Payload[4];
     buffer[6] = data->Payload[5];
     buffer[7] = data->Payload[6];
-    int rc = txSendCANMessage(bus_CAN2, Bootloader_SerialOutput_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_SerialOutput_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_SerialOutput_last_sent = txGetTimeMillis();
@@ -326,7 +326,7 @@ int Bootloader_send_SerialOutput(uint8_t SEQ, uint8_t Truncated, uint8_t Complet
     buffer[5] = Payload[4];
     buffer[6] = Payload[5];
     buffer[7] = Payload[6];
-    int rc = txSendCANMessage(bus_CAN2, Bootloader_SerialOutput_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_SerialOutput_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_SerialOutput_last_sent = txGetTimeMillis();
