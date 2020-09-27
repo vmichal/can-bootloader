@@ -473,10 +473,6 @@ class CanDB():
 						# 	#traceback.print_exc()
 						# 	continue
 						
-						if(len(m.sent_by)==0):
-							print("\tmessage ignored, nobody sends it...")
-							continue
-
 						for field in msg.get("fields"):
 							name = field.get("name")
 							# print("\tfield ",name)
