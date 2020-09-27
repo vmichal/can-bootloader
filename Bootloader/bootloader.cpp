@@ -74,7 +74,10 @@ namespace boot {
 			return HandshakeResponse::AddressNotInFlash;
 		}
 
-		if (std::find(std::begin(erased_pages_), std::next(std::begin(erased_pages_),erased_pages_count_), address))
+		
+		auto const beg = begin(erased_pages_);
+		auto const end = std::next(beg, erased_pages_count_);
+		if (std::find(beg, end, address) != end)
 			return HandshakeResponse::PageAlreadyErased;
 
 		erased_pages_[erased_pages_count_++] = address;
@@ -204,6 +207,7 @@ namespace boot {
 				return HandshakeResponse::InterruptVectorNotAligned;
 
 			firmware_.interruptVector_ = value;
+			status_ = Status::ReceivedInterruptVector;
 			return HandshakeResponse::Ok;
 
 		case Status::ReceivedInterruptVector: //Expecting one more transaction magic
