@@ -26,7 +26,7 @@ size_t RingStream::Read(uint8_t* data_out, size_t length, bool* empty_out, bool*
 
 void RingStream::Write(std::uint8_t const* data, size_t length) {
     // TODO: allow at least partial write!
-    if (!ringbufWrite(&ringbuf, data, 1)) {
+    if (!ringbufWrite(&ringbuf, data, length)) {
         truncated = true;
     }
 }

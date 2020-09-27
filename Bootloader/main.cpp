@@ -93,7 +93,7 @@ namespace boot {
 		auto const reason = explain_enter_reason(Bootloader::entryReason());
 		auto const unitName = to_string(Bootloader::thisUnit);
 
-		debug_printf(("Entering bootloader of %s (%s)\r\n", unitName, reason));
+		debug_printf(("\r\n\r\nEntering bootloader of %s (%s)\r\n", unitName, reason));
 
 		switch (Bootloader::entryReason()) {
 		case EntryReason::ApplicationReturned:
@@ -125,13 +125,18 @@ namespace boot {
 		}
 
 		txInit();
-		canManager.FlushSerialOutput(); //Flush the serial output to get data out as soon as possible
 		gpio::LED_Orange_Off();
 
 		setupCanCallbacks();
 		bsp::can::enableIRQs(); //Enable reception from CAN
 
 		for (;;) { //main loop
+
+			if (static SysTickTimer t; t.RestartIfTimeElapsed(1_s)) {
+				gpio::LED_Blue_Toggle();
+				static unsigned iteration = 0;
+				debug_printf(("Bootloader: Heartbeat %u\r\n", iteration++));
+			}
 
 			canManager.Update();
 

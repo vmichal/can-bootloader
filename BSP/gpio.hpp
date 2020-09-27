@@ -26,9 +26,9 @@ namespace gpio {
 		//CAN2_TX	GPIO port B, pin 34, digital – CAN TX
 		constexpr Pin CAN2_TX              = P('B', 13);
 		//L9	GPIO port C, pin 37, digital output – debuggovací LEDka
-		constexpr Pin LED_ORANGE           = P('C', 6);
+		constexpr Pin LED_BLUE             = P('C', 6);
 		//L8	GPIO port C, pin 38, digital output – debuggovací LEDka
-		constexpr Pin LED_BLUE             = P('C', 7);
+		constexpr Pin LED_ORANGE           = P('C', 7);
 	}
 
 

@@ -71,7 +71,7 @@ namespace bsp {
 		while (bit::all_cleared(RCC->CR, RCC_CR_PLLRDY)); //wait for it to stabilize
 
 		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_0 | RCC_CFGR_SW_1, RCC_CFGR_SW_PLL); //Set PLL as system clock
-		while (bit::sliceable_value{ RCC->CFGR } [bit::slice{ 1,0 }] != RCC_CFGR_SWS_PLL); //wait for it settle
+		while (bit::sliceable_value{ RCC->CFGR } [bit::slice{ 3,2 }].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
 
 		//Configure and start system microsecond clock
 		SystemTimer::Initialize();

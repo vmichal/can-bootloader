@@ -266,6 +266,7 @@ namespace boot {
 
 	void Bootloader::setEntryReason(EntryReason reason, int appErrorCode) {
 		assert(entryReason_ == EntryReason::DontEnter); //Make sure this is called only once
+		assert(reason != EntryReason::DontEnter); //Sanity check
 
 		entryReason_ = reason;
 		appErrorCode_ = appErrorCode;
