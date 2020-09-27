@@ -15,11 +15,11 @@ enum {
 
 enum { Bootloader_EntryReq_id           = STD_ID(0x5F0) };
 enum { Bootloader_EntryAck_id           = STD_ID(0x5F1) };
-enum { Bootloader_BootloaderBeacon_id   = STD_ID(0x5F2) };
+enum { Bootloader_Beacon_id             = STD_ID(0x5F2) };
 enum { Bootloader_Data_id               = STD_ID(0x5F3) };
+enum { Bootloader_DataAck_id            = STD_ID(0x5F4) };
 enum { Bootloader_ExitReq_id            = STD_ID(0x5F5) };
 enum { Bootloader_ExitAck_id            = STD_ID(0x5F6) };
-enum { Bootloader_DataAck_id            = STD_ID(0x5F8) };
 enum { Bootloader_Handshake_id          = STD_ID(0x5FA) };
 enum { Bootloader_HandshakeAck_id       = STD_ID(0x5FB) };
 enum { Bootloader_SoftwareBuild_id      = STD_ID(0x5FD) };
@@ -99,6 +99,8 @@ enum Bootloader_State {
     Bootloader_State_ReceivedChecksum = 8,
     /* Some error occured. //TODO make it more concrete */
     Bootloader_State_Error = 9,
+    /* This unit is running main application and may be requested to enter the bootloader. */
+    Bootloader_State_FirmwareActive = 10,
 };
 
 enum Bootloader_WriteResult {
@@ -134,13 +136,16 @@ typedef struct Bootloader_EntryReq_t {
 typedef struct Bootloader_EntryAck_t {
 	/* Identifies the unit which is currently transitioning to the bootloader. */
 	enum Bootloader_BootTarget	Target;
+
+	/* True iff the unit starts bootloader initialization sequence */
+	uint8_t	Confirmed;
 } Bootloader_EntryAck_t;
 
 
 /*
- * Sent periodically by the unit with active bootloader to announce its presence.
+ * Sent periodically by a bootloader aware unit or an active bootloader to announce its presence.
  */
-typedef struct Bootloader_BootloaderBeacon_t {
+typedef struct Bootloader_Beacon_t {
 	/* Identifies which unit has active bootloader */
 	enum Bootloader_BootTarget	Unit;
 
@@ -149,12 +154,12 @@ typedef struct Bootloader_BootloaderBeacon_t {
 
 	/* Available flash size in kibibytes. */
 	uint16_t	FlashSize;
-} Bootloader_BootloaderBeacon_t;
+} Bootloader_Beacon_t;
 
-#define Bootloader_BootloaderBeacon_FlashSize_OFFSET	((float)0)
-#define Bootloader_BootloaderBeacon_FlashSize_FACTOR	((float)1)
-#define Bootloader_BootloaderBeacon_FlashSize_MIN	((float)0)
-#define Bootloader_BootloaderBeacon_FlashSize_MAX	((float)65535)
+#define Bootloader_Beacon_FlashSize_OFFSET	((float)0)
+#define Bootloader_Beacon_FlashSize_FACTOR	((float)1)
+#define Bootloader_Beacon_FlashSize_MIN	((float)0)
+#define Bootloader_Beacon_FlashSize_MAX	((float)65535)
 
 /*
  * Stream of data to be flashed into the MCU.
@@ -175,6 +180,18 @@ typedef struct Bootloader_Data_t {
 #define Bootloader_Data_Address_MIN	((float)0)
 
 /*
+ * Acknowledgement that the bootloader successfully received word of data. It is not necessary that the word has already been written.
+ */
+typedef struct Bootloader_DataAck_t {
+	/* Word (4B) aligned address of last write comand. */
+	uint32_t	Address;
+
+	/* Identifies the result of previous write operation. */
+	enum Bootloader_WriteResult	Result;
+} Bootloader_DataAck_t;
+
+
+/*
  * Request from the flash master to an ECU to exit the bootloader.
  */
 typedef struct Bootloader_ExitReq_t {
@@ -189,21 +206,12 @@ typedef struct Bootloader_ExitReq_t {
  * This transition is prohibited during the process of erasing or flashing. In that case only a power down can cause the bootloader to quit.
  */
 typedef struct Bootloader_ExitAck_t {
+	/* Identifies the target unit */
+	enum Bootloader_BootTarget	Unit;
+
 	/* True iff the unit is switching from the bootloader to firmware. */
 	uint8_t	Confirmed;
 } Bootloader_ExitAck_t;
-
-
-/*
- * Acknowledgement that the bootloader successfully received word of data. It is not necessary that the word has already been written.
- */
-typedef struct Bootloader_DataAck_t {
-	/* Word (4B) aligned address of last write comand. */
-	uint32_t	Address;
-
-	/* Identifies the result of previous write operation. */
-	enum Bootloader_WriteResult	Result;
-} Bootloader_DataAck_t;
 
 
 /*
@@ -283,16 +291,19 @@ int Bootloader_get_EntryReq(Bootloader_EntryReq_t* data_out);
 void Bootloader_EntryReq_on_receive(int (*callback)(Bootloader_EntryReq_t* data));
 
 int Bootloader_send_EntryAck_s(const Bootloader_EntryAck_t* data);
-int Bootloader_send_EntryAck(enum Bootloader_BootTarget Target);
+int Bootloader_send_EntryAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
 
-int Bootloader_send_BootloaderBeacon_s(const Bootloader_BootloaderBeacon_t* data);
-int Bootloader_send_BootloaderBeacon(enum Bootloader_BootTarget Unit, enum Bootloader_State State, uint16_t FlashSize);
-int Bootloader_BootloaderBeacon_need_to_send(void);
+int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
+int Bootloader_send_Beacon(enum Bootloader_BootTarget Unit, enum Bootloader_State State, uint16_t FlashSize);
+int Bootloader_Beacon_need_to_send(void);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
 int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint8_t* HalfwordAccess_out, uint32_t* Word_out);
 int Bootloader_get_Data(Bootloader_Data_t* data_out);
 void Bootloader_Data_on_receive(int (*callback)(Bootloader_Data_t* data));
+
+int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data);
+int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result);
 
 int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out);
 int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
@@ -300,10 +311,7 @@ int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
 void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 
 int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
-int Bootloader_send_ExitAck(uint8_t Confirmed);
-
-int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data);
-int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result);
+int Bootloader_send_ExitAck(enum Bootloader_BootTarget Unit, uint8_t Confirmed);
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
 int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, uint32_t* Value_out);
@@ -332,20 +340,20 @@ inline int send(const Bootloader_EntryAck_t& data) {
 }
 
 template <>
-inline bool need_to_send<Bootloader_BootloaderBeacon_t>() {
-    return Bootloader_BootloaderBeacon_need_to_send();
+inline bool need_to_send<Bootloader_Beacon_t>() {
+    return Bootloader_Beacon_need_to_send();
 }
 
-inline int send(const Bootloader_BootloaderBeacon_t& data) {
-    return Bootloader_send_BootloaderBeacon_s(&data);
-}
-
-inline int send(const Bootloader_ExitAck_t& data) {
-    return Bootloader_send_ExitAck_s(&data);
+inline int send(const Bootloader_Beacon_t& data) {
+    return Bootloader_send_Beacon_s(&data);
 }
 
 inline int send(const Bootloader_DataAck_t& data) {
     return Bootloader_send_DataAck_s(&data);
+}
+
+inline int send(const Bootloader_ExitAck_t& data) {
+    return Bootloader_send_ExitAck_s(&data);
 }
 
 inline int send(const Bootloader_HandshakeAck_t& data) {

@@ -18,7 +18,7 @@ namespace boot {
 
 		void SendSoftwareBuild() const;
 		void SendSerialOutput() const;
-		void SendBootloaderBeacon() const;
+		void SendBeacon() const;
 
 		template<int periph>
 		static bool hasEmptyMailbox();

@@ -160,8 +160,8 @@ namespace boot {
 		send(message);
 	}
 
-	void CanManager::SendBootloaderBeacon() const {
-		Bootloader_BootloaderBeacon_t message;
+	void CanManager::SendBeacon() const {
+		Bootloader_Beacon_t message;
 		message.State = toCan(bootloader_.status());
 		message.Unit = Bootloader::thisUnit;
 		message.FlashSize = Flash::availableMemory / 1024;
@@ -185,8 +185,8 @@ namespace boot {
 		if (need_to_send<Bootloader_SerialOutput_t>())
 			SendSerialOutput();
 
-		if (need_to_send<Bootloader_BootloaderBeacon_t>())
-			SendBootloaderBeacon();
+		if (need_to_send<Bootloader_Beacon_t>())
+			SendBeacon();
 
 	}
 
