@@ -314,7 +314,7 @@ class FlashMaster():
 		return enumerator == 'OK'
 
 	def receive_data_ack(self, ev, sent):
-		fields = self.HandshakeAck.fields
+		fields = self.DataAck.fields
 
 		try:
 			address_index = fields.index(next(field for field in fields if field.description.name == "Address"))
@@ -330,8 +330,8 @@ class FlashMaster():
 		fields = db.getMsgById(ev.id.value).fields
 
 		#TODO check that this response is to our last transmit
-		address = fields[address_index]
-		result = self.WriteResultEnum.linked_enum.enum[fields[result_index]].name
+		address = fields[address_index].value[0]
+		result = self.WriteResultEnum.enum[fields[result_index].value[0]].name
 
 		if address != sent[0]:
 			print(f'Received acknowledge to different data! Written address 0x{sent[0]:08x}, received 0x{address:08x}')
