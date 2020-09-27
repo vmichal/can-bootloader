@@ -410,11 +410,12 @@ class FlashMaster():
 		assert len(data) == 4 # we support only word writes now
 		buffer = [0] * 8
 		word = int(''.join(data[::-1]), 16)
-		self.Data.assemble([address, False, word], buffer)
+		shifted_address = address >> 2
+		self.Data.assemble([shifted_address, False, word], buffer)
 
 		attempts = 0
 		self.send_message(self.Data.identifier, buffer)
-		while attempts < 5 and not self.wait_for_message(self.DataAck.identifier, (address, word)):
+		while attempts < 5 and not self.wait_for_message(self.DataAck.identifier, (shifted_address, word)):
 			self.send_message(self.Data.identifier, buffer)
 			attempts = attempts + 1
 			
@@ -480,8 +481,10 @@ class FlashMaster():
 				data_as_word = int("".join(data[::-1]), 16)
 				print(f'Programming 0x{absolute_address:08x} = 0x{data_as_word:08x} ... ', end = '')
 				self.send_data(absolute_address, data)
-				checksum += data_as_word >> 16 + data_as_word & 0xffff
-	
+				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
+		
+		print(f'Firmware checksum = {checksum}')
+
 		print('Sending checksum ... ', end = '')
 		self.send_handshake(enumerator_by_name('Checksum', self.RegisterEnum), checksum)
 

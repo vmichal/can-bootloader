@@ -91,7 +91,7 @@ namespace boot {
 		assert(firmware_.expectedBytes_ == firmware_.writtenBytes_);
 		assert(Flash::addressOrigin(firmware_.interruptVector_) == AddressSpace::AvailableFlash);
 		assert(Flash::addressOrigin(firmware_.entryPoint_) == AddressSpace::AvailableFlash);
-		assert(ufsel::bit::all_cleared(firmware_.entryPoint_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
+		assert(ufsel::bit::all_cleared(firmware_.interruptVector_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
 
 		//The page must have been cleared before
 		auto const empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
