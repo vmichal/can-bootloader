@@ -310,11 +310,8 @@ class FlashMaster():
 
 		
 		enumerator = self.HandshakeResponseEnum.enum[fields[response_index].value[0]].name
-		if enumerator != 'OK':
-			print(f'Received response to Handshake ... {enumerator}')
-			return False
-
-		return True
+		print(enumerator)
+		return enumerator == 'OK'
 
 	def receive_data_ack(self, ev, sent):
 		fields = self.HandshakeAck.fields
@@ -340,11 +337,8 @@ class FlashMaster():
 			print(f'Received acknowledge to different data! Written address 0x{sent[0]:08x}, received 0x{address:08x}')
 			return False
 
-		if result != 'Ok':
-			print(f'Received response to Data ... {result}')
-			return False
-
-		return True
+		print(result)
+		return result == 'Ok'
 
 	#print piece of bootloader's standard output to the output file
 	def receive_serial_output(self, ev, output_file = sys.stderr):
@@ -402,9 +396,15 @@ class FlashMaster():
 		buffer = [0] * 5
 		self.Handshake.assemble([reg, value],buffer)
 
+		attempts = 0
 		self.send_message(self.Handshake.identifier, buffer)
-		while not self.wait_for_message(self.HandshakeAck.identifier, (reg, value)):
+		while attempts < 5 and not self.wait_for_message(self.HandshakeAck.identifier, (reg, value)):
 			self.send_message(self.Handshake.identifier, buffer)
+			attempts = attempts + 1
+
+		if attempts == 5:
+			print('Could not proceed.')
+			sys.exit(0)
 
 	def send_data(self, address, data):
 		assert len(data) == 4 # we support only word writes now
@@ -412,10 +412,15 @@ class FlashMaster():
 		word = int(''.join(data[::-1]), 16)
 		self.Data.assemble([address, False, word], buffer)
 
+		attempts = 0
 		self.send_message(self.Data.identifier, buffer)
-		while not self.wait_for_message(self.DataAck.identifier, (address, word)):
+		while attempts < 5 and not self.wait_for_message(self.DataAck.identifier, (address, word)):
 			self.send_message(self.Data.identifier, buffer)
+			attempts = attempts + 1
 			
+		if attempts == 5:
+			print('Could not proceed.')
+			sys.exit(0)
 		
 
 	def send_transaction_magic(self):
@@ -439,30 +444,30 @@ class FlashMaster():
 	def flash(self):
 		print('Flash transaction starts\n')
 		
-		print('Sending initial transaction magic')
+		print('Sending initial transaction magic ... ', end = '')
 		self.send_transaction_magic()
 		
-		print('Sending the size of new firmware')
+		print('Sending the size of new firmware ... ', end = '')
 		self.send_handshake(enumerator_by_name("FirmwareSize", self.RegisterEnum), self.firmware.length)
 		
-		print('Sending the number of pages to erase')
+		print('Sending the number of pages to erase ... ', end = '')
 		self.send_handshake(enumerator_by_name('NumPagesToErase', self.RegisterEnum), len(self.firmware.influenced_pages))
 		
 		print('Sending page addresses')
-		for page in self.firmware.influenced_pages:
-			print(f'Erasing page @ 0x{page:08x}')
+		for index, page in enumerate(self.firmware.influenced_pages):
+			print(f'Erasing page {index} @ 0x{page:08x} ... ', end = '')
 			self.send_handshake(enumerator_by_name('PageToErase', self.RegisterEnum), page)
 		
 		#TODO send one more magic here
 
-		print('Sending entry point address')
+		print('Sending entry point address ... ', end = '')
 		self.send_handshake(enumerator_by_name('EntryPoint', self.RegisterEnum), self.firmware.entry_point)
 
-		print('Sending interrupt vector')
+		print('Sending interrupt vector ... ', end = '')
 		#TODO make sure this is really the interrupt vector
 		self.send_handshake(enumerator_by_name('InterruptVector', self.RegisterEnum), self.firmware.memory_map[0].begin)
 
-		print('Sending second transaction magic')
+		print('Sending second transaction magic ... ', end = '')
 		self.send_transaction_magic()
 
 		checksum = 0
@@ -473,14 +478,14 @@ class FlashMaster():
 				absolute_address = block.begin + offset
 				data = block.data[offset : offset + 4]
 				data_as_word = int("".join(data[::-1]), 16)
-				print(f'Programming 0x{absolute_address:08x} = 0x{data_as_word:08x}')
+				print(f'Programming 0x{absolute_address:08x} = 0x{data_as_word:08x} ... ', end = '')
 				self.send_data(absolute_address, data)
 				checksum += data_as_word >> 16 + data_as_word & 0xffff
 	
-		print('Sending checksum')
+		print('Sending checksum ... ', end = '')
 		self.send_handshake(enumerator_by_name('Checksum', self.RegisterEnum), checksum)
 
-		print('Sending last transaction magic')
+		print('Sending last transaction magic ... ', end = '')
 		self.send_transaction_magic()
 
 		print('Flashed successfully')
