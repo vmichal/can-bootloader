@@ -284,7 +284,7 @@ class FlashMaster():
 
 		self.print_header()
 
-	def receive_handshake_ack(self, ev, sent):
+	def receive_handshake_ack(self, ev, sent, print_result):
 		fields = self.HandshakeAck.fields
 
 		try:
@@ -310,8 +310,10 @@ class FlashMaster():
 
 		
 		enumerator = self.HandshakeResponseEnum.enum[fields[response_index].value[0]].name
-		print(enumerator)
-		return enumerator == 'OK'
+		succ = enumerator == 'OK'
+		if not succ or print_result:
+			print(enumerator)
+		return succ
 
 	def receive_data_ack(self, ev, sent):
 		fields = self.DataAck.fields
@@ -364,7 +366,7 @@ class FlashMaster():
 			print(f'Received ExitAck from different unit! Targeted {enum[target]} but {enum[sent[0]]} responded.')
 			return False
 
-		print("Confirmed" if confirmed else "Refused")
+		print("Ok" if confirmed else "Refused")
 		return confirmed
 
 	def receive_entry_ack(self, ev, sent):
@@ -392,7 +394,7 @@ class FlashMaster():
 			print(f'Received EntryAck from different unit! Targeted {enum[target]} but {enum[sent[0]]} responded.')
 			return False
 
-		print("Confirmed" if confirmed else "Refused")
+		print("Ok" if confirmed else "Refused")
 		return confirmed
 
 	#returns pair (target, state)
@@ -446,7 +448,7 @@ class FlashMaster():
 		if completed.value[0]:
 			output_file.flush()
 
-	def wait_for_message(self, expected_id, sent):
+	def wait_for_message(self, expected_id, sent, print_result = True):
 		while True:
 			#receive message and check whether we are interested
 			ev = oc.read_event()
@@ -454,7 +456,7 @@ class FlashMaster():
 				continue
 
 			if ev.id.value == self.HandshakeAck.identifier:
-				ret = self.receive_handshake_ack(ev, sent)
+				ret = self.receive_handshake_ack(ev, sent, print_result)
 			elif ev.id.value == self.DataAck.identifier:
 				ret = self.receive_data_ack(ev, sent)
 			elif ev.id.value == self.SerialOutput.identifier:
@@ -474,13 +476,13 @@ class FlashMaster():
 		#print(f"Note: Sending message {hex(id)} with data 0x{apostrophe.join('{:02x}'.format(val) for val in data)}")
 		oc.send_message_std(id, data)
 
-	def send_handshake(self, reg, value):
+	def send_handshake(self, reg, value, print_result = True):
 		buffer = [0] * 5
 		self.Handshake.assemble([reg, value],buffer)
 
 		attempts = 0
 		self.send_message(self.Handshake.identifier, buffer)
-		while attempts < 5 and not self.wait_for_message(self.HandshakeAck.identifier, (reg, value)):
+		while attempts < 5 and not self.wait_for_message(self.HandshakeAck.identifier, (reg, value), print_result):
 			self.send_message(self.Handshake.identifier, buffer)
 			attempts = attempts + 1
 
@@ -567,11 +569,11 @@ class FlashMaster():
 
 	def print_header(self):
 		print('Desktop interface to CAN Bootloader')
-		print('Copyright (c) Vojtech Michal, eForce FEE Prague Formula 2020\n')
+		print('Written by Vojtech Michal, eForce FEE Prague Formula 2020\n')
 
 		targets = [self.BootTargetEnum.enum[val].name for val in self.BootTargetEnum.enum]
 		if len(targets) == 1:
-			print(f"Targetable unit is {targets[0]}")
+			print(f"The only targetable unit is {targets[0]}")
 		else:
 			print(f"Targetable units are {', '.join(targets)}")
 		print(f"Starting flash process for {self.unitName} (target id {self.target})\n")
@@ -586,7 +588,7 @@ class FlashMaster():
 		print("Target's presence on the CAN bus confirmed.")
 
 		if state == 'FirmwareActive':
-			print(f'Sending request to {self.BootTargetEnum.enum[self.target].name} to enter the bootloader ... ', end = '')
+			print(f'Sending request to {self.BootTargetEnum.enum[self.target].name} to reset into bootloader ... ', end = '')
 			self.request_bootloader_entry(self.target)
 			print(f'Waiting for {self.BootTargetEnum.enum[self.target].name} bootloader to respond ...  ', end='')
 			self.await_bootloader_ready(self.target)
@@ -596,7 +598,7 @@ class FlashMaster():
 			print('Cannot interfere with other ongoing flash transaction.')
 			sys.exit(1)
 
-		print('Flash transaction starts\n')
+		print('\nTransaction starts\n')
 		
 		print('Sending initial transaction magic ... ', end = '')
 		self.send_transaction_magic()
@@ -607,11 +609,11 @@ class FlashMaster():
 		print('Sending the number of pages to erase ... ', end = '')
 		self.send_handshake(enumerator_by_name('NumPagesToErase', self.RegisterEnum), len(self.firmware.influenced_pages))
 		
-		print('Sending page addresses')
-		for index, page in enumerate(self.firmware.influenced_pages):
-			print(f'Erasing page {index} @ 0x{page:08x} ... ', end = '')
-			self.send_handshake(enumerator_by_name('PageToErase', self.RegisterEnum), page)
-		
+		print('Sending page addresses...')
+		for index, page in enumerate(self.firmware.influenced_pages, 1):
+			print(f'\r\tErasing page {index:2}/{len(self.firmware.influenced_pages):2} @ 0x{page:08x} ... ', end = '')
+			self.send_handshake(enumerator_by_name('PageToErase', self.RegisterEnum), page, False)
+		print('\t OK')
 		#TODO send one more magic here
 
 		print('Sending entry point address ... ', end = '')
@@ -624,6 +626,8 @@ class FlashMaster():
 		print('Sending second transaction magic ... ', end = '')
 		self.send_transaction_magic()
 
+		print('Sending words of firmware...')
+		print(f'\tProgress ... {0:05}%', end='')
 		checksum = 0
 		for block in self.firmware.memory_map:
 			assert len(block.data) % 4 == 0 #all messages will carry whole word
@@ -632,12 +636,15 @@ class FlashMaster():
 				absolute_address = block.begin + offset
 				data = block.data[offset : offset + 4]
 				data_as_word = int("".join(data[::-1]), 16)
-				print(f'Programming 0x{absolute_address:08x} = 0x{data_as_word:08x} ... ', end = '')
+				#print(f'Programming 0x{absolute_address:08x} = 0x{data_as_word:08x} ... ', end = '')
 				self.send_data(absolute_address, data)
-				print('Ok')
+				#print('Ok')
 				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
+				print(f'\r\tProgress ... {100 * offset / len(block.data):5.2f}%', end='')
+
+			print(f'\nWritten {len(block.data)} bytes starting from {block.begin:08x}')
 		
-		print(f'Firmware checksum = {checksum:08x}')
+		print(f'Firmware checksum = 0x{checksum:08x}')
 
 		print('Sending checksum ... ', end = '')
 		self.send_handshake(enumerator_by_name('Checksum', self.RegisterEnum), checksum)
@@ -645,8 +652,8 @@ class FlashMaster():
 		print('Sending last transaction magic ... ', end = '')
 		self.send_transaction_magic()
 
-		print('Flashed successfully')
-		print('Entering the firmware ... ', end='')
+		print('Firmware flashed successfully')
+		print('Leaving bootloader... ', end='')
 		self.request_bootloader_exit(self.target)
 
 		#TODO make the bootloader exit to firmware
