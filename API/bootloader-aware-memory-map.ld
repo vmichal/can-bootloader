@@ -8,7 +8,7 @@ Include this file in your linker script to get the memory map for bootloader awa
 
 FlashStart = 0x08000000;
 FlashSize = 256K;
-BootloaderSize = 14K;
+BootloaderSize = 10K;
 JumpTableSize = 2K;
 
 /* Specify the memory areas */

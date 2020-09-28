@@ -18,15 +18,18 @@
 namespace boot {
 
 	Bootloader bootloader;
-	CanManager canManager{bootloader};
+	CanManager canManager{ bootloader };
+
+	SysTickTimer lastBlueToggle;
 
 	void setupCanCallbacks() {
-		Bootloader_Data_on_receive([](Bootloader_Data_t * data) -> int {
-			gpio::LED_Blue_Toggle();
+		Bootloader_Data_on_receive([](Bootloader_Data_t* data) -> int {
+			if (lastBlueToggle.RestartIfTimeElapsed(50_ms))
+				gpio::LED_Blue_Toggle();
 
 			std::uint32_t const address = data->Address << 2;
 
-			WriteStatus const ret = data->HalfwordAccess 
+			WriteStatus const ret = data->HalfwordAccess
 				? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
 				: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
 
@@ -35,17 +38,18 @@ namespace boot {
 			return 0;
 			});
 
-		Bootloader_Handshake_on_receive([](Bootloader_Handshake_t * data) -> int {
-			gpio::LED_Blue_Toggle();
+		Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
+			if (lastBlueToggle.RestartIfTimeElapsed(50_ms))
+				gpio::LED_Blue_Toggle();
 
 			Register const reg = regToReg(data->Register);
 			auto const response = bootloader.processHandshake(reg, data->Value);
 
 			canManager.SendHandshakeAck(reg, response, data->Value);
 			return 0;
-		});
+			});
 
-		Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t * data) {
+		Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
 			if (bootloader.status() != Bootloader::Status::Ready) {
 				debug_printf(("Cannot exit bootloader right now.\r\n"));
 				canManager.SendExitAck(false);
@@ -85,7 +89,7 @@ namespace boot {
 	10) The master writes magic value to indicate the end of transaction
 	*/
 
-	/*TODO Big assumption is that the firmware is valid. We do not check this right now, 
+	/*TODO Big assumption is that the firmware is valid. We do not check this right now,
 	because every CAN message has CRC of its own. We may check this in the future.*/
 
 	void main() {
@@ -106,8 +110,8 @@ namespace boot {
 			assert_unreachable();
 			break;
 		case EntryReason::EntryPointMismatch: {
-			std::uint32_t const entry_point = reinterpret_cast<std::uint32_t const *>(jumpTable.interruptVector_)[1]; //second word of the interrupt table
-			debug_printf(("Expected entry point...%0lx; second word of interrupt table...%0lx\r\n",jumpTable.entryPoint_, entry_point));
+			std::uint32_t const entry_point = reinterpret_cast<std::uint32_t const*>(jumpTable.interruptVector_)[1]; //second word of the interrupt table
+			debug_printf(("Expected entry point...%0lx; second word of interrupt table...%0lx\r\n", jumpTable.entryPoint_, entry_point));
 			break;
 		}
 		case EntryReason::InvalidEntryPoint:
@@ -147,7 +151,7 @@ namespace boot {
 
 	extern "C" [[noreturn]] void HardFault_Handler() {
 
-		printf("HardFault\r\n");
+		debug_printf("HardFault\r\n");
 		canManager.FlushSerialOutput();
 		gpio::LED_Orange_On();
 
