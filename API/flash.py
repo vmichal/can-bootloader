@@ -340,6 +340,85 @@ class FlashMaster():
 		print(result)
 		return result == 'Ok'
 
+	def receive_exit_ack(self, ev, sent):
+		fields = self.ExitAck.fields
+
+		try:
+			target_index = fields.index(next(field for field in fields if field.description.name == "Target"))
+			confirmed_index = fields.index(next(field for field in fields if field.description.name == "Confirmed"))
+		except:
+			print("ERROR: Message ExitAck does not include fields 'Target', 'Confirmed'")
+			assert False
+
+		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.ExitAck.identifier
+
+		#extract information from message's bits
+		db.parseData(ev.id.value, ev.data, ev.timestamp)
+		fields = db.getMsgById(ev.id.value).fields
+
+		#TODO check that this response is to our last transmit
+		target = fields[target_index].value[0]
+		confirmed = fields[result_index].value[0]
+
+		if target != sent[0]:
+			enum = self.BootTargetEnum.enum
+			print(f'Received ExitAck from different unit! Targeted {enum[target]} but {enum[sent[0]]} responded.')
+			return False
+
+		print("Confirmed" if confirmed else "Refused")
+		return confirmed
+
+	def receive_entry_ack(self, ev, sent):
+		fields = self.EntryAck.fields
+
+		try:
+			target_index = fields.index(next(field for field in fields if field.description.name == "Target"))
+			confirmed_index = fields.index(next(field for field in fields if field.description.name == "Confirmed"))
+		except:
+			print("ERROR: Message EntryAck does not include fields 'Target', 'Confirmed'")
+			assert False
+
+		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.EntryAck.identifier
+
+		#extract information from message's bits
+		db.parseData(ev.id.value, ev.data, ev.timestamp)
+		fields = db.getMsgById(ev.id.value).fields
+
+		#TODO check that this response is to our last transmit
+		target = fields[target_index].value[0]
+		confirmed = fields[result_index].value[0]
+
+		if target != sent[0]:
+			enum = self.BootTargetEnum.enum
+			print(f'Received EntryAck from different unit! Targeted {enum[target]} but {enum[sent[0]]} responded.')
+			return False
+
+		print("Confirmed" if confirmed else "Refused")
+		return confirmed
+
+	#returns pair (target, state)
+	def receive_beacon(self, ev):
+		fields = self.Beacon.fields
+
+		try:
+			target_index = fields.index(next(field for field in fields if field.description.name == "Target"))
+			state_index = fields.index(next(field for field in fields if field.description.name == "State"))
+		except:
+			print("ERROR: Message Beacon does not include fields 'Target', 'State'")
+			assert False
+
+		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.Beacon.identifier
+
+		#extract information from message's bits
+		db.parseData(ev.id.value, ev.data, ev.timestamp)
+		fields = db.getMsgById(ev.id.value).fields
+
+		#TODO check that this response is to our last transmit
+		target = fields[target_index].value[0]
+		state = fields[result_index].value[0]
+
+		return (target, state)
+
 	#print piece of bootloader's standard output to the output file
 	def receive_serial_output(self, ev, output_file = sys.stderr):
 		fields = self.SerialOutput.fields
@@ -381,6 +460,10 @@ class FlashMaster():
 				ret = self.receive_data_ack(ev, sent)
 			elif ev.id.value == self.SerialOutput.identifier:
 				ret = self.receive_serial_output(ev)
+			elif ev.id.value == self.ExitAck.identifier:
+				ret = self.receive_exit_ack(ev, sent)
+			elif ev.id.value == self.EntryAck.identifier:
+				ret = self.receive_entry_ack(ev, sent)
 
 			if ev.id.value == expected_id:
 				return ret
@@ -427,6 +510,51 @@ class FlashMaster():
 	def send_transaction_magic(self):
 		self.send_handshake(enumerator_by_name("TransactionMagic", self.RegisterEnum), FlashMaster.transactionMagic)
 
+	def request_bootloader_exit(self, target):
+		buffer = [0]
+		self.ExitReq.assemble([target], buffer)
+
+		attempts = 0
+		self.send_message(self.ExitReq.identifier, buffer)
+		while attempts < 5 and not self.wait_for_message(self.ExitAck.identifier, (target)):
+			self.send_message(self.ExitReq.identifier, buffer)
+			attempts = attempts + 1
+
+		if attempts == 5:
+			print('Could not proceed.')
+			sys.exit(0)
+
+	def request_bootloader_entry(self, target):
+		buffer = [0]
+		self.EntryReq.assemble([target], buffer)
+
+		attempts = 0
+		self.send_message(self.EntryReq.identifier, buffer)
+		while attempts < 5 and not self.wait_for_message(self.EntryAck.identifier, (target)):
+			self.send_message(self.EntryReq.identifier, buffer)
+			attempts = attempts + 1
+
+		if attempts == 5:
+			print('Could not proceed.')
+			sys.exit(0)
+
+	def is_bootloader_active(self, target):
+		print('Searching bootloader aware units present on the bus:')
+		while True:
+			#receive message and check whether we are interested
+			ev = oc.read_event()
+			if ev == None or not isinstance(ev, ocarina.CanMsgEvent):
+				continue
+
+			if ev.id.value == self.Beacon.identifier:
+				unit, state = self.receive_beacon(ev)
+				print(f'{self.BootTargetEnum.enum[unit].name}\t{self.StateEnum.enum[state].name}')
+				if unit == target:
+					break
+
+		print("Target's presence on the CAN bus confirmed.")
+		return self.StateEnum.enum[state].name != 'FirmwareActive'
+
 	def print_header(self):
 		print('Desktop interface to CAN Bootloader')
 		print('Copyright (c) Vojtech Michal, eForce FEE Prague Formula 2020\n')
@@ -436,13 +564,23 @@ class FlashMaster():
 			print(f"Targetable unit is {targets[0]}")
 		else:
 			print(f"Targetable units are {', '.join(targets)}")
-		print(f"Starting flash sequence for {self.unitName} (target id {self.target})\n")
+		print(f"Starting flash process for {self.unitName} (target id {self.target})\n")
 
 	def parseFirmware(self, firmwarePath):
 		print(f'Parsing hex file {firmwarePath}')
 		self.firmware = Firmware(firmwarePath)
 
 	def flash(self):
+		state = self.get_target_state(self.target):
+		if state == 'FirmwareActive':
+			print('Sending request to {self.BootTargetEnum.enum[self.target].name} to enter the bootloader ...', end = '')
+			self.request_bootloader_entry(self.target)
+		elif state == 'Ready':
+			print('Target already in bootloader.')
+		else:
+			print('Cannot interfere with other ongoing flash transaction.')
+			sys.exit(1)
+
 		print('Flash transaction starts\n')
 		
 		print('Sending initial transaction magic ... ', end = '')
@@ -492,6 +630,8 @@ class FlashMaster():
 		self.send_transaction_magic()
 
 		print('Flashed successfully')
+		print('Entering the firmware ... ')
+		self.request_bootloader_exit()
 
 		#TODO make the bootloader exit to firmware
 
