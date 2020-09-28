@@ -261,9 +261,8 @@ namespace boot {
 
 		BackupDomain::bootControlRegister = BackupDomain::application_magic;
 
-		ufsel::bit::set(std::ref(SCB->AIRCR),
-			0x5fA << SCB_AIRCR_VECTKEYSTAT_Pos, //magic value required for write to succeed
-			SCB_AIRCR_SYSRESETREQ); //Start the system reset
+		SCB->AIRCR = (0x5fA << SCB_AIRCR_VECTKEYSTAT_Pos) | //magic value required for write to succeed
+			SCB_AIRCR_SYSRESETREQ; //Start the system reset
 
 		for (;;); //wait for reset
 	}

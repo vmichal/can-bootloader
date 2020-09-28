@@ -386,7 +386,7 @@ class FlashMaster():
 
 		#TODO check that this response is to our last transmit
 		target = fields[target_index].value[0]
-		confirmed = fields[result_index].value[0]
+		confirmed = fields[confirmed_index].value[0]
 
 		if target != sent[0]:
 			enum = self.BootTargetEnum.enum
@@ -573,7 +573,7 @@ class FlashMaster():
 	def flash(self):
 		state = self.get_target_state(self.target)
 		if state == 'FirmwareActive':
-			print('Sending request to {self.BootTargetEnum.enum[self.target].name} to enter the bootloader ...', end = '')
+			print(f'Sending request to {self.BootTargetEnum.enum[self.target].name} to enter the bootloader ...', end = '')
 			self.request_bootloader_entry(self.target)
 		elif state == 'Ready':
 			print('Target already in bootloader.')
