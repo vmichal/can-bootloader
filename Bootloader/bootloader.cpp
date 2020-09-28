@@ -12,6 +12,7 @@
 #include "stm32f10x.h"
 
 #include <library/assert.hpp>
+#include <library/timer.hpp>
 namespace boot {
 
 	WriteStatus Bootloader::checkAddressBeforeWrite(std::uint32_t const address) {
@@ -255,12 +256,13 @@ namespace boot {
 	}
 
 
-	void Bootloader::resetToApplication() {
+	[[noreturn]] void Bootloader::resetToApplication() {
 		ufsel::bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain
 		ufsel::bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable write protection of Backup domain
 
 		BackupDomain::bootControlRegister = BackupDomain::application_magic;
 
+		BlockingDelay(200_ms);
 		SCB->AIRCR = (0x5fA << SCB_AIRCR_VECTKEYSTAT_Pos) | //magic value required for write to succeed
 			SCB_AIRCR_SYSRESETREQ; //Start the system reset
 
