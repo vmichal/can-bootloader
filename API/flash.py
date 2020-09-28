@@ -68,11 +68,11 @@ def list_bootloader_aware_units():
 	fields = beacon.fields
 
 	try:
-		target_index = fields.index(next(field for field in fields if field.description.name == "Unit"))
+		target_index = fields.index(next(field for field in fields if field.description.name == "Target"))
 		state_index  = fields.index(next(field for field in fields if field.description.name == "State"))
 		flash_index  = fields.index(next(field for field in fields if field.description.name == "FlashSize"))
 	except:
-		print("ERROR: Given message does not include fields 'Unit', 'State', 'FlashSize'", file=sys.stderr)
+		print("ERROR: Given message does not include fields 'Target', 'State', 'FlashSize'", file=sys.stderr)
 		return
 	
 	received = {}
@@ -415,7 +415,7 @@ class FlashMaster():
 
 		#TODO check that this response is to our last transmit
 		target = fields[target_index].value[0]
-		state = fields[result_index].value[0]
+		state = fields[state_index].value[0]
 
 		return (target, state)
 
@@ -538,7 +538,7 @@ class FlashMaster():
 			print('Could not proceed.')
 			sys.exit(0)
 
-	def is_bootloader_active(self, target):
+	def get_target_state(self, target):
 		print('Searching bootloader aware units present on the bus:')
 		while True:
 			#receive message and check whether we are interested
@@ -553,7 +553,7 @@ class FlashMaster():
 					break
 
 		print("Target's presence on the CAN bus confirmed.")
-		return self.StateEnum.enum[state].name != 'FirmwareActive'
+		return self.StateEnum.enum[state].name
 
 	def print_header(self):
 		print('Desktop interface to CAN Bootloader')
@@ -571,7 +571,7 @@ class FlashMaster():
 		self.firmware = Firmware(firmwarePath)
 
 	def flash(self):
-		state = self.get_target_state(self.target):
+		state = self.get_target_state(self.target)
 		if state == 'FirmwareActive':
 			print('Sending request to {self.BootTargetEnum.enum[self.target].name} to enter the bootloader ...', end = '')
 			self.request_bootloader_entry(self.target)
@@ -631,7 +631,7 @@ class FlashMaster():
 
 		print('Flashed successfully')
 		print('Entering the firmware ... ')
-		self.request_bootloader_exit()
+		self.request_bootloader_exit(self.target)
 
 		#TODO make the bootloader exit to firmware
 
