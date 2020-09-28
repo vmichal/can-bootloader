@@ -270,8 +270,8 @@ class FlashMaster():
 		#get references to messages
 		self.EntryReq = find_message("Bootloader", "EntryReq")
 		self.EntryAck = find_message("Bootloader", "EntryAck")
-		self.ExitReq = find_message("Bootloader", "EntryReq")
-		self.ExitAck = find_message("Bootloader", "EntryReq")
+		self.ExitReq = find_message("Bootloader", "ExitReq")
+		self.ExitAck = find_message("Bootloader", "ExitAck")
 		self.Beacon = find_message("Bootloader", "Beacon")
 		self.Data = find_message("Bootloader", "Data")
 		self.DataAck = find_message("Bootloader", "DataAck")
