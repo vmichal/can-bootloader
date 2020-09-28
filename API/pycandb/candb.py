@@ -42,8 +42,8 @@ def extractBits(numList, offset , size):
 	else:
 		for b in range(len(numList)):
 			data = data + (numList[b]<<(8*b))
-		data = (data >> offset)
 	
+	data = (data >> offset)
 	data = data & ((1<<size)-1)
 	
 	return data

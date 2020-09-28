@@ -337,7 +337,6 @@ class FlashMaster():
 			print(f'Received acknowledge to different data! Written address 0x{sent[0]:08x}, received 0x{address:08x}')
 			return False
 
-		print(result)
 		return result == 'Ok'
 
 	def receive_exit_ack(self, ev, sent):
@@ -358,7 +357,7 @@ class FlashMaster():
 
 		#TODO check that this response is to our last transmit
 		target = fields[target_index].value[0]
-		confirmed = fields[result_index].value[0]
+		confirmed = fields[confirmed_index].value[0]
 
 		if target != sent[0]:
 			enum = self.BootTargetEnum.enum
@@ -516,7 +515,7 @@ class FlashMaster():
 
 		attempts = 0
 		self.send_message(self.ExitReq.identifier, buffer)
-		while attempts < 5 and not self.wait_for_message(self.ExitAck.identifier, (target)):
+		while attempts < 5 and not self.wait_for_message(self.ExitAck.identifier, [target]):
 			self.send_message(self.ExitReq.identifier, buffer)
 			attempts = attempts + 1
 
@@ -530,7 +529,7 @@ class FlashMaster():
 
 		attempts = 0
 		self.send_message(self.EntryReq.identifier, buffer)
-		while attempts < 5 and not self.wait_for_message(self.EntryAck.identifier, (target)):
+		while attempts < 5 and not self.wait_for_message(self.EntryAck.identifier, [target]):
 			self.send_message(self.EntryReq.identifier, buffer)
 			attempts = attempts + 1
 
@@ -539,7 +538,6 @@ class FlashMaster():
 			sys.exit(0)
 
 	def get_target_state(self, target):
-		print('Searching bootloader aware units present on the bus:')
 		while True:
 			#receive message and check whether we are interested
 			ev = oc.read_event()
@@ -550,10 +548,21 @@ class FlashMaster():
 				unit, state = self.receive_beacon(ev)
 				print(f'{self.BootTargetEnum.enum[unit].name}\t{self.StateEnum.enum[state].name}')
 				if unit == target:
-					break
+					return self.StateEnum.enum[state].name
 
-		print("Target's presence on the CAN bus confirmed.")
-		return self.StateEnum.enum[state].name
+
+	def await_bootloader_ready(self, target):
+		#TODO merge this with get_target_state
+		while True:
+			#receive message and check whether we are interested
+			ev = oc.read_event()
+			if ev == None or not isinstance(ev, ocarina.CanMsgEvent):
+				continue
+
+			if ev.id.value == self.Beacon.identifier:
+				unit, state = self.receive_beacon(ev)
+				if unit == target and self.StateEnum.enum[state].name == 'Ready':
+					return
 
 	def print_header(self):
 		print('Desktop interface to CAN Bootloader')
@@ -571,10 +580,15 @@ class FlashMaster():
 		self.firmware = Firmware(firmwarePath)
 
 	def flash(self):
+		print('Searching bootloader aware units present on the bus:')
 		state = self.get_target_state(self.target)
+		print("Target's presence on the CAN bus confirmed.")
+
 		if state == 'FirmwareActive':
 			print(f'Sending request to {self.BootTargetEnum.enum[self.target].name} to enter the bootloader ...', end = '')
 			self.request_bootloader_entry(self.target)
+			print(f'Waiting for {self.BootTargetEnum.enum[self.target].name} bootloader to respond ... ')
+			self.await_bootloader_ready(self.target)
 		elif state == 'Ready':
 			print('Target already in bootloader.')
 		else:
@@ -619,6 +633,7 @@ class FlashMaster():
 				data_as_word = int("".join(data[::-1]), 16)
 				print(f'Programming 0x{absolute_address:08x} = 0x{data_as_word:08x} ... ', end = '')
 				self.send_data(absolute_address, data)
+				print('Ok')
 				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
 		
 		print(f'Firmware checksum = {checksum}')
