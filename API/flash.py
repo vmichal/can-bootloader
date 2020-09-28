@@ -562,6 +562,7 @@ class FlashMaster():
 			if ev.id.value == self.Beacon.identifier:
 				unit, state = self.receive_beacon(ev)
 				if unit == target and self.StateEnum.enum[state].name == 'Ready':
+					print('Ok')
 					return
 
 	def print_header(self):
@@ -585,9 +586,9 @@ class FlashMaster():
 		print("Target's presence on the CAN bus confirmed.")
 
 		if state == 'FirmwareActive':
-			print(f'Sending request to {self.BootTargetEnum.enum[self.target].name} to enter the bootloader ...', end = '')
+			print(f'Sending request to {self.BootTargetEnum.enum[self.target].name} to enter the bootloader ... ', end = '')
 			self.request_bootloader_entry(self.target)
-			print(f'Waiting for {self.BootTargetEnum.enum[self.target].name} bootloader to respond ... ')
+			print(f'Waiting for {self.BootTargetEnum.enum[self.target].name} bootloader to respond ...  ', end='')
 			self.await_bootloader_ready(self.target)
 		elif state == 'Ready':
 			print('Target already in bootloader.')
@@ -636,7 +637,7 @@ class FlashMaster():
 				print('Ok')
 				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
 		
-		print(f'Firmware checksum = {checksum}')
+		print(f'Firmware checksum = {checksum:08x}')
 
 		print('Sending checksum ... ', end = '')
 		self.send_handshake(enumerator_by_name('Checksum', self.RegisterEnum), checksum)
