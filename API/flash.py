@@ -646,7 +646,7 @@ class FlashMaster():
 		self.send_transaction_magic()
 
 		print('Flashed successfully')
-		print('Entering the firmware ... ')
+		print('Entering the firmware ... ', end='')
 		self.request_bootloader_exit(self.target)
 
 		#TODO make the bootloader exit to firmware

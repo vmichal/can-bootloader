@@ -131,6 +131,7 @@ namespace boot {
 
 	void CanManager::SendExitAck(bool ok) const {
 		Bootloader_ExitAck_t message;
+		message.Unit = Bootloader::thisUnit;
 		message.Confirmed = ok;
 
 		for (; !CanManager::hasEmptyMailbox<2>(););
