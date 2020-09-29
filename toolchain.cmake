@@ -18,7 +18,7 @@ set (CMAKE_CXX_STANDARD 17)
 
 #TODO make things like MCU configurable
 SET(DEVICE_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft")
-SET(OPTIMIZATIONS_FLAGS "-g3 -O${OPTIMIZATION_LEVEL} -funsigned-char -funsigned-bitfields -ffunction-sections -fdata-sections -fdiagnostics-color=always -fstack-protector-strong -finline-small-functions -findirect-inlining -fstack-usage")
+SET(OPTIMIZATIONS_FLAGS "-g3 -O${OPTIMIZATION_LEVEL} -funsigned-char -funsigned-bitfields -ffunction-sections -fdata-sections -fdiagnostics-color=always -fno-stack-protector -finline-small-functions -findirect-inlining -fstack-usage")
 
 SET(DEFINES "-DSTM32F105xC -DTX_WITH_CANDB=1 -DUSE_STDPERIPH_DRIVER -DHSE_VALUE=8000000 -DSTM32F10X_CL -D__weak='__attribute__((weak))' -D__packed='__attribute__((__packed__))'")
 
