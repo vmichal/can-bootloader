@@ -94,8 +94,8 @@ namespace boot {
 
 	void main() {
 
-		auto const reason = explain_enter_reason(Bootloader::entryReason());
-		auto const unitName = to_string(Bootloader::thisUnit);
+		[[maybe_unused]] auto const reason = explain_enter_reason(Bootloader::entryReason());
+		[[maybe_unused]] auto const unitName = to_string(Bootloader::thisUnit);
 
 		debug_printf(("\r\n\r\nEntering bootloader of %s (%s)\r\n", unitName, reason));
 
@@ -110,7 +110,7 @@ namespace boot {
 			assert_unreachable();
 			break;
 		case EntryReason::EntryPointMismatch: {
-			std::uint32_t const entry_point = reinterpret_cast<std::uint32_t const*>(jumpTable.interruptVector_)[1]; //second word of the interrupt table
+			[[maybe_unused]] std::uint32_t const entry_point = reinterpret_cast<std::uint32_t const*>(jumpTable.interruptVector_)[1]; //second word of the interrupt table
 			debug_printf(("Expected entry point...%0lx; second word of interrupt table...%0lx\r\n", jumpTable.entryPoint_, entry_point));
 			break;
 		}
@@ -136,11 +136,8 @@ namespace boot {
 
 		for (;;) { //main loop
 
-			if (static SysTickTimer t; t.RestartIfTimeElapsed(1_s)) {
+			if (static SysTickTimer t; t.RestartIfTimeElapsed(1_s))
 				gpio::LED_Blue_Toggle();
-				static unsigned iteration = 0;
-				debug_printf(("Bootloader: Heartbeat %u\r\n", iteration++));
-			}
 
 			canManager.Update();
 
