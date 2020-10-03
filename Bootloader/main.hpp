@@ -8,13 +8,9 @@
 
 #pragma once
 
-#include "ringstream.hpp"
-
 namespace boot {
 
 	void main();
-
-	inline RingStream ser0;
 
 
 }

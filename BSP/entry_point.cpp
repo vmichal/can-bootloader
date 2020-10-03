@@ -121,12 +121,4 @@ namespace bsp {
 
 		boot::main();
 	}
-
-	extern "C" int _write(int file, std::uint8_t const* ptr, int len) {
-
-		boot::ser0.Write(ptr, len);
-
-		return len;
-	}
-
 }
