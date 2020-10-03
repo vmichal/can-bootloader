@@ -641,8 +641,9 @@ class FlashMaster():
 				#print('Ok')
 				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
 				print(f'\r\tProgress ... {100 * offset / len(block.data):5.2f}%', end='')
+			print(f'\r\tProgress ... {100:5.2f}%', end='')
 
-			print(f'\nWritten {len(block.data)} bytes starting from {block.begin:08x}')
+			print(f'\nWritten {len(block.data)} bytes starting from 0x{block.begin:08x}')
 		
 		print(f'Firmware checksum = 0x{checksum:08x}')
 
@@ -653,11 +654,8 @@ class FlashMaster():
 		self.send_transaction_magic()
 
 		print('Firmware flashed successfully')
-		print('Leaving bootloader... ', end='')
+		print('Leaving bootloader ... ', end='')
 		self.request_bootloader_exit(self.target)
-
-		#TODO make the bootloader exit to firmware
-
 		
 
 
