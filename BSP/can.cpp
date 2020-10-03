@@ -112,7 +112,7 @@ constexpr auto bus_connected_to_CAN2 = bus_CAN2;
 
 extern "C" {
 	uint32_t txGetTimeMillis() {
-		return SystemTimer::GetUptime().toMilliseconds();
+		return (Timestamp::Now() - SystemTimer::bootTime).toMilliseconds();
 	}
 
 	int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length) {
