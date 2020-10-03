@@ -35,7 +35,9 @@ namespace boot {
 
 		std::uint32_t const pageAligned = Flash::makePageAligned(address);
 
-		if (!std::find(std::begin(erased_pages_), std::end(erased_pages_), pageAligned))
+		auto const beg = begin(erased_pages_);
+		auto const end = std::next(beg, erased_pages_count_);
+		if (std::find(beg, end, pageAligned) == end)
 			return WriteStatus::NotInErasedMemory;
 
 		return WriteStatus::Ok; //Everything seems ok, try to write
