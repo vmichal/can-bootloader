@@ -51,24 +51,15 @@ namespace boot {
 
 		Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
 			if (bootloader.status() != Bootloader::Status::Ready) {
-				debug_printf(("Cannot exit bootloader right now.\r\n"));
 				canManager.SendExitAck(false);
 				return 1;
 			}
 			canManager.SendExitAck(true);
-			debug_printf(("Exiting the bootloader.\r\n"));
-			canManager.FlushSerialOutput();
 
 			Bootloader::resetToApplication();
 			return 0; //Not reached
 			});
 
-	}
-
-	void latchAfterAppReturned() {
-		debug_printf(("Running firmware returned value %d.\r\nLatching until system reset.\r\n", Bootloader::appErrorCode()));
-		canManager.FlushSerialOutput();
-		for (;;);
 	}
 
 	/*Transaction protocol:
@@ -97,34 +88,27 @@ namespace boot {
 		[[maybe_unused]] auto const reason = explain_enter_reason(Bootloader::entryReason());
 		[[maybe_unused]] auto const unitName = to_string(Bootloader::thisUnit);
 
-		debug_printf(("\r\n\r\nEntering bootloader of %s (%s)\r\n", unitName, reason));
 
 		switch (Bootloader::entryReason()) {
 		case EntryReason::ApplicationReturned:
-			latchAfterAppReturned();
+			for (;;); // Latch after the application returned
 			break;
 		case EntryReason::backupRegisterCorrupted:
-			debug_printf(("Used backup register (address %p) has value %0x.\r\n", &BackupDomain::bootControlRegister, BackupDomain::bootControlRegister));
 			break;
 		case EntryReason::DontEnter:
 			assert_unreachable();
 			break;
 		case EntryReason::EntryPointMismatch: {
 			[[maybe_unused]] std::uint32_t const entry_point = reinterpret_cast<std::uint32_t const*>(jumpTable.interruptVector_)[1]; //second word of the interrupt table
-			debug_printf(("Expected entry point...%0lx; second word of interrupt table...%0lx\r\n", jumpTable.entryPoint_, entry_point));
 			break;
 		}
 		case EntryReason::InvalidEntryPoint:
-			debug_printf(("Entry point address %0lx is not valid.\r\n", jumpTable.entryPoint_));
 			break;
 		case EntryReason::InvalidMagic:
-			debug_printf(("Magic values: %0lx, %0lx, %0lx\r\n", jumpTable.magic1_, jumpTable.magic2_, jumpTable.magic3_));
 			break;
 		case EntryReason::Requested:
-			debug_printf(("Based on previous firmware request.\r\n"));
 			break;
 		case EntryReason::UnalignedInterruptVector:
-			debug_printf(("Interrupt vector based at address %0lx is not valid.\r\n", jumpTable.interruptVector_));
 			break;
 		}
 
@@ -148,8 +132,6 @@ namespace boot {
 
 	extern "C" [[noreturn]] void HardFault_Handler() {
 
-		debug_printf("HardFault\r\n");
-		canManager.FlushSerialOutput();
 		gpio::LED_Orange_On();
 
 		for (;;) {

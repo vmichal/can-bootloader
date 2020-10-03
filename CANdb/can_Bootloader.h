@@ -23,7 +23,6 @@ enum { Bootloader_ExitAck_id            = STD_ID(0x5F6) };
 enum { Bootloader_Handshake_id          = STD_ID(0x5FA) };
 enum { Bootloader_HandshakeAck_id       = STD_ID(0x5FB) };
 enum { Bootloader_SoftwareBuild_id      = STD_ID(0x5FD) };
-enum { Bootloader_SerialOutput_id       = STD_ID(0x5FF) };
 
 enum Bootloader_BootTarget {
     /* Accumulator management System */
@@ -75,7 +74,7 @@ enum Bootloader_Register {
     /* Checksum of the firmware. Taken as the sum of all transmitted halfwords (16bit) */
     Bootloader_Register_Checksum = 5,
     /* Magic value. Writing 0x48656c69 starts and ends the transaction. */
-    Bootloader_Register_TransacionMagic = 6,
+    Bootloader_Register_TransactionMagic = 6,
 };
 
 enum Bootloader_State {
@@ -120,15 +119,8 @@ enum Bootloader_WriteResult {
 typedef struct Bootloader_EntryReq_t {
 	/* Identifies the unit targeted by this message. */
 	enum Bootloader_BootTarget	Target;
-
-	/* Sequence counter, incremented each time a message is sent. */
-	uint8_t	SEQ;
 } Bootloader_EntryReq_t;
 
-#define Bootloader_EntryReq_SEQ_OFFSET	((float)0)
-#define Bootloader_EntryReq_SEQ_FACTOR	((float)1)
-#define Bootloader_EntryReq_SEQ_MIN	((float)0)
-#define Bootloader_EntryReq_SEQ_MAX	((float)15)
 
 /*
  * Targeted unit has received a bootloader entry request and has reset pending.
@@ -147,7 +139,7 @@ typedef struct Bootloader_EntryAck_t {
  */
 typedef struct Bootloader_Beacon_t {
 	/* Identifies which unit has active bootloader */
-	enum Bootloader_BootTarget	Unit;
+	enum Bootloader_BootTarget	Target;
 
 	/* Current state of the bootloader */
 	enum Bootloader_State	State;
@@ -207,7 +199,7 @@ typedef struct Bootloader_ExitReq_t {
  */
 typedef struct Bootloader_ExitAck_t {
 	/* Identifies the target unit */
-	enum Bootloader_BootTarget	Unit;
+	enum Bootloader_BootTarget	Target;
 
 	/* True iff the unit is switching from the bootloader to firmware. */
 	uint8_t	Confirmed;
@@ -253,40 +245,10 @@ typedef struct Bootloader_SoftwareBuild_t {
 } Bootloader_SoftwareBuild_t;
 
 
-/*
- * Packetized serial output
- */
-typedef struct Bootloader_SerialOutput_t {
-	/* Sequence counter */
-	uint8_t	SEQ;
-
-	/* Indicates internal buffer overflow */
-	uint8_t	Truncated;
-
-	/* Transmission complete (for now)? */
-	uint8_t	Completed;
-
-	/* Channel (0 or 1) */
-	uint8_t	Channel;
-
-	/* True iff an error occured while reading. */
-	uint8_t	CouldNotRead;
-
-	/* Unused bytes are marked with 0 */
-	uint8_t	Payload[7];
-} Bootloader_SerialOutput_t;
-
-#define Bootloader_SerialOutput_SEQ_OFFSET	((float)0)
-#define Bootloader_SerialOutput_SEQ_FACTOR	((float)1)
-#define Bootloader_SerialOutput_SEQ_MIN	((float)0)
-#define Bootloader_SerialOutput_SEQ_MAX	((float)15)
-#define Bootloader_SerialOutput_Channel_MIN	((float)0)
-#define Bootloader_SerialOutput_Channel_MAX	((float)1)
-
 void candbInit(void);
 
 int Bootloader_decode_EntryReq_s(const uint8_t* bytes, size_t length, Bootloader_EntryReq_t* data_out);
-int Bootloader_decode_EntryReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* SEQ_out);
+int Bootloader_decode_EntryReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
 int Bootloader_get_EntryReq(Bootloader_EntryReq_t* data_out);
 void Bootloader_EntryReq_on_receive(int (*callback)(Bootloader_EntryReq_t* data));
 
@@ -294,7 +256,7 @@ int Bootloader_send_EntryAck_s(const Bootloader_EntryAck_t* data);
 int Bootloader_send_EntryAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
 
 int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
-int Bootloader_send_Beacon(enum Bootloader_BootTarget Unit, enum Bootloader_State State, uint16_t FlashSize);
+int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, uint16_t FlashSize);
 int Bootloader_Beacon_need_to_send(void);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
@@ -311,7 +273,7 @@ int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
 void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 
 int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
-int Bootloader_send_ExitAck(enum Bootloader_BootTarget Unit, uint8_t Confirmed);
+int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
 int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, uint32_t* Value_out);
@@ -324,10 +286,6 @@ int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloa
 int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data);
 int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo);
 int Bootloader_SoftwareBuild_need_to_send(void);
-
-int Bootloader_send_SerialOutput_s(const Bootloader_SerialOutput_t* data);
-int Bootloader_send_SerialOutput(uint8_t SEQ, uint8_t Truncated, uint8_t Completed, uint8_t Channel, uint8_t CouldNotRead, uint8_t* Payload);
-int Bootloader_SerialOutput_need_to_send(void);
 
 #ifdef __cplusplus
 }
@@ -367,15 +325,6 @@ inline bool need_to_send<Bootloader_SoftwareBuild_t>() {
 
 inline int send(const Bootloader_SoftwareBuild_t& data) {
     return Bootloader_send_SoftwareBuild_s(&data);
-}
-
-template <>
-inline bool need_to_send<Bootloader_SerialOutput_t>() {
-    return Bootloader_SerialOutput_need_to_send();
-}
-
-inline int send(const Bootloader_SerialOutput_t& data) {
-    return Bootloader_send_SerialOutput_s(&data);
 }
 
 #endif

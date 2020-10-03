@@ -60,7 +60,7 @@ namespace boot {
 		case Register::Checksum:
 			return Bootloader_Register_Checksum;
 		case Register::TransactionMagic:
-			return Bootloader_Register_TransacionMagic;
+			return Bootloader_Register_TransactionMagic;
 		}
 		assert_unreachable();
 	}
@@ -78,7 +78,7 @@ namespace boot {
 			return Register::FirmwareSize;
 		case Bootloader_Register_Checksum:
 			return Register::Checksum;
-		case Bootloader_Register_TransacionMagic:
+		case Bootloader_Register_TransactionMagic:
 			return Register::TransactionMagic;
 		}
 		assert_unreachable();

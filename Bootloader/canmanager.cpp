@@ -101,25 +101,6 @@ namespace boot {
 			return ufsel::bit::get(CAN2->TSR, CAN_TSR_TME0, CAN_TSR_TME1, CAN_TSR_TME2);
 	}
 
-	void CanManager::SendSerialOutput() const {
-		if (!CanManager::hasEmptyMailbox<2>())
-			return; //If there is no empty mailbox, delay sending in order not to discard data
-
-		static int seq = 0;
-
-		Bootloader_SerialOutput_t packet;
-		packet.SEQ = ++seq;
-		std::fill(std::begin(packet.Payload), std::end(packet.Payload), '\0');
-
-		bool empty, truncated;
-
-		packet.CouldNotRead = ser0.Read(packet.Payload, sizeof(packet.Payload), &empty, &truncated) == 0;
-		packet.Completed = empty;
-		packet.Channel = 0;
-		packet.Truncated = truncated;
-		send(packet);
-	}
-
 	void CanManager::SendSoftwareBuild() const {
 
 		Bootloader_SoftwareBuild_t msg;
@@ -131,7 +112,7 @@ namespace boot {
 
 	void CanManager::SendExitAck(bool ok) const {
 		Bootloader_ExitAck_t message;
-		message.Unit = Bootloader::thisUnit;
+		message.Target = Bootloader::thisUnit;
 		message.Confirmed = ok;
 
 		for (; !CanManager::hasEmptyMailbox<2>(););
@@ -164,27 +145,16 @@ namespace boot {
 	void CanManager::SendBeacon() const {
 		Bootloader_Beacon_t message;
 		message.State = toCan(bootloader_.status());
-		message.Unit = Bootloader::thisUnit;
+		message.Target = Bootloader::thisUnit;
 		message.FlashSize = Flash::availableMemory / 1024;
 
 		send(message);
 	}
 
-	void CanManager::FlushSerialOutput() const {
-
-		for (; ser0.ringbuf.readpos != ser0.ringbuf.writepos;)
-			SendSerialOutput();
-	}
-
-
-
 	void CanManager::Update() {
 
 		if (need_to_send<Bootloader_SoftwareBuild_t>())
 			SendSoftwareBuild();
-
-		if (need_to_send<Bootloader_SerialOutput_t>())
-			SendSerialOutput();
 
 		if (need_to_send<Bootloader_Beacon_t>())
 			SendBeacon();

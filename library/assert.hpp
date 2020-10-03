@@ -9,7 +9,6 @@ extern "C" [[noreturn]] void HardFault_Handler();
 inline bool assert_fun(const bool condition, const char* const where, const char* const func, int line) {
 	if constexpr (enableAssert) {
 		if (!condition) {
-			debug_printf(("Assertion failed in %s:%d (%s).\r\n", where, line, func));
 			__asm("BKPT");
 			HardFault_Handler();
 		}
@@ -22,7 +21,6 @@ inline bool assert_fun(const bool condition, const char* const where, const char
 [[noreturn]]
 inline void assert_unreachable_fun(const char * const where, const char * const func, int line) {
 	if constexpr (enableAssert) {
-		debug_printf(("Unreacheable point on %s:%d (%s) reached!\r\n", where, line, func));
 		__asm("BKPT");
 	}
 	HardFault_Handler();

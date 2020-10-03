@@ -82,7 +82,6 @@ namespace boot {
 			return HandshakeResponse::PageAlreadyErased;
 
 		erased_pages_[erased_pages_count_++] = address;
-		debug_printf(("Erasing page at %0lx\r\n", address));
 		Flash::ErasePage(address);
 
 		return HandshakeResponse::Ok;
@@ -125,7 +124,6 @@ namespace boot {
 				return HandshakeResponse::HandshakeSequenceError;
 
 			//value holds the size of firmware in bytes.
-			debug_printf(("Firmware has size %ld bytes.\r\n", value));
 
 			if (value > Flash::availableMemory)
 				return HandshakeResponse::BinaryTooBig;
@@ -139,7 +137,6 @@ namespace boot {
 			if (reg != Register::NumPagesToErase)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			debug_printf(("Will erase %ld flash pages\r\n", value));
 			if (value >= Flash::pageCount || value == 0)
 				return HandshakeResponse::NotEnoughPages;
 
@@ -176,7 +173,6 @@ namespace boot {
 				if (erased_pages_count_ != firmware_.numPagesToErase_)
 					return HandshakeResponse::ErasedPageCountMismatch;
 
-				debug_printf(("Received entry point at %0lx\r\n", value));
 				switch (Flash::addressOrigin(value)) {
 				case AddressSpace::AvailableFlash:
 					break; //Entry point in available application flash is expected
@@ -202,7 +198,6 @@ namespace boot {
 			if (reg != Register::InterruptVector)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			debug_printf(("Received isr vector at %0lx\r\n", value));
 			//TODO replace nine by some named constant
 			if (!ufsel::bit::all_cleared(value, ufsel::bit::bitmask_of_width(9))) //The interrupt vector is not aligned to 512B boundary.
 				return HandshakeResponse::InterruptVectorNotAligned;

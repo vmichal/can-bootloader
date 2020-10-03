@@ -613,7 +613,7 @@ class FlashMaster():
 		for index, page in enumerate(self.firmware.influenced_pages, 1):
 			print(f'\r\tErasing page {index:2}/{len(self.firmware.influenced_pages):2} @ 0x{page:08x} ... ', end = '')
 			self.send_handshake(enumerator_by_name('PageToErase', self.RegisterEnum), page, False)
-		print('\t OK')
+		print('OK')
 		#TODO send one more magic here
 
 		print('Sending entry point address ... ', end = '')

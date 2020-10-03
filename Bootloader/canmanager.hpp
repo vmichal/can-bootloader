@@ -17,7 +17,6 @@ namespace boot {
 	class CanManager {
 
 		void SendSoftwareBuild() const;
-		void SendSerialOutput() const;
 		void SendBeacon() const;
 
 		template<int periph>
@@ -31,8 +30,6 @@ namespace boot {
 		void SendDataAck(std::uint32_t address, WriteStatus result) const;
 		void SendExitAck(bool exitPossible) const;
 		void SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const;
-
-		void FlushSerialOutput() const;
 
 		CanManager(Bootloader const& bootloader) : bootloader_{bootloader} {}
 
