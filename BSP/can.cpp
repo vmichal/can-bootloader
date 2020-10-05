@@ -110,6 +110,8 @@ namespace bsp::can {
 constexpr auto bus_connected_to_CAN1 = bus_CAN1;
 constexpr auto bus_connected_to_CAN2 = bus_CAN2;
 
+
+
 extern "C" {
 	uint32_t txGetTimeMillis() {
 		return (Timestamp::Now() - SystemTimer::bootTime).toMilliseconds();

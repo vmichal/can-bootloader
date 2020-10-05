@@ -264,7 +264,7 @@ int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data) {
     buffer[2] = (data->CommitSHA >> 16);
     buffer[3] = (data->CommitSHA >> 24);
     buffer[4] = (data->DirtyRepo ? 1 : 0);
-    int rc = txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_SoftwareBuild_last_sent = txGetTimeMillis();
@@ -280,7 +280,7 @@ int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo) {
     buffer[2] = (CommitSHA >> 16);
     buffer[3] = (CommitSHA >> 24);
     buffer[4] = (DirtyRepo ? 1 : 0);
-    int rc = txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_SoftwareBuild_last_sent = txGetTimeMillis();
