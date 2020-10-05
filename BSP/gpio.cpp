@@ -40,12 +40,8 @@ namespace gpio {
 		//from the STM32f105 reference manual
 
 
-		auto const output_push_pull_low = {LED_BLUE, LED_ORANGE};
 		auto const inputs_floating = { CAN1_RX, CAN2_RX };
 		auto const alternate_pushpull = { CAN1_TX, CAN2_TX};
-
-		InitializePins(GPIO_Speed_2MHz, GPIO_Mode_Out_PP, output_push_pull_low);
-		std::for_each(output_push_pull_low.begin(), output_push_pull_low.end(), std::mem_fn(&Pin::Clear));
 
 		/* INPUTS floating */
 		InitializePins(GPIO_Speed_2MHz, GPIO_Mode_IN_FLOATING, inputs_floating);
@@ -53,7 +49,6 @@ namespace gpio {
 
 		/* OUTPUTS WITH AF */
 		InitializePins(GPIO_Speed_10MHz, GPIO_Mode_AF_PP, alternate_pushpull);
-
 	}
 }
 

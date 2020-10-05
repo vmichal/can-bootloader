@@ -24,9 +24,6 @@ namespace boot {
 
 	void setupCanCallbacks() {
 		Bootloader_Data_on_receive([](Bootloader_Data_t* data) -> int {
-			if (lastBlueToggle.RestartIfTimeElapsed(50_ms))
-				gpio::LED_Blue_Toggle();
-
 			std::uint32_t const address = data->Address << 2;
 
 			WriteStatus const ret = data->HalfwordAccess
@@ -39,9 +36,6 @@ namespace boot {
 			});
 
 		Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
-			if (lastBlueToggle.RestartIfTimeElapsed(50_ms))
-				gpio::LED_Blue_Toggle();
-
 			Register const reg = regToReg(data->Register);
 			auto const response = bootloader.processHandshake(reg, data->Value);
 
@@ -113,15 +107,11 @@ namespace boot {
 		}
 
 		txInit();
-		gpio::LED_Orange_Off();
 
 		setupCanCallbacks();
 		bsp::can::enableIRQs(); //Enable reception from CAN
 
 		for (;;) { //main loop
-
-			if (static SysTickTimer t; t.RestartIfTimeElapsed(1_s))
-				gpio::LED_Blue_Toggle();
 
 			canManager.Update();
 
@@ -132,11 +122,7 @@ namespace boot {
 
 	extern "C" [[noreturn]] void HardFault_Handler() {
 
-		gpio::LED_Orange_On();
-
 		for (;;) {
-			BlockingDelay(100_ms);
-			gpio::LED_Blue_Toggle();
 		}
 
 	}

@@ -116,9 +116,6 @@ namespace bsp {
 
 		can::Initialize();
 
-		gpio::LED_Blue_On();
-		gpio::LED_Orange_On();
-
 		boot::main();
 	}
 }
