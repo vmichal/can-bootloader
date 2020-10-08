@@ -73,28 +73,46 @@ namespace boot {
 
 	};
 
+	struct Segment {
+		std::uint32_t begin, size;
+	};
+
 	struct ApplicationJumpTable {
 		constexpr static std::uint32_t expected_magic1_value = 0xb16'b00b5;
 		constexpr static std::uint32_t expected_magic2_value = 0xcafe'babe;
 		constexpr static std::uint32_t expected_magic3_value = 0xdead'beef;
+		constexpr static std::uint32_t expected_magic4_value = 0xfeed'd06e;
+		constexpr static std::uint32_t expected_magic5_value = 0xface'b00c;
 
+	private:
+		constexpr static int members_before_segment_array = 9;
+	public:
 
 		std::uint32_t magic1_;
 		std::uint32_t entryPoint_;
 		std::uint32_t magic2_;
 		std::uint32_t interruptVector_;
 		std::uint32_t magic3_;
+		std::uint32_t firmwareSize_;
+		std::uint32_t magic4_;
+		std::uint32_t segmentCount_;
+		std::uint32_t magic5_;
+		std::array<Segment, (Flash::pageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(Segment)> segments_;
 
 		//Returns true iff all magics are valid
 		bool magicValid() const {
 			return magic1_ == expected_magic1_value
-				|| magic2_ == expected_magic2_value
-				|| magic3_ == expected_magic3_value;
+				&& magic2_ == expected_magic2_value
+				&& magic3_ == expected_magic3_value
+				&& magic4_ == expected_magic4_value
+				&& magic5_ == expected_magic5_value;
 		}
 
 		//Clear the memory location with jump table
 		void invalidate();
 	};
+
+	static_assert(sizeof(ApplicationJumpTable) <= Flash::pageSize, "The application jump table must fit within one page of flash.");
 
 	inline ApplicationJumpTable jumpTable __attribute__((section("jumpTableSection")));
 }

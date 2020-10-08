@@ -121,6 +121,7 @@ namespace boot {
 
 
 	private:
+
 		struct FirmwareData {
 			InformationSize expectedBytes_ = 0_B; //Set during the handshake. Number of bytes to be written
 			InformationSize writtenBytes_ = 0_B; //The current number of bytes written. It is expected to equal the value expectedBytes_.
@@ -128,6 +129,9 @@ namespace boot {
 			std::uint32_t interruptVector_ = 0; //Address of the interrupt table of flashed firmware
 			std::uint32_t numPagesToErase_ = 0; //Set during the handshake. Number of flash pages to erase
 			std::uint32_t checksum_ = 0; //Checksum of already received words
+
+			decltype(ApplicationJumpTable::segments_) segments_;
+			std::uint32_t segmentCount_ = 0;
 		};
 
 		std::array<std::uint32_t, Flash::pageCount> erased_pages_;

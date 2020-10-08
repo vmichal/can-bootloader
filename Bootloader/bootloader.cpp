@@ -101,10 +101,19 @@ namespace boot {
 
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.entryPoint_), firmware_.entryPoint_);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware_.interruptVector_);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.firmwareSize_), firmware_.writtenBytes_.toBytes());
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.segmentCount_), firmware_.segmentCount_);
+
+		for (int i = 0; i < firmware_.segmentCount_; ++i) {
+			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.segments_[i].begin), firmware_.segments_[i].begin);
+			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.segments_[i].size), firmware_.segments_[i].size);
+		}
 
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic1_), ApplicationJumpTable::expected_magic1_value);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic2_), ApplicationJumpTable::expected_magic2_value);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic3_), ApplicationJumpTable::expected_magic3_value);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic4_), ApplicationJumpTable::expected_magic4_value);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic5_), ApplicationJumpTable::expected_magic5_value);
 	}
 
 	HandshakeResponse Bootloader::processHandshake(Register reg, std::uint32_t value) {

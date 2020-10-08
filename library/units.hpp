@@ -52,7 +52,7 @@ struct Quantity {
     constexpr static Derived copy(Derived const volatile& rhs) { return Derived{ rhs.raw_value };}
 };
 
-struct InformationSize : public Quantity<std::uintptr_t, InformationSize> {
+struct InformationSize : public Quantity<std::uint32_t, InformationSize> {
     //Internally stores storage size in bytes
 
 	constexpr static InformationSize fromBytes(underlying bytes) { return { bytes }; }
