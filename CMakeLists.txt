@@ -15,6 +15,7 @@ set(SRC
         BSP/timer.cpp
         stm32f10x_conf.h
         Drivers/Cmsis/core_cm3.h
+        Drivers/Cmsis/core_cm3.c
         Drivers/Cmsis/stm32f10x.h
         Drivers/StdPeriph/Inc/misc.h
         Drivers/StdPeriph/Inc/stm32f10x_adc.h

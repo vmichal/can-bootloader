@@ -79,10 +79,6 @@ namespace boot {
 
 	void main() {
 
-		if (Bootloader::entryReason() == EntryReason::ApplicationReturned)
-			for (;;); //latch after the app returned
-
-
 		txInit();
 
 		setupCanCallbacks();

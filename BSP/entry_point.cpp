@@ -92,27 +92,23 @@ namespace bsp {
 
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
 
-		boot::EntryReason reason = bootloader_requested();
+		boot::EntryReason const reason = bootloader_requested();
 		//Disable clock to backup registers (to make the application feel as if no bootloader was present)
 		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
 
-		int app_return_value = 0;
-
 		if (reason == boot::EntryReason::DontEnter) {
-
 			SCB->VTOR = boot::jumpTable.interruptVector_; //Set the address of application's interrupt vector
-			//TODO maybe estabilish the application's stack pointer, bur probably not and then restore it to our stack pointer
-			app_return_value = reinterpret_cast<int(*)()>(boot::jumpTable.entryPoint_)(); //Jump to the main application
 
-			/*Restore the address of bootloader's interrupt vector (must be tha same as the initial
-			vaule after reset, since it must have been loaded by the MCU at reset).*/
-			SCB->VTOR = 0; 
+			std::uint32_t const * const isr_vector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
+			__set_MSP(isr_vector[0]);
 
-			reason = boot::EntryReason::ApplicationReturned;
+			reinterpret_cast<int(*)()>(boot::jumpTable.entryPoint_)(); //Jump to the main application
+
+			//can't be reached since we have overwritten our stack pointer
 		}
 
 		//Reached only if we have to enter the bootloader or the application returned from it's main
-		boot::Bootloader::setEntryReason(reason, app_return_value);
+		boot::Bootloader::setEntryReason(reason);
 		configure_system_clock();
 	}
 
