@@ -117,9 +117,6 @@ namespace bsp {
 	}
 
 	extern "C" int main() {
-
-		MicrosecondTimer::Initialize();
-
 		gpio::Initialize();
 
 		can::Initialize();

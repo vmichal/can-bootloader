@@ -17,7 +17,9 @@ struct Timestamp {
 
 	constexpr Timestamp(uint32_t tick) : tick(tick) {}
 
-	bool TimeElapsed(Duration const duration) const;
+	bool TimeElapsed(Duration const duration) const {
+		return Timestamp::Now() - *this > duration;
+	}
 
 	static Timestamp Now();
 
@@ -39,11 +41,15 @@ private:
 class SysTickTimer {
 public:
 
-	SysTickTimer();
+	SysTickTimer() : startTime{Timestamp::Now()} {}
 
-	void Restart();
+	void Restart() {
+		startTime = Timestamp::Now();
+	}
 
-	Duration GetTimeElapsed() const;
+	Duration GetTimeElapsed() const {
+		return Timestamp::Now() - startTime;
+	}
 
 	bool TimeElapsed(Duration const interval) const {
 		return startTime.TimeElapsed(interval);
