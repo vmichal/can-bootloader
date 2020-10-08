@@ -15,7 +15,6 @@
 #include <cstdint>
 
 /* Timer allocation:
-	TIM2, TIM5 are chained together for microsecond timing. TIM5 is slave (slow timer)
 	TIM6, TIM7 - available for microsecond timing
 */
 
@@ -23,14 +22,12 @@ constexpr auto SYS_CLK = 72'000'000_Hz;
 constexpr auto TIM6_frequency = 1'000'000_Hz;
 constexpr auto TIM7_frequency = 1'000'000_Hz;
 constexpr auto TIM2_frequency = 1'000'000_Hz;
+constexpr auto SysTickFrequency = 1'000_Hz;
+struct SystemTimer {
+	//uses SysTick for internal purposes
 
-class SystemTimer {
-	//TIM2, TIM5 are chained together for microsecond timing. TIM5 is slave (slow timer)
-	static inline TIM_TypeDef& slow_ = *TIM5, &fast_ = *TIM2;
-public:
-	static inline int periods_; //Two chained timers have period approx 70 minutes
-
-	static constexpr int ticks_per_second = TIM2_frequency.toHertz();
+	inline static std::uint32_t ticks = 0;
+	static constexpr int ticks_per_second = SysTickFrequency.toHertz();
 
 	//Initial tick count of the system timer
 	//Set to zero for release as it enables the compiler to eliminate the entire expression involving this constant
@@ -39,9 +36,8 @@ public:
 
 	static std::uint32_t GetTick();
 	static Timestamp Now();
-	static std::uint64_t GetTicksSinceBoot();
 
-	static LongDuration GetUptime();
+	static Duration GetUptime();
 
 	static void Initialize();
 };

@@ -81,7 +81,7 @@ namespace bsp {
 		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_0 | RCC_CFGR_SW_1, RCC_CFGR_SW_PLL); //Set PLL as system clock
 		while (bit::sliceable_value{ RCC->CFGR } [bit::slice{ 3,2 }].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
 
-		//Configure and start system microsecond clock
+		//Configure and start system milisecond clock
 		SystemTimer::Initialize();
 	}
 
