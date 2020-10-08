@@ -22,7 +22,8 @@ namespace bsp {
 
 	using namespace ufsel;
 
-	/* Returns true iff the bootloader shall be started. Return value of false jumps into the application immediatelly.*/
+	/* Checks the backup domain, jump table in flash, firmware integrity etc.
+	to decide whether the application or the bootloader shall be entered.*/
 	boot::EntryReason bootloader_requested() {
 
 		if (!boot::jumpTable.magicValid())
@@ -39,6 +40,12 @@ namespace bsp {
 		if (boot::Flash::addressOrigin(boot::jumpTable.entryPoint_) != boot::AddressSpace::AvailableFlash)
 			return boot::EntryReason::InvalidEntryPoint;
 
+		if (boot::Flash::addressOrigin(boot::jumpTable.interruptVector_) != boot::AddressSpace::AvailableFlash)
+			return boot::EntryReason::InvalidInterruptVector;
+
+		//Application initial stack pointer is saved as the first word of the interrupt table
+		if (boot::Flash::addressOrigin(interruptVector[0]) == boot::AddressSpace::AvailableFlash)
+			return boot::EntryReason::InvalidTopOfStack;
 
 		switch (boot::BackupDomain::bootControlRegister) {
 		case boot::BackupDomain::reset_value: //enter the application after power reset
@@ -53,6 +60,7 @@ namespace bsp {
 		return boot::EntryReason::backupRegisterCorrupted;
 	}
 
+	//Initializes system clock to max frequencies: 72MHz SYSCLK, AHB, APB2; 36MHz APB1
 	void configure_system_clock() {
 
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Enable external oscilator
@@ -77,10 +85,10 @@ namespace bsp {
 		SystemTimer::Initialize();
 	}
 
-	//Initializes system clock to max frequencies: 72MHz SYSCLK, AHB, APB2; 32MHz APB1
+	//Decides whether the CPU shall enter the application firmware or start listening for communication in bootloader mode
 	extern "C" void pre_main() {
 		//Beware that absolutely nothing has been enabled by now. .data is filled and .bss is cleared, but that is all
-		//No static constructors have been called yet.
+		//No static constructors have been called yet either.
 
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
 

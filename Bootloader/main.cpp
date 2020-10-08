@@ -79,32 +79,9 @@ namespace boot {
 
 	void main() {
 
-		[[maybe_unused]] auto const reason = explain_enter_reason(Bootloader::entryReason());
-		[[maybe_unused]] auto const unitName = to_string(Bootloader::thisUnit);
+		if (Bootloader::entryReason() == EntryReason::ApplicationReturned)
+			for (;;); //latch after the app returned
 
-
-		switch (Bootloader::entryReason()) {
-		case EntryReason::ApplicationReturned:
-			for (;;); // Latch after the application returned
-			break;
-		case EntryReason::backupRegisterCorrupted:
-			break;
-		case EntryReason::DontEnter:
-			assert_unreachable();
-			break;
-		case EntryReason::EntryPointMismatch: {
-			[[maybe_unused]] std::uint32_t const entry_point = reinterpret_cast<std::uint32_t const*>(jumpTable.interruptVector_)[1]; //second word of the interrupt table
-			break;
-		}
-		case EntryReason::InvalidEntryPoint:
-			break;
-		case EntryReason::InvalidMagic:
-			break;
-		case EntryReason::Requested:
-			break;
-		case EntryReason::UnalignedInterruptVector:
-			break;
-		}
 
 		txInit();
 
