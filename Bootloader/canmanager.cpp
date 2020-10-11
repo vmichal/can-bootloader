@@ -115,7 +115,7 @@ namespace boot {
 		message.Target = Bootloader::thisUnit;
 		message.Confirmed = ok;
 
-		for (; !CanManager::hasEmptyMailbox<2>(););
+		for (; !CanManager::hasEmptyMailbox<1>(););
 		send(message);
 	}
 
@@ -127,7 +127,7 @@ namespace boot {
 		message.Result = toCan(status);
 
 		//prevent the data form getting lost if all mailboxes are full
-		for (; !CanManager::hasEmptyMailbox<2>(););
+		for (; !CanManager::hasEmptyMailbox<1>(););
 		send(message);
 	}
 
@@ -138,7 +138,7 @@ namespace boot {
 		message.Value = val;
 
 		//prevent the data form getting lost if all mailboxes are full
-		for (; !CanManager::hasEmptyMailbox<2>(););
+		for (; !CanManager::hasEmptyMailbox<1>(););
 		send(message);
 	}
 

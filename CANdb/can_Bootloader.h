@@ -13,8 +13,6 @@ enum {
     bus_UNDEFINED = 2,
 };
 
-enum { Bootloader_EntryReq_id           = STD_ID(0x5F0) };
-enum { Bootloader_EntryAck_id           = STD_ID(0x5F1) };
 enum { Bootloader_Beacon_id             = STD_ID(0x5F2) };
 enum { Bootloader_Data_id               = STD_ID(0x5F3) };
 enum { Bootloader_DataAck_id            = STD_ID(0x5F4) };
@@ -98,8 +96,6 @@ enum Bootloader_State {
     Bootloader_State_ReceivedChecksum = 8,
     /* Some error occured. //TODO make it more concrete */
     Bootloader_State_Error = 9,
-    /* This unit is running main application and may be requested to enter the bootloader. */
-    Bootloader_State_FirmwareActive = 10,
 };
 
 enum Bootloader_WriteResult {
@@ -114,28 +110,7 @@ enum Bootloader_WriteResult {
 };
 
 /*
- * Request for an ECU to enter the bootloader.
- */
-typedef struct Bootloader_EntryReq_t {
-	/* Identifies the unit targeted by this message. */
-	enum Bootloader_BootTarget	Target;
-} Bootloader_EntryReq_t;
-
-
-/*
- * Targeted unit has received a bootloader entry request and has reset pending.
- */
-typedef struct Bootloader_EntryAck_t {
-	/* Identifies the unit which is currently transitioning to the bootloader. */
-	enum Bootloader_BootTarget	Target;
-
-	/* True iff the unit starts bootloader initialization sequence */
-	uint8_t	Confirmed;
-} Bootloader_EntryAck_t;
-
-
-/*
- * Sent periodically by a bootloader aware unit or an active bootloader to announce its presence.
+ * Sent periodically by an active bootloader to announce its presence.
  */
 typedef struct Bootloader_Beacon_t {
 	/* Identifies which unit has active bootloader */
@@ -247,14 +222,6 @@ typedef struct Bootloader_SoftwareBuild_t {
 
 void candbInit(void);
 
-int Bootloader_decode_EntryReq_s(const uint8_t* bytes, size_t length, Bootloader_EntryReq_t* data_out);
-int Bootloader_decode_EntryReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
-int Bootloader_get_EntryReq(Bootloader_EntryReq_t* data_out);
-void Bootloader_EntryReq_on_receive(int (*callback)(Bootloader_EntryReq_t* data));
-
-int Bootloader_send_EntryAck_s(const Bootloader_EntryAck_t* data);
-int Bootloader_send_EntryAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
-
 int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
 int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, uint16_t FlashSize);
 int Bootloader_Beacon_need_to_send(void);
@@ -292,10 +259,6 @@ int Bootloader_SoftwareBuild_need_to_send(void);
 
 template <typename T>
 bool need_to_send();
-
-inline int send(const Bootloader_EntryAck_t& data) {
-    return Bootloader_send_EntryAck_s(&data);
-}
 
 template <>
 inline bool need_to_send<Bootloader_Beacon_t>() {
