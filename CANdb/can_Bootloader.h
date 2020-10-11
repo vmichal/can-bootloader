@@ -27,6 +27,27 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_AMS = 0,
 };
 
+enum Bootloader_EntryReason {
+    /* Bootloader will not be entered (jump straight to application) */
+    Bootloader_EntryReason_DontEnter = 0,
+    /* Either no firmware is flashed, or there has been a memory corruption */
+    Bootloader_EntryReason_InvalidMagic = 1,
+    /* The application's interrupt vector is not aligned properly */
+    Bootloader_EntryReason_UnalignedInterruptVector = 2,
+    /* The entry point pointer does not point into flash */
+    Bootloader_EntryReason_InvalidEntryPoint = 3,
+    /* The vector table pointer not point into flash */
+    Bootloader_EntryReason_InvalidInterruptVector = 4,
+    /* The entry point is not the same as the second word of interrupt vector */
+    Bootloader_EntryReason_EntryPointMismatch = 5,
+    /* The specified top of stack points to flash */
+    Bootloader_EntryReason_InvalidTopOfStack = 6,
+    /* The backup register contained value different from 0 (reset value) or application_magic */
+    Bootloader_EntryReason_backupRegisterCorrupted = 7,
+    /* The bootloader was requested */
+    Bootloader_EntryReason_Requested = 8,
+};
+
 enum Bootloader_HandshakeResponse {
     /* Everything is ok */
     Bootloader_HandshakeResponse_OK = 0,
@@ -121,12 +142,15 @@ typedef struct Bootloader_Beacon_t {
 
 	/* Available flash size in kibibytes. */
 	uint16_t	FlashSize;
+
+	/* Why is the bootloader active? */
+	enum Bootloader_EntryReason	EntryReason;
 } Bootloader_Beacon_t;
 
 #define Bootloader_Beacon_FlashSize_OFFSET	((float)0)
 #define Bootloader_Beacon_FlashSize_FACTOR	((float)1)
 #define Bootloader_Beacon_FlashSize_MIN	((float)0)
-#define Bootloader_Beacon_FlashSize_MAX	((float)65535)
+#define Bootloader_Beacon_FlashSize_MAX	((float)4095)
 
 /*
  * Stream of data to be flashed into the MCU.
@@ -223,7 +247,7 @@ typedef struct Bootloader_SoftwareBuild_t {
 void candbInit(void);
 
 int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
-int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, uint16_t FlashSize);
+int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, uint16_t FlashSize, enum Bootloader_EntryReason EntryReason);
 int Bootloader_Beacon_need_to_send(void);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);

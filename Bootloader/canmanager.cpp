@@ -147,6 +147,7 @@ namespace boot {
 		message.State = toCan(bootloader_.status());
 		message.Target = Bootloader::thisUnit;
 		message.FlashSize = Flash::availableMemory / 1024;
+		message.EntryReason = static_cast<Bootloader_EntryReason>(bootloader_.entryReason()); //TODO should probably be replaced by a conversion functions
 
 		send(message);
 	}

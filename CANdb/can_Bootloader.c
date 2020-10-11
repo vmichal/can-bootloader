@@ -22,7 +22,7 @@ int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data) {
     uint8_t buffer[3];
     buffer[0] = (data->Target & 0x0F) | ((data->State & 0x0F) << 4);
     buffer[1] = data->FlashSize;
-    buffer[2] = (data->FlashSize >> 8);
+    buffer[2] = ((data->FlashSize >> 8) & 0x0F) | ((data->EntryReason & 0x0F) << 4);
     int rc = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
@@ -32,11 +32,11 @@ int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data) {
     return rc;
 }
 
-int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, uint16_t FlashSize) {
+int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, uint16_t FlashSize, enum Bootloader_EntryReason EntryReason) {
     uint8_t buffer[3];
     buffer[0] = (Target & 0x0F) | ((State & 0x0F) << 4);
     buffer[1] = FlashSize;
-    buffer[2] = (FlashSize >> 8);
+    buffer[2] = ((FlashSize >> 8) & 0x0F) | ((EntryReason & 0x0F) << 4);
     int rc = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
@@ -47,7 +47,7 @@ int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_St
 }
 
 int Bootloader_Beacon_need_to_send(void) {
-    return (Bootloader_Beacon_last_sent == -1) || (txGetTimeMillis() >= (uint32_t)(Bootloader_Beacon_last_sent + 200));
+    return (Bootloader_Beacon_last_sent == -1) || (txGetTimeMillis() >= (uint32_t)(Bootloader_Beacon_last_sent + 500));
 }
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out) {
