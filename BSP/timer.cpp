@@ -34,7 +34,7 @@ Timestamp SystemTimer::Now() {
 }
 
 Duration SystemTimer::GetUptime() {
-    return Duration::fromMicroseconds(GetTick());
+    return Duration::fromMilliseconds(GetTick());
 }
 
 extern "C" void SysTick_Handler() {
