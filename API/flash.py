@@ -112,12 +112,6 @@ def list_bootloader_aware_units():
 
 def enumerator_by_name(enumerator, enum):
 	return next(val for val in enum.enum if enum.enum[val].name == enumerator)
-	
-def fold_over_bitor(values):
-	result = 0
-	for v in values:
-		result = (result << 8) | v
-	return result
 
 class HexRecord:
 	def __init__(self, line):
@@ -255,7 +249,7 @@ class Firmware():
 class FlashMaster():
 
 	transactionMagicString = "Heli"
-	transactionMagic = fold_over_bitor([ord(c) for c in transactionMagicString])
+	transactionMagic = sum(ord(c) << index for index, char in enumerate(transactionMagicString))
 
 	def __init__(self, unit):
 
