@@ -1,0 +1,338 @@
+Vojtěch Michalvčera v 21:54
+Jinak jsem dneska provedl zajímavé pozorování
+Unlock sequence na odemčené flashce způsobí hardfault
+(tedy provedení sekvence zápisů do Flash Key registru, kdy bit LOCK v Flash control reg je clearnutý)
+Možná to není HF by default, ale já mám do něj směrované všechny handlery. Než mě napadlo se podívat do SCB na číslo aktuálního IRQ, už jsem to opravil :sweat_smile:
+Bacha!včera v 21:57
+bud by to byl HF nebo MemManage fault
+jinej snad ne
+Bacha!včera v 22:08
+k cemu slouzi jumptable?
++ nechces umistit BL spis na konec flash?
+aplikace by pak nemusel menit linker script
+Bacha!včera v 22:22
+bezne se BL dela tak, ze pri startu pres nej MCU jde vzdy, hadam ze v tvoji implementaci se tak deje jen pokud na nej smeruje jumptable nebo ne
+vytvoril jsem par issues
+Vojtěch Michalvčera v 23:06
+k cemu slouzi jumptable?
+K uložení entry pointu a vektoru přerušení firmwaru
+aplikace by pak nemusel menit linker script
+Třeba ta Prdálovka má na konci flash větší sektory než na začátku, takže mu přijde líto plýtvat paměti
+Linker skripty si stejně musí změnit, minimálně velikost paměti
+bezne se BL dela tak, ze pri startu pres nej MCU jde vzdy, hadam ze v tvoji implementaci se tak deje jen pokud na nej smeruje jumptable nebo ne
+Koukni se na BSP/entry_point.cpp
+Funkce pre_main
+Tam je veškerá logika rozhodující, zda se jde do aplikace či do bootloaderu
+Take a look, boi, mám tam úplně všechno
+Na ten kód v entry_point.cpp jsem hodně hrdý
+Bacha!dnes v 9:59
+nice uz to vidim
+ty odemykas a zamykas FLASH pro kazdej zapis? neni to zbytecny?
+jak pisu v tomhle issue https://eforce1.feld.cvut.cz/gitlab/vomi/bootloader/-/issues/11
+GitLab
+Sign in
+GitLab Community Edition
+
+chtelo by to podporu jednoduche zmeny pozice entry pointu aplikace
+misto potreby rekompilace BL
+pak ale vyvstava problem, kam takove nastaveni ukladat. Vyzadovat dalsi page flash neni uplne dobry, protoze to by BL v SW zabiral 64kiB (32kiB/page)
+Vojtěch Michaldnes v 10:43
+ty odemykas a zamykas FLASH pro kazdej zapis? neni to zbytecny?
+Ano, je, nemyslel jsem na to (ten flash kód je okopčený z AMS)
+Zmizí to v další iteraci, až si to vezmu registry :smile:
+chtelo by to podporu jednoduche zmeny pozice entry pointu aplikace
+Však ano, jump table se přepisuje společně a firmwarem, takže entrypoint a interrupt vektor se ti změní při každém flashi
+Bacha!dnes v 10:45
+takze jump table vyzaduje vlastni page :frowning:
+Vojtěch Michaldnes v 10:45
+pak ale vyvstava problem, kam takove nastaveni ukladat. Vyzadovat dalsi page flash neni uplne dobry, protoze to by BL v SW zabiral 64kiB (32kiB/page)
+Njn, ale takový je život, budu se muset přizpůsobit velikosti stránek/sektorů cílových MCU
+takze jump table vyzaduje vlastni page :frowning:
+Existuje na to jeden dirty fix
+Ale ten nechci dělat
+Varianta "budu předpokládat, že interrupt vektor je na začátku adresního prostoru pro aplikaci" se mi nepáčí
+Principielně by to platit mělo, ale když budeš chtít tenhle projekt posunout dál, začalo by to překážet.
+Druhá alternativa je, že z první stránky pro firmware uřízneš těch 20 bytů
+Ale pak budeš cpát aplikaci nezarovnanou počáteční adresu
+Bacha!dnes v 10:50
+Varianta "budu předpokládat, že interrupt vektor je na začátku adresního prostoru pro aplikaci" se mi nepáčí
+souhlas, to by ani neresilo muj problem
+Vojtěch Michaldnes v 10:50
+A pozor na to, že ty linker skripty generované z Cube atd s tímhle NEPOČÍTAJÍ
+Protože nemají příkaz na zarovnání vektoru přerušení
+Např F105 vyžaduje alignment 512 B
+Takže, když jsi komentoval nutnost měnit linker skript, tady by byla ještě větší a potenciálně víc error prone. V tuhle chvíli akorát vyžaduji, aby se do linker skriptu aplikace napsalo include ......../bootloader/API/bootloader-aware-memory-map.ld
+Bacha!dnes v 10:54
+jo, ale pak mi BL+JT zabiraji minimalne 2 stranky
+coz je ve volantu 64kiB
+Vojtěch Michaldnes v 10:54
+:man_shrugging:
+Můžeme koupit lepší hardware
+Rozumím, kam míříš
+Bacha!dnes v 10:55
+misto tam mam, jen se mi to trochu prici
+Vojtěch Michaldnes v 10:55
+Ale nevidím řešení. A není kritické. Kritické bylo dostat nějaké řešení, aby se nemuselo lézt k jednotce kvůli flashnutí..
+misto tam mam, jen se mi to trochu prici
+A máš nějaký nápad, jak to tedy poskládat?
+Stejná stránka jako bl nepřipadá v úvahu
+Takže buďto dedikovaná, nebo na začátku aplikace
+Aaaaaa
+Jsme zapomněli, že openocd to všechno smaže
+(kdyby byla jump table ve firmwaru)
+Takže tím se vyčerpaly všechny ostatní možnosti :man_shrugging:
+
+Tohle je větší problém
+Myslel jsem na něj a přišel jsem na způsob, jak spojit příjemné s užitečným
+Respektive asi.
+Btw taková situace - dvě zprávy s různým ID najednou - by byl jenom error? Já myslel, že by to byl zkrat high na low druhé jednotky a elektricky by je to poškodilo
+Bacha!dnes v 11:05
+vzdyt se bitovy kolize dejou bezne pri arbitraci (tam to neni error)
+recesivni level je na sbernici sam o sobe, dominantni nekdo vnucuje
+chce li jeden node vyslat recessive a druhy ve stejnou chvili dominant, dostane se na bus dominant
+Vojtěch Michaldnes v 11:09
+vzdyt se bitovy kolize dejou bezne pri arbitraci (tam to neni error)
+Ale arbitrace se snad týká jenom ID, nikoli dat nebo crc
+Bacha!dnes v 11:10
+to je pravda, ale eketricky to neni jiny
+tzn. kolize datovych bitu neni elektricky problem, jen to rozbije integritu dat dane zpravy
+nebo i kolize v CRC, to uz je jedno
+porad bych radeji obetoval stranku na ulozeni nastaveni (entry point adresu), nez na pevne danou jumptable
+jo a nevsiml jsem si, ze bys nekde nastavoval stack pointer na hodnotu aplikace
+Vojtěch Michaldnes v 11:15
+Stack pointer nechávám svůj, nemám ale ještě rozmyšlené konkrétní řešení
+Jestli nenechat svůj stack pointer a nechat aplikaci vrátit do bootloaderu
+Jestli nenechat svůj stack pointer a nechat aplikaci vrátit do bootloaderu
+Nevidím pro to význam moc
+Bacha!dnes v 11:17
+BL by nemel o aplikaci predpokladat temer nic, pouze to co vyzaduje MCU, kdyz pises plikaci bez BL
+Vojtěch Michaldnes v 11:17
+porad bych radeji obetoval stranku na ulozeni nastaveni (entry point adresu), nez na pevne danou jumptable)
+Asi nerozumím kam míříš
+Něco jsi někde nenašel, nebo jsi neporozuměl.
+Rozumíme si, k čemu je ta tabulka?
+Bacha!dnes v 11:17
+asi ne
+Vojtěch Michaldnes v 11:18
+Však právě do ní se ukládá entry point. Můžeš mít entry point kdekoli
+Bacha!dnes v 11:18
+jaj uz vidim tu strukturu
+moje chyba
+Vojtěch Michaldnes v 11:18
+A zapisuje se pokaždé spolu s fw
+Takže má sice pevnou adresu (ta vlastní stránka ve flash), ale obsah se mění
+Bacha!dnes v 11:20
+zpet k tomu skoku do aplikace(fw jak rikas)
+nesnazil bych se chytat navrat z aplikace
+spis bych ji dopral co nejvic podobne podminky tomu, kdyby tam BL nebyl
+pak by bylo zajimave umet flashovat i tu vzdalenou telemetrii, tzn. nejdriv prijmout FW image v aplikaci, kterej by se ulozil do externi flash, a pak se rebootlo do BL s pozadavkem na reflash z externi pameti
+ale to uz je spis takovej challenge 4 fun
+fakt respekt, ten BL je peknej kousek SW
+pres jumptable by mohla apliakce konfigurovat vic aspektu bootloaderu a mohly by se tak minimalizovat dalsi board specific konfigurace zapecene do BL
+treba id jednotky, verze aplikace a podobny by mohly byt ulozeny v Jumptable (pak by uz jumptable nebyl nejlepsi nazev)
+Vojtěch Michaldnes v 11:46
+spis bych ji dopral co nejvic podobne podminky tomu, kdyby tam BL nebyl
+Fair point. Pohledám tu instrukci na nastavení MSP
+pak by bylo zajimave umet flashovat i tu vzdalenou telemetrii, tzn. nejdriv prijmout FW image v aplikaci, kterej by se ulozil do externi flash, a pak se rebootlo do BL s pozadavkem na reflash z externi pameti
+Začal bych vůbec flashováním přes telemetrii :sweat_smile:
+Bacha!dnes v 11:47
+tak to abych to dokopal do pouzitelneho stavu
+Vojtěch Michaldnes v 11:48
+Upřímně ale, kdybychom chtěli něco podobného, spíš bych to viděl na samostatné MCU
+Asi nechceš poutat moc dohromady různé logické celky
+A dedikovat x KiB flash každé jednotky na budoucí firmware mi přijde plýtvání...
+Bacha!dnes v 11:49
+to byl problem ciste u TLM
+Vojtěch Michaldnes v 11:49
+Můžeme mít (klidně na nějaké jiné desce) mcu, které poběží jen jako flash master pro zbytek auta
+Bacha!dnes v 11:49
+protoze aplikace zajistuje to spojeni, pres ktere by se prenasel update
+no vlastne FSB je taky trochu problem, ta dodava energii do celeho auta...
+takze kdyz ji resetnes, zbytek ztrati stavu
+coz by vlastbe asi nemuselo vadit
+ja bych se zase chtel vyhnout dedikovane flashovaci jednotce
+Vojtěch Michaldnes v 12:40
+fakt respekt, ten BL je peknej kousek SW
+Díky díky. Když si člověk nastudoval linker skripty, napsalo se to úplně samo..
+Chtěl bych ho někam dotáhnout, ale pár dní se budu muset věnovat škole
+Pak to zdokumentuju a uvidíme, co dál
+Bacha!dnes v 12:43
+trochu bych se zamyslel nad zmenou protokolu co jsem navrhoval v jednom issue
+Vojtěch Michal
+ zahájil/a hovor, který trval pár sekund.
+dnes v 12:43
+Vojtěch Michaldnes v 12:44
+Koukal jsem na to, nu
+Spíš je pro mne důležitější, aby to umělo používat oba cany
+Bacha!dnes v 12:45
+naraz? kvuli propustnosti?
+Vojtěch Michaldnes v 12:45
+Ne tedy současně, chtěl bych zůstat u práce s jedinou ocarinou
+naraz? kvuli propustnosti?
+Možná eventuálně
+Ale hlavně aby to posílalo ack na stejné sběrnici, kde přišel request
+Tak mě napadá... To id jednotky taky asi zůstane v bootloaderu
+Vymyslím, jak to udělat jako customization point, aniž by to kolidovalo s gitem
+Asi to bude stejné jako UFSEL_CONFIGURATION_FILE
+Protože když se dostane ten bootloader do paměti s prázdnou jump table, musí někde najít info, koho má zavádět
+Takže tohle zůstane v BL
+Stejnětak i informace o stránkování paměti, tedy zda je dělení na stránky ekvidistantní, nebo po sektorech různé velikosti
+Tahle informace projde jako jedna ze zpráv handshaku. Podle toho, zda jsou všechny stránky stejně velké, či nikoli, se následně pošle z BL do masteru "memory map": velikost stránky/alignment a počet stránek nebo pro druhou možnost páry index sektoru-velikost
+Bacha!dnes v 12:55
+a proc to master potrebuje vedet?
+Vojtěch Michaldnes v 12:55
+chci, aby to věděl
+aby obě strany dělaly co nejvíce sanity checků
+až jednou něco někde rozbiju, takhle se mi to debugne samo
+Bacha!dnes v 12:56
+ok, kdyz uz to nebude harcoded v masteru, tak je to asi ok
+Vojtěch Michaldnes v 12:56
+a je to ~ 100 zpráv navíc. To už můj traffic nezabije
+ok, kdyz uz to nebude harcoded v masteru, tak je to asi ok
+Teď i master kontroluje, že je entry point a interrupt vektor zarovnaný a má tam prostě hardcoded ty počty bitů, co musí být nula
+takže to bude chtít dostat z BL
+důvod, proč bych chtěl, aby master explicitně mazal stránky/sektory je, že třeba se jednoho dne pustím(e) do složitějších formátů než je HEX
+ten se parsuje na 5 řádcích pythonu :man_shrugging:
+důvod, proč bych chtěl, aby master explicitně mazal stránky/sektory je, že třeba se jednoho dne pustím(e) do složitějších formátů než je HEX
+a pak je mi celkem jasné, že tam budou na začátku porodní bolesti
+Bacha!dnes v 12:58
+a to klade pozadavky na znalost stranek pameti jak?
+Vojtěch Michaldnes v 12:59
+předcházení porodním bolestem :smile:
+Bacha!dnes v 12:59
+imo stranky pameti je tak lowlevel vec, ze by nemelo byt potreba ji tahat vejs, ale ok
+Vojtěch Michaldnes v 13:06
+
+
+
+Však budu to abstrahovat
+Viděl bych to asi tak, že bootloader prostě nacpe mastrovi list dostupných bloků paměti (začátek + délka), které budou abstrahovat page/sector
+master si přes ně promítne memory map, kterou rekonstruoval podle HEX filu
+vyhodnotí, jaké z těch dostupných bloků paměti bude chtít zapisovat. Pokud mu zbyde část binárky, která nepatří do bootloaderem vystavené dostupné paměti, je to error.
+následně pošle do bootloaderu zpátky ty "bloky", které bude chtít erasenout. Pokud přišla nekompatibilní adresa/velikost, BL vyhodnotí error (sanity check)
+so far ale nebyl poškozen ten FW, co tam je aktuálně flashnutý. Kdykoli ještě můžeš tu operaci přerušit
+až následně přijde příkaz, nějaké PerformErasure, které smaže dané "bloky" a jumpTable. Tím se atomicky (z hlediska komunikace) invaliduje všechno související s FW a nestane se, že by zůstal FW napůl smazaný etc
+Bacha!dnes v 13:11
+good good
+
+
+
+
+Vojtěch Michaldnes v 13:11
+Nyní to tak není, nyní se mažou stránky rovnou. Ale je to design goal.
+Nemůžu všechno implmenetovat do verze jedna
+to bych pak ztratil zákazníky :smile:
+Bacha!dnes v 13:12
+uz chapu proc chces znat alyout pameti
+jo, zkus si pak dokopat zakazniky k updatu :smile:
+tam pak na polovine mist bude hnit zastarala verze
+Vojtěch Michaldnes v 13:13
+jim to ale nebude fungovat, protože změním mastera a BL jim pak bude vyhazovat HandshakeSequenceError
+bleeding edge for the win! :smile:
+můžeš sem ještě nasypat nějaké poznatky/tipy, které se třeba nehodí na issue... SI tu konverzaci potom vykopíruji, ať ji neztratím
+Bacha!dnes v 13:16
+moznost vycteni FW
+update BL :smile:
+odolnost vuci vypadku napajeni pri flashovani (po startu by zustal aktivni BL, protoze se FW nedoflashoval)
+Vojtěch Michaldnes v 13:22
+odolnost vuci vypadku napajeni pri flashovani (po startu by zustal aktivni BL, protoze se FW nedoflashoval)
+ano, to je.
+Bacha!dnes v 13:22
+po doflashovani se zapise nejaky flag do flash?
+Vojtěch Michaldnes v 13:23
+teprve po dokončení zápisu firmwaru se zapíše jumpTable
+takže budeš mít prázdnou jumpTable
+    void Bootloader::finishTransaction() const {
+        assert(firmware_.expectedBytes_ == firmware_.writtenBytes_);
+        assert(Flash::addressOrigin(firmware_.interruptVector_) == AddressSpace::AvailableFlash);
+        assert(Flash::addressOrigin(firmware_.entryPoint_) == AddressSpace::AvailableFlash);
+        assert(ufsel::bit::all_cleared(firmware_.interruptVector_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
+
+        //The page must have been cleared before
+        auto const empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
+        assert(jumpTable.magic1_ == empty && jumpTable.magic2_ == empty && jumpTable.magic3_ == empty);
+
+        Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic1_), ApplicationJumpTable::expected_magic1_value);
+        Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic2_), ApplicationJumpTable::expected_magic2_value);
+        Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic3_), ApplicationJumpTable::expected_magic3_value);
+
+        Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.entryPoint_), firmware_.entryPoint_);
+        Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware_.interruptVector_);
+    }
+Bacha!dnes v 13:24
+mozny bych magic zapisoval nakonec :smile:
+Vojtěch Michaldnes v 13:24
+:joy:
+okej
+tohle se volá z
+        case Status::ReceivedChecksum:
+            if (reg != Register::TransactionMagic)
+                return HandshakeResponse::HandshakeSequenceError;
+
+            if (value != transactionMagic) //Invalid magic was given
+                return HandshakeResponse::InvalidTransactionMagic;
+
+            finishTransaction();
+            status_ = Status::Ready; //Transaction magic received. Let's call this transaction finished
+            return HandshakeResponse::Ok;
+A to je už úplně poslední stav ve switchi (pak už je jenom error :smile:)
+Takže akorát přeuspořádám ty zápisy magiců
+Bacha!dnes v 13:25
+jn
+Vojtěch Michaldnes v 13:25
+ale ono to stejně nevadí, protože jsem tři paralelní vesmíry před námi oběma
+    boot::EntryReason bootloader_requested() {
+
+        if (!boot::jumpTable.magicValid())
+            return boot::EntryReason::InvalidMagic; //Magics do not match. Enter the bootloader
+
+        if (!bit::all_cleared(boot::jumpTable.interruptVector_, bit::bitmask_of_width(9))) //TODO maybe make this width configurable?
+            return boot::EntryReason::UnalignedInterruptVector; //The interrupt table is not properly aligned to the 512 B boundary
+
+        //Application entry point is saved as the second word of the interrupt table
+        std::uint32_t const * const interruptVector = reinterpret_cast<std::uint32_t const *>(boot::jumpTable.interruptVector_);
+        if (boot::jumpTable.entryPoint_ != interruptVector[1]) //If they do not match, enter the bootloader
+            return boot::EntryReason::EntryPointMismatch;
+
+        if (boot::Flash::addressOrigin(boot::jumpTable.entryPoint_) != boot::AddressSpace::AvailableFlash)
+            return boot::EntryReason::InvalidEntryPoint;
+
+
+        switch (boot::BackupDomain::bootControlRegister) {
+        case boot::BackupDomain::reset_value: //enter the application after power reset
+        case boot::BackupDomain::application_magic:
+            return boot::EntryReason::DontEnter;
+
+        case boot::BackupDomain::bootloader_magic:
+            return boot::EntryReason::Requested; //return to enter the bootloader
+        }
+
+        //the backup domain contains unknown value
+        return boot::EntryReason::backupRegisterCorrupted;
+    }
+tohle se volá v pre_main a rozhoduje, zda půjdeš do BL nebo do FW
+a kdybys měl v pohodě magie, ale entrypoint/isr vector blbě, selže ti ten check na EntryPointMismatch
+a nebo na to, že entrypoint či isr vektor nejsou v available flash
+Bacha!dnes v 13:27
+jo, to asi staci :smile:
+Vojtěch Michaldnes v 13:27
+samé jedničky taky nejsou zarovnané na 9 bitů, že...
+Přidám na to explicitní flag do jump table ještě. Stejně je tam celá stránka místa :man_shrugging:
+ale i kdyby tam nebyl, tak nevidím způsob, jak by to mohlo tolika kontrolami projít skrz a skočit někam do piče :smile:
+ale ten dump udělám.
+že by to zkonstruovalo zase HEX file? nebo jaký má být výstup
+Bacha!dnes v 13:31
+hex zni fajn
+Vojtěch Michaldnes v 13:33
+zavedeme git commity. Pokud tvůj firmware nebude mít přidružený git commit, nic se ti nikam neflashne
+hmmm, konina. nemůžu asi moc počítat s tím, že BL bude jediný způsob, jak se to bude flashovat... :cry:
+Bacha!dnes v 13:36
+jn, casto to bude flashnuty z debuggeru
+Vojtěch Michaldnes v 13:40
+možná si moc vymýšlíme na to, že cílem bylo akorát zajistit možnost flashnutí DV AMS, když ji kvůli těm pitomým DCDC nemohu snadno flashnout normálně :unamused:
+Bacha!dnes v 13:48
+tak kdyz uz se neco tvori, at to jde pouzit i jinde ne?
+Vojtěch Michaldnes v 13:48
+:smile:  to není moc eForce style, bráško
+Bacha!dnes v 13:48
+pravda
