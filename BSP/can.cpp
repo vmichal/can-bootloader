@@ -4,6 +4,7 @@
 #include <cstring>
 
 
+#include <library/assert.hpp>
 #include <CANdb/tx2/tx.h>
 #include <CANdb/can_Bootloader.h>
 
@@ -111,6 +112,8 @@ constexpr auto bus_connected_to_CAN1 = bus_CAN1;
 constexpr auto bus_connected_to_CAN2 = bus_CAN2;
 
 
+static_assert(bus_connected_to_CAN1 != bus_UNDEFINED);
+static_assert(bus_connected_to_CAN2 != bus_UNDEFINED);
 
 extern "C" {
 	uint32_t txGetTimeMillis() {
@@ -122,9 +125,7 @@ extern "C" {
 	}
 
 	int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
-
-		if (bus != bus_connected_to_CAN1 && bus != bus_connected_to_CAN2)
-			return -TX_NOT_IMPLEMENTED;
+		assert(bus == bus_connected_to_CAN1 || bus == bus_connected_to_CAN2);
 
 		CanTxMsg TxMessage;
 

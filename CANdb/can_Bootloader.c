@@ -23,7 +23,8 @@ int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data) {
     buffer[0] = (data->Target & 0x0F) | ((data->State & 0x0F) << 4);
     buffer[1] = data->FlashSize;
     buffer[2] = ((data->FlashSize >> 8) & 0x0F) | ((data->EntryReason & 0x0F) << 4);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer))
+            | txSendCANMessage(bus_CAN2, Bootloader_Beacon_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_Beacon_last_sent = txGetTimeMillis();
@@ -37,7 +38,8 @@ int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_St
     buffer[0] = (Target & 0x0F) | ((State & 0x0F) << 4);
     buffer[1] = FlashSize;
     buffer[2] = ((FlashSize >> 8) & 0x0F) | ((EntryReason & 0x0F) << 4);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer)) 
+            | txSendCANMessage(bus_CAN2, Bootloader_Beacon_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_Beacon_last_sent = txGetTimeMillis();
@@ -92,7 +94,7 @@ int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data) {
     buffer[1] = (data->Address >> 8);
     buffer[2] = (data->Address >> 16);
     buffer[3] = ((data->Address >> 24) & 0x3F) | ((data->Result & 0x03) << 6);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_DataAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Data_status.bus, Bootloader_DataAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -102,7 +104,7 @@ int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result
     buffer[1] = (Address >> 8);
     buffer[2] = (Address >> 16);
     buffer[3] = ((Address >> 24) & 0x3F) | ((Result & 0x03) << 6);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_DataAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Data_status.bus, Bootloader_DataAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -141,14 +143,14 @@ void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data)) 
 int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data) {
     uint8_t buffer[1];
     buffer[0] = (data->Target & 0x0F) | (data->Confirmed ? 16 : 0);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_ExitAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_ExitReq_status.bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
 int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed) {
     uint8_t buffer[1];
     buffer[0] = (Target & 0x0F) | (Confirmed ? 16 : 0);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_ExitAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_ExitReq_status.bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -193,7 +195,7 @@ int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data) {
     buffer[2] = (data->Value >> 8);
     buffer[3] = (data->Value >> 16);
     buffer[4] = (data->Value >> 24);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_status.bus, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -204,7 +206,7 @@ int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloa
     buffer[2] = (Value >> 8);
     buffer[3] = (Value >> 16);
     buffer[4] = (Value >> 24);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_status.bus, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -215,7 +217,8 @@ int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data) {
     buffer[2] = (data->CommitSHA >> 16);
     buffer[3] = (data->CommitSHA >> 24);
     buffer[4] = (data->DirtyRepo ? 1 : 0);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer))
+            | txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_SoftwareBuild_last_sent = txGetTimeMillis();
@@ -231,7 +234,8 @@ int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo) {
     buffer[2] = (CommitSHA >> 16);
     buffer[3] = (CommitSHA >> 24);
     buffer[4] = (DirtyRepo ? 1 : 0);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer))
+            | txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         Bootloader_SoftwareBuild_last_sent = txGetTimeMillis();
@@ -250,7 +254,7 @@ void candbHandleMessage(uint32_t timestamp, int bus, CAN_ID_t id, const uint8_t*
         if (!Bootloader_decode_Data_s(payload, payload_length, &Bootloader_Data_data))
             break;
 
-        canUpdateMsgStatusOnReceive(&Bootloader_Data_status, timestamp);
+        canUpdateMsgStatusOnReceive(&Bootloader_Data_status, timestamp, bus);
 
         if (Bootloader_Data_status.on_receive)
             ((int (*)(Bootloader_Data_t*)) Bootloader_Data_status.on_receive)(&Bootloader_Data_data);
@@ -261,7 +265,7 @@ void candbHandleMessage(uint32_t timestamp, int bus, CAN_ID_t id, const uint8_t*
         if (!Bootloader_decode_ExitReq_s(payload, payload_length, &Bootloader_ExitReq_data))
             break;
 
-        canUpdateMsgStatusOnReceive(&Bootloader_ExitReq_status, timestamp);
+        canUpdateMsgStatusOnReceive(&Bootloader_ExitReq_status, timestamp, bus);
 
         if (Bootloader_ExitReq_status.on_receive)
             ((int (*)(Bootloader_ExitReq_t*)) Bootloader_ExitReq_status.on_receive)(&Bootloader_ExitReq_data);
@@ -272,7 +276,7 @@ void candbHandleMessage(uint32_t timestamp, int bus, CAN_ID_t id, const uint8_t*
         if (!Bootloader_decode_Handshake_s(payload, payload_length, &Bootloader_Handshake_data))
             break;
 
-        canUpdateMsgStatusOnReceive(&Bootloader_Handshake_status, timestamp);
+        canUpdateMsgStatusOnReceive(&Bootloader_Handshake_status, timestamp, bus);
 
         if (Bootloader_Handshake_status.on_receive)
             ((int (*)(Bootloader_Handshake_t*)) Bootloader_Handshake_status.on_receive)(&Bootloader_Handshake_data);

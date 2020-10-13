@@ -1,6 +1,7 @@
 
 #include <tx2/can.h>
 #include <tx2/ringbuf.h>
+#include "can_Bootloader.h"
 
 #ifndef TX_RECV_BUFFER_SIZE
 enum { TX_RECV_BUFFER_SIZE = 256 };
@@ -73,12 +74,14 @@ void canInitMsgStatus(CAN_msg_status_t* status, int timeout) {
 	status->timeout = timeout;
 	status->timestamp = -1;
 	status->on_receive = NULL;
+	status->bus = bus_UNDEFINED;
 }
 
-void canUpdateMsgStatusOnReceive(CAN_msg_status_t* status, uint32_t timestamp) {
+void canUpdateMsgStatusOnReceive(CAN_msg_status_t* status, uint32_t timestamp, int bus) {
 	if (status->flags & CAN_MSG_PENDING)
 		status->flags |= CAN_MSG_MISSED;
 
 	status->flags |= CAN_MSG_RECEIVED | CAN_MSG_PENDING;
 	status->timestamp = timestamp;
+	status->bus = bus;
 }
