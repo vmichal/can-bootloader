@@ -21,23 +21,26 @@
 constexpr auto SYS_CLK = 72'000'000_Hz; 
 constexpr auto SysTickFrequency = 1'000_Hz;
 
+extern "C" void SysTick_Handler();
+
 struct SystemTimer {
 	//uses SysTick for internal purposes
 
 	static constexpr int ticks_per_second = SysTickFrequency.toHertz();
 
 	//Initial tick count of the system timer
-	//Set to zero for release as it enables the compiler to eliminate the entire expression involving this constant
-	static constexpr std::uint32_t initialTickCount = 0x00'00'00'00;
+	//Set to zero for release as it allows the compiler to eliminate the entire expression involving this constant
+	static constexpr std::uint32_t initialTickCount = 0;
 	static constexpr Timestamp bootTime{initialTickCount};
 
 	inline static std::uint32_t ticks = initialTickCount;
-	static std::uint32_t GetTick();
+public:
 	static Timestamp Now();
 
 	static Duration GetUptime();
 
 	static void Initialize();
+	friend void SysTick_Handler();
 };
 
 #endif /*__TIMER_H */

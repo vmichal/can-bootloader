@@ -25,16 +25,12 @@ void SystemTimer::Initialize() {
         );
 }
 
-std::uint32_t SystemTimer::GetTick() {
-    return ticks;
-}
-
 Timestamp SystemTimer::Now() {
-    return Timestamp{GetTick()};
+    return Timestamp{ticks};
 }
 
 Duration SystemTimer::GetUptime() {
-    return Duration::fromMilliseconds(GetTick());
+    return Duration::fromMilliseconds(ticks);
 }
 
 extern "C" void SysTick_Handler() {
