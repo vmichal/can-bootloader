@@ -147,7 +147,7 @@ namespace boot {
 
 		constexpr static auto magic_ = "Heli";
 	public:
-		constexpr static std::uint32_t transactionMagic = magic_[0] << 24 | magic_[1] << 16 | magic_[2] << 8 | magic_[3];
+		constexpr static std::uint32_t transactionMagic = magic_[0] | magic_[1] << 8 | magic_[2] << 16 | magic_[3] << 24;
 
 
 		constexpr static Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
@@ -168,7 +168,7 @@ namespace boot {
 		static EntryReason entryReason() { return entryReason_; }
 	};
 
-	static_assert(Bootloader::transactionMagic == 0x48656c69); //This value is stated in the protocol description
+	static_assert(Bootloader::transactionMagic == 0x696c6548); //This value is stated in the protocol description
 
 }
 
