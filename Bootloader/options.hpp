@@ -8,6 +8,12 @@
 
 #pragma once
 
+#include <ufsel/bit_operations.hpp>
+
 
 constexpr bool enableAssert = true;
+
+
+constexpr int isrVectorAlignmentBits = 9; //TODO make customization point
+constexpr std::uint32_t isrVectorAlignmentMask = ufsel::bit::bitmask_of_width(isrVectorAlignmentBits);
 

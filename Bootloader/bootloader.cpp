@@ -131,7 +131,7 @@ namespace boot {
 		assert(firmware.expectedBytes_ == firmware.writtenBytes_);
 		assert(Flash::addressOrigin(firmware.interruptVector_) == AddressSpace::AvailableFlash);
 		assert(Flash::addressOrigin(firmware.entryPoint_) == AddressSpace::AvailableFlash);
-		assert(ufsel::bit::all_cleared(firmware.interruptVector_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
+		assert(ufsel::bit::all_cleared(firmware.interruptVector_, isrVectorAlignmentMask));
 
 		//The page must have been cleared before
 		constexpr auto empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
@@ -192,7 +192,6 @@ namespace boot {
 
 	HandshakeResponse FirmwareMemoryMapReceiver::receive(Register reg, Command com, std::uint32_t value) {
 		switch (status_) {
-			//TODO DO
 		case Status::uninitialized:
 			status_ = Status::error;
 			return HandshakeResponse::InternalStateMachineError;
@@ -406,7 +405,7 @@ namespace boot {
 			if (Flash::addressOrigin(value) != AddressSpace::AvailableFlash)
 				return HandshakeResponse::AddressNotInFlash;
 
-			if (!ufsel::bit::all_cleared(value, ufsel::bit::bitmask_of_width(9))) //TODO make customization point
+			if (!ufsel::bit::all_cleared(value, isrVectorAlignmentMask))
 				return HandshakeResponse::InterruptVectorNotAligned;
 
 

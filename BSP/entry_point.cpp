@@ -29,7 +29,7 @@ namespace bsp {
 		if (!boot::jumpTable.magicValid())
 			return boot::EntryReason::InvalidMagic; //Magics do not match. Enter the bootloader
 
-		if (!bit::all_cleared(boot::jumpTable.interruptVector_, bit::bitmask_of_width(9))) //TODO maybe make this width configurable?
+		if (!bit::all_cleared(boot::jumpTable.interruptVector_, isrVectorAlignmentMask))
 			return boot::EntryReason::UnalignedInterruptVector; //The interrupt table is not properly aligned to the 512 B boundary
 
 		//Application entry point is saved as the second word of the interrupt table
