@@ -17,8 +17,8 @@
 #include <BSP/gpio.hpp>
 namespace boot {
 
-	Bootloader bootloader;
-	CanManager canManager{ bootloader };
+	CanManager canManager;
+	Bootloader bootloader {canManager};
 
 	SysTickTimer lastBlueToggle;
 
@@ -36,15 +36,15 @@ namespace boot {
 			});
 
 		Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
-			Register const reg = regToReg(data->Register);
-			auto const response = bootloader.processHandshake(reg, data->Value);
+			Register const reg = static_cast<Register>(data->Register);
+			auto const response = bootloader.processHandshake(reg, static_cast<Command>(data->Command), data->Value);
 
 			canManager.SendHandshakeAck(reg, response, data->Value);
 			return 0;
 			});
 
 		Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
-			if (bootloader.status() != Bootloader::Status::Ready) {
+			if (!data->Force && bootloader.status() != Status::Ready) {
 				canManager.SendExitAck(false);
 				return 1;
 			}
@@ -54,6 +54,22 @@ namespace boot {
 			return 0; //Not reached
 			});
 
+		Bootloader_HandshakeAck_on_receive([](Bootloader_HandshakeAck_t * data) -> int {
+			Bootloader_Handshake_t const last = canManager.lastSentHandshake();
+			if (data->Register != last.Register || data->Value != last.Value)
+				return 1;
+
+			bootloader.processHandshakeAck(static_cast<HandshakeResponse>(data->Response));
+			return 0;
+			});
+
+		Bootloader_CommunicationYield_on_receive([](Bootloader_CommunicationYield_t * const data) -> int {
+			assert(data->Target == Bootloader::thisUnit); //TODO maybe allow multiple bootloaders on bus
+
+			bootloader.processYield();
+			return 0;
+			
+			});
 	}
 
 	/*Transaction protocol:
@@ -72,7 +88,7 @@ namespace boot {
 	The communication uses messages Handshake and Data and their corresponding Acknowledgements
 	For every sent message a corresponding ack must be awaited to make sure the system performed requested operation.
 
-	Prerequisite: Bootloader is in state Ready. If it's not (e.g. because previous transaction crashed, it must be reset via the message ExitReq with bit Force == 1)
+	Prerequisite: Bootloader is in state Ready. If it's not (e.g. because previous transaction crashed) it must be reset via the message ExitReq with bit Force == 1)
 
 	=== Initialization ===
 		1) H: The master writes to the TransactionMagic register
@@ -83,12 +99,12 @@ namespace boot {
 		4)     Firmware memory map is transmitted by the master  (see 'Transmission of logical memory map' below)
 		5)     Physical memory blocks are chosen and erased  (see 'Physical memory block erassure' below)
 		6)     Firmware is downloaded (see 'Firmwarer download' below)
-		7)     Special addresses are trasmitted (see 'Special addresses' below)
+		7)     Bootloader receives firmware metadata (see 'Firmware metadata' below)
 		8)  H: The master writes to the TransactionMagic to indicate the end of transaction
 
 
 	=== Transmission of available physical memory ===
-	The bootloader may need to inform the flash master about the physical memory map of the target device. It shall be carried out this way:
+	The bootloader may need to inform the flash master about the physical memory map of the target device. It shall be carried out this way
 		1) H: The bootloader transmits the transaction magic to indicate the start of subtransaction
 		2) H: The bootloader transmits the number of available physical memory blocks
 		Repeat steps 3-4 n times, where n is the number sent in step 2:
@@ -134,7 +150,7 @@ namespace boot {
 
 
 
-	=== Special addresses ===
+	=== Firmware metadata ===
 	The flash master tells the bootloader, where to find the firmware's entry point and isr vector
 	This subtransaction shall be carried out this way:
 		1) H: The master transmits the transaction magic to indicate the start of subtransaction
@@ -155,7 +171,7 @@ namespace boot {
 
 		for (;;) { //main loop
 
-			canManager.Update();
+			canManager.Update(bootloader);
 
 			txProcess();
 		}

@@ -15,9 +15,21 @@
 #include <library/timer.hpp>
 namespace boot {
 
+	namespace {
+
+		HandshakeResponse checkMagic(Register const reg, std::uint32_t const value) {
+			if (reg != Register::TransactionMagic)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			if (value != Bootloader::transactionMagic)
+				return HandshakeResponse::InvalidTransactionMagic;
+
+			return HandshakeResponse::Ok;
+		}
+
+	}
+
 	WriteStatus Bootloader::checkAddressBeforeWrite(std::uint32_t const address) {
-		if (status_ != Status::ReceivingData)
-			return WriteStatus::NotReady;
 
 		switch (Flash::addressOrigin(address)) {
 
@@ -35,8 +47,9 @@ namespace boot {
 
 		std::uint32_t const pageAligned = Flash::makePageAligned(address);
 
-		auto const beg = begin(erased_pages_);
-		auto const end = std::next(beg, erased_pages_count_);
+		auto const& erased_pages = physicalMemoryBlockEraser_.erased_pages();
+		auto const beg = begin(erased_pages);
+		auto const end = std::next(beg, physicalMemoryBlockEraser_.erased_page_count());
 		if (std::find(beg, end, pageAligned) == end)
 			return WriteStatus::NotInErasedMemory;
 
@@ -44,12 +57,13 @@ namespace boot {
 	}
 
 	WriteStatus Bootloader::write(std::uint32_t address, std::uint16_t half_word) {
+		if (!firmwareDownloader_.data_expected())
+			return WriteStatus::NotReady;
+
 		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
-		firmware_.checksum_ += half_word;
-		firmware_.writtenBytes_ += InformationSize::fromBytes(sizeof(half_word));
-		return Flash::Write(address, half_word);
+		return firmwareDownloader_.write(address, half_word);
 	}
 
 	WriteStatus Bootloader::write(std::uint32_t address, std::uint32_t word) {
@@ -60,7 +74,7 @@ namespace boot {
 		return write(address + 2, upper_half);
 	}
 
-	HandshakeResponse Bootloader::tryErasePage(std::uint32_t address) {
+	HandshakeResponse PhysicalMemoryBlockEraser::tryErasePage(std::uint32_t address) {
 
 		if (!ufsel::bit::all_cleared(address, ufsel::bit::bitmask_of_width(11))) //pages are 2KiB wide
 			return HandshakeResponse::PageAddressNotAligned;
@@ -77,7 +91,7 @@ namespace boot {
 			return HandshakeResponse::AddressNotInFlash;
 		}
 
-		
+
 		auto const beg = begin(erased_pages_);
 		auto const end = std::next(beg, erased_pages_count_);
 		if (std::find(beg, end, address) != end)
@@ -89,24 +103,48 @@ namespace boot {
 		return HandshakeResponse::Ok;
 	}
 
-	void Bootloader::finishTransaction() const {
-		assert(firmware_.expectedBytes_ == firmware_.writtenBytes_);
-		assert(Flash::addressOrigin(firmware_.interruptVector_) == AddressSpace::AvailableFlash);
-		assert(Flash::addressOrigin(firmware_.entryPoint_) == AddressSpace::AvailableFlash);
-		assert(ufsel::bit::all_cleared(firmware_.interruptVector_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
+	Bootloader::FirmwareData Bootloader::summarizeFirmwareData() const {
+		FirmwareData firmware;
+
+		firmware.expectedBytes_ = firmwareDownloader_.expectedSize();
+		firmware.writtenBytes_ = firmwareDownloader_.actualSize();
+		firmware.entryPoint_ = metadataReceiver_.entry_point();
+		firmware.interruptVector_ = metadataReceiver_.isr_vector();
+		firmware.logical_memory_block_count_ = firmwareMemoryMapReceiver_.logicalMemoryBlockCount();
+		firmware.logical_memory_blocks_ = firmwareMemoryMapReceiver_.logicalMemoryBlocks();
+
+		return firmware;
+	}
+
+
+	void Bootloader::finishFlashingTransaction() const {
+		//Make sure every subtransaction was carried out successfully
+		assert(physicalMemoryMapTransmitter_.done());
+		assert(firmwareMemoryMapReceiver_.done());
+		assert(physicalMemoryBlockEraser_.done());
+		assert(firmwareDownloader_.done());
+		assert(metadataReceiver_.done());
+
+		FirmwareData const firmware = summarizeFirmwareData();
+
+		//Sanity checks of internal state
+		assert(firmware.expectedBytes_ == firmware.writtenBytes_);
+		assert(Flash::addressOrigin(firmware.interruptVector_) == AddressSpace::AvailableFlash);
+		assert(Flash::addressOrigin(firmware.entryPoint_) == AddressSpace::AvailableFlash);
+		assert(ufsel::bit::all_cleared(firmware.interruptVector_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
 
 		//The page must have been cleared before
 		constexpr auto empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
 		assert(jumpTable.magic1_ == empty && jumpTable.magic2_ == empty && jumpTable.magic3_ == empty);
 
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.entryPoint_), firmware_.entryPoint_);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware_.interruptVector_);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.firmwareSize_), firmware_.writtenBytes_.toBytes());
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.segmentCount_), firmware_.segmentCount_);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.entryPoint_), firmware.entryPoint_);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware.interruptVector_);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.firmwareSize_), firmware.writtenBytes_.toBytes());
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_block_count_), firmware.logical_memory_block_count_);
 
-		for (int i = 0; i < firmware_.segmentCount_; ++i) {
-			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.segments_[i].begin), firmware_.segments_[i].begin);
-			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.segments_[i].size), firmware_.segments_[i].size);
+		for (std::uint32_t i = 0; i < firmware.logical_memory_block_count_; ++i) {
+			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_blocks_[i].address), firmware.logical_memory_blocks_[i].address);
+			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_blocks_[i].length), firmware.logical_memory_blocks_[i].length);
 		}
 
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic1_), ApplicationJumpTable::expected_magic1_value);
@@ -116,147 +154,426 @@ namespace boot {
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic5_), ApplicationJumpTable::expected_magic5_value);
 	}
 
-	HandshakeResponse Bootloader::processHandshake(Register reg, std::uint32_t value) {
-
+	Bootloader_Handshake_t PhysicalMemoryMapTransmitter::update() {
 		switch (status_) {
-		case Status::Ready: {//We are waiting for write to the magic register
+		case Status::uninitialized:
+		case Status::pending: //Update function shall not be reached with these states
+			status_ = Status::error;
+			return handshake::abort;
+
+		case Status::masterYielded:
+			status_ = Status::sentInitialMagic;
+			return handshake::transactionMagic;
+
+		case Status::sentInitialMagic:
+			status_ = Status::sendingBlockAddress;
+			return handshake::get(Register::NumPhysicalMemoryBlocks, Command::None, PhysicalMemoryMap::availablePages);
+
+		case Status::sendingBlockAddress:
+			if (PhysicalMemoryMap::availablePages == blocks_sent_) { //we have sent all available blocks
+				status_ = Status::shouldYield;
+				return handshake::transactionMagic;
+			}
+			status_ = Status::sendingBlockLength;
+			return handshake::get(Register::PhysicalBlockStart, Command::None, PhysicalMemoryMap::block(blocks_sent_).address);
+
+		case Status::sendingBlockLength:
+			status_ = Status::sendingBlockAddress;
+			return handshake::get(Register::PhysicalBlockLength, Command::None, PhysicalMemoryMap::block(blocks_sent_++).length);
+		case Status::shouldYield:
+		case Status::done:
+			status_ = Status::error;
+			return handshake::abort;
+		case Status::error:
+			return handshake::abort;
+		}
+		assert_unreachable();
+	}
+
+	HandshakeResponse FirmwareMemoryMapReceiver::receive(Register reg, Command com, std::uint32_t value) {
+		switch (status_) {
+			//TODO DO
+		case Status::uninitialized:
+			status_ = Status::error;
+			return HandshakeResponse::InternalStateMachineError;
+
+		case Status::pending:
+			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
+				return res;
+
+			status_ = Status::waitingForBlockCount;
+			return HandshakeResponse::Ok;
+
+		case Status::waitingForBlockCount:
+			if (reg != Register::NumLogicalMemoryBlocks)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			if (value > blocks_.size()) //That many memory blocks cant be stored
+				return HandshakeResponse::TooManyLogicalMemoryBlocks;
+
+			blocks_expected_ = value;
+			status_ = Status::waitingForBlockAddress;
+			return HandshakeResponse::Ok;
+
+		case Status::waitingForBlockAddress:
+			switch (reg) {
+			case Register::LogicalBlockStart:
+				if (blocks_received_ == blocks_expected_) //no more memory blocks may be received
+					return HandshakeResponse::LogicalBlockCountMismatch;
+
+				blocks_[blocks_received_].address = value;
+				status_ = Status::waitingForBlockLength;
+
+				return HandshakeResponse::Ok;
+
+			case Register::Command:
+				if (com != Command::VerifyLogicalMemoryMap)
+					return HandshakeResponse::CommandInvalidInCurrentContext;
+				status_ = Status::receivedVerificationCommand;
+				return HandshakeResponse::Ok;
+
+			default:
+				return HandshakeResponse::HandshakeSequenceError;
+			}
+			assert_unreachable();
+
+		case Status::waitingForBlockLength:
+			if (reg != Register::LogicalBlockLength)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			blocks_[blocks_received_++].length = value;
+			status_ = Status::waitingForBlockAddress;
+			return HandshakeResponse::Ok;
+
+		case Status::receivedVerificationCommand:
+			//Master should have yielded at this point
+		case Status::masterYielded:
+		case Status::shouldYield:
+			return HandshakeResponse::HandshakeNotExpected;
+
+		case Status::bootloaderYielded:
 			if (reg != Register::TransactionMagic)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value != transactionMagic)
+			if (value != Bootloader::transactionMagic)
 				return HandshakeResponse::InvalidTransactionMagic;
 
-			status_ = Status::TransactionStarted;
+			status_ = Status::done;
 			return HandshakeResponse::Ok;
+		case Status::done:
+			return HandshakeResponse::InternalStateMachineError;
+		case Status::error:
+			return HandshakeResponse::BootloaderInError;
 		}
+		assert_unreachable();
+	}
 
-		case Status::TransactionStarted: {//We are waiting for the size of binary
-			if (reg != Register::FirmwareSize)
+	HandshakeResponse PhysicalMemoryBlockEraser::receive(Register reg, Command com, std::uint32_t value) {
+		switch (status_) {
+		case Status::uninitialized:
+			return HandshakeResponse::InvalidTransactionMagic;
+		case Status::pending:
+			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
+				return res;
+
+			status_ = Status::waitingForMemoryBlockCount;
+			return HandshakeResponse::Ok;
+
+		case Status::waitingForMemoryBlockCount:
+			if (reg != Register::NumPhysicalBlocksToErase)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			//value holds the size of firmware in bytes.
-
-			if (value > Flash::availableMemory)
-				return HandshakeResponse::BinaryTooBig;
-
-			firmware_.expectedBytes_ = InformationSize::fromBytes(value);
-			status_ = Status::ReceivedFirmwareSize;
-			return HandshakeResponse::Ok;
-		}
-
-		case Status::ReceivedFirmwareSize: {//Waiting for the number of pages
-			if (reg != Register::NumPagesToErase)
-				return HandshakeResponse::HandshakeSequenceError;
-
-			if (value >= Flash::pageCount || value == 0)
+			if (value > PhysicalMemoryMap::availablePages || value == 0)
 				return HandshakeResponse::NotEnoughPages;
 
-			firmware_.numPagesToErase_ = value;
-			status_ = Status::ReceivedNumPagestoErase;
+			expectedPageCount_ = value;
+			status_ = Status::receivingMemoryBlocks;
 			return HandshakeResponse::Ok;
-		}
 
-		case Status::ReceivedNumPagestoErase: { //We are expectiong the first page to erase
-
-			if (reg != Register::PageToErase) //We have to erase at least one page.
+		case Status::waitingForMemoryBlocks:
+			if (reg != Register::PhysicalBlockToErase) //We have to erase at least one page.
 				return HandshakeResponse::HandshakeSequenceError;
+
+			//We are about to erase one of the pages of flash. It meas that we are really commited
+			jumpTable.invalidate();
 
 			if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
 				return result;
 
-			//We have erased one of the pages of flash. It meas that we are really commited
-			jumpTable.invalidate();
-			status_ = Status::ErasingPages;
+			erased_pages_[erased_pages_count_++] = value;
+			status_ = Status::receivingMemoryBlocks;
 			return HandshakeResponse::Ok;
-		}
-		case Status::ErasingPages: { //We are expecting either more pages to erase 
+
+		case Status::receivingMemoryBlocks:
 			switch (reg) {
-			case Register::PageToErase: {
-				if (erased_pages_count_ >= firmware_.numPagesToErase_)
+			case Register::PhysicalBlockToErase:
+				if (erased_pages_count_ >= expectedPageCount_)
 					return HandshakeResponse::ErasedPageCountMismatch;
 
 				if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
 					return result;
 
+				erased_pages_[erased_pages_count_++] = value;
 				return HandshakeResponse::Ok;
-			}
-			case Register::EntryPoint: {
-				if (erased_pages_count_ != firmware_.numPagesToErase_)
-					return HandshakeResponse::ErasedPageCountMismatch;
 
-				switch (Flash::addressOrigin(value)) {
-				case AddressSpace::AvailableFlash:
-					break; //Entry point in available application flash is expected
-
-				case AddressSpace::BootloaderFlash:
-				case AddressSpace::JumpTable:
-					return HandshakeResponse::PageProtected;
-
-				case AddressSpace::RAM:
-				case AddressSpace::Unknown:
-					return HandshakeResponse::AddressNotInFlash;
-				}
-
-				firmware_.entryPoint_ = value;
-				status_ = Status::ReceivedEntryPoint;
+			case Register::TransactionMagic:
+				if (value != Bootloader::transactionMagic)
+					return HandshakeResponse::InvalidTransactionMagic;
+				status_ = Status::done;
 				return HandshakeResponse::Ok;
-			}
-			default: //Any other register is an error tight now
+
+			default:
 				return HandshakeResponse::HandshakeSequenceError;
 			}
+		case Status::done:
+			status_ = Status::error;
+			return HandshakeResponse::InternalStateMachineError;
+
+		case Status::error:
+			return HandshakeResponse::BootloaderInError;
 		}
-		case Status::ReceivedEntryPoint: //We are expecting the interrupt vector
-			if (reg != Register::InterruptVector)
-				return HandshakeResponse::HandshakeSequenceError;
+		assert_unreachable();
+	}
 
-			//TODO replace nine by some named constant
-			if (!ufsel::bit::all_cleared(value, ufsel::bit::bitmask_of_width(9))) //The interrupt vector is not aligned to 512B boundary.
-				return HandshakeResponse::InterruptVectorNotAligned;
+	WriteStatus FirmwareDownloader::write(std::uint32_t address, std::uint16_t half_word) {
+		checksum_ += half_word;
+		written_bytes_ += InformationSize::fromBytes(sizeof(half_word));
+		return Flash::Write(address, half_word);
+	}
 
-			firmware_.interruptVector_ = value;
-			status_ = Status::ReceivedInterruptVector;
+	HandshakeResponse FirmwareDownloader::receive(Register reg, Command com, std::uint32_t value) {
+		switch (status_) {
+		case Status::unitialized:
+			return HandshakeResponse::InternalStateMachineError;
+		case Status::pending:
+			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
+				return res;
+
+			status_ = Status::waitingForFirmwareSize;
 			return HandshakeResponse::Ok;
 
-		case Status::ReceivedInterruptVector: //Expecting one more transaction magic
-			if (reg != Register::TransactionMagic)
+		case Status::waitingForFirmwareSize:
+			if (reg != Register::FirmwareSize)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value != transactionMagic)
-				return HandshakeResponse::InvalidTransactionMagic;
+			if (value > Flash::availableMemory)
+				return HandshakeResponse::BinaryTooBig;
 
-			status_ = Status::ReceivingData;
+			firmware_size_ = InformationSize::fromBytes(value);
+			status_ = Status::receivingData;
 			return HandshakeResponse::Ok;
 
-		case Status::ReceivingData: { //Expecting the checksum
+		case Status::receivingData:
 			if (reg != Register::Checksum)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (firmware_.writtenBytes_ != firmware_.expectedBytes_) //A different number of bytes has been written
-				return HandshakeResponse::NumWrittenBytesMismatch;
-
-			if (value != firmware_.checksum_)
+			if (value != checksum_)
 				return HandshakeResponse::ChecksumMismatch;
 
-			std::uint32_t const* isr_vector = reinterpret_cast<std::uint32_t const*>(firmware_.interruptVector_);
-			if (firmware_.entryPoint_ != isr_vector[1]) //The second word of isr vector shall be the address of application's entry point
-				return HandshakeResponse::EntryPointAddressMismatch;
-
-			status_ = Status::ReceivedChecksum;
+			status_ = Status::receivedChecksum;
 			return HandshakeResponse::Ok;
+
+		case Status::receivedChecksum:
+			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
+				return res;
+
+			status_ = Status::done;
+			return HandshakeResponse::Ok;
+		case Status::done:
+			status_ = Status::error;
+			return HandshakeResponse::InternalStateMachineError;
+		case Status::error:
+			return HandshakeResponse::BootloaderInError;
 		}
-		case Status::ReceivedChecksum:
-			if (reg != Register::TransactionMagic)
+		assert_unreachable();
+	}
+
+	HandshakeResponse MetadataReceiver::receive(Register reg, Command com, std::uint32_t value) {
+		switch (status_) {
+		case Status::unitialized:
+			return HandshakeResponse::InternalStateMachineError;
+		case Status::pending:
+			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
+				return res;
+
+			status_ = Status::awaitingEntryPoint;
+			return HandshakeResponse::Ok;
+
+		case Status::awaitingInterruptVector:
+			if (reg != Register::InterruptVector)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value != transactionMagic) //Invalid magic was given
-				return HandshakeResponse::InvalidTransactionMagic;
+			if (Flash::addressOrigin(value) != AddressSpace::AvailableFlash)
+				return HandshakeResponse::AddressNotInFlash;
 
-			finishTransaction();
-			status_ = Status::Ready; //Transaction magic received. Let's call this transaction finished
+			if (!ufsel::bit::all_cleared(value, ufsel::bit::bitmask_of_width(9))) //TODO make customization point
+				return HandshakeResponse::InterruptVectorNotAligned;
+
+
+			isr_vector_ = value;
+			status_ = Status::awaitingEntryPoint;
 			return HandshakeResponse::Ok;
 
+		case Status::awaitingEntryPoint: {
+
+			if (reg != Register::EntryPoint)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			if (Flash::addressOrigin(value) != AddressSpace::AvailableFlash)
+				return HandshakeResponse::AddressNotInFlash;
+
+			std::uint32_t const* const isr_vector = reinterpret_cast<std::uint32_t const*>(isr_vector_);
+			if (isr_vector[1] != value)
+				return HandshakeResponse::EntryPointAddressMismatch;
+
+			entry_point_ = value;
+			status_ = Status::awaitingTerminatingMagic;
+			return HandshakeResponse::Ok;
+		}
+
+		case Status::awaitingTerminatingMagic:
+			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
+				return res;
+
+			status_ = Status::done;
+			return HandshakeResponse::Ok;
+
+		case Status::done:
+			status_ = Status::error;
+			return HandshakeResponse::InternalStateMachineError;
+		case Status::error:
+			return HandshakeResponse::BootloaderInError;
+		}
+		assert_unreachable();
+	}
+
+
+	Bootloader_Handshake_t Bootloader::processYield() {
+		switch (status_) {
+		case Status::TransmittingPhysicalMemoryBlocks:
+			physicalMemoryMapTransmitter_.processYield();
+			return physicalMemoryMapTransmitter_.update(); //send the initial transaction magic straight away
+
+		case Status::ReceivingFirmwareMemoryMap:
+			if (firmwareMemoryMapReceiver_.yieldExpected()) {
+				firmwareMemoryMapReceiver_.processYield();
+				return firmwareMemoryMapReceiver_.logicalMemoryValid()
+					? handshake::transactionMagic
+					: handshake::abort;
+			}
+
+			status_ = Status::Error;
+			[[fallthrough]];
+		default:
+			status_ = Status::Error; //TODO make more concrete
+			return handshake::abort;
+		}
+		assert_unreachable();
+	}
+
+	HandshakeResponse Bootloader::processHandshake(Register const reg, Command const command, std::uint32_t const value) {
+
+		if (reg != Register::Command && command != Command::None)
+			return HandshakeResponse::CommandNotNone;
+
+		switch (status_) {
+		case Status::Ready:
+			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
+				return res;
+
+			status_ = Status::Initialization;
+			break;
+
+		case Status::Initialization:
+			if (reg != Register::Command)
+				return HandshakeResponse::HandshakeSequenceError;
+
+			switch (command) {
+			case Command::StartTransactionFlashing:
+				status_ = Status::TransmittingPhysicalMemoryBlocks;
+				transactionType_ = TransactionType::Flashing;
+				physicalMemoryMapTransmitter_.startSubtransaction();
+				return HandshakeResponse::Ok;
+			default:
+				return HandshakeResponse::UnknownTransactionType;
+			}
+			assert_unreachable();
+
+		case Status::TransmittingPhysicalMemoryBlocks:
+			//During this stage the bootloader transmits data. The master therefore should not proceed
+			return HandshakeResponse::HandshakeNotExpected;
+
+		case Status::ReceivingFirmwareMemoryMap: {
+
+			auto const result = firmwareMemoryMapReceiver_.receive(reg, command, value);
+			if (firmwareMemoryMapReceiver_.done()) {
+				status_ = Status::ErasingPhysicalBlocks;
+				physicalMemoryBlockEraser_.startSubtransaction();
+			}
+			return result;
+		}
+		case Status::ErasingPhysicalBlocks: {
+
+			auto const result = physicalMemoryBlockEraser_.receive(reg, command, value);
+			if (physicalMemoryBlockEraser_.done()) {
+				status_ = Status::DownloadingFirmware;
+				firmwareDownloader_.startSubtransaction();
+			}
+			return result;
+
+		}
+		case Status::DownloadingFirmware: {
+
+			auto const result = firmwareDownloader_.receive(reg, command, value);
+			if (firmwareDownloader_.done()) {
+				status_ = Status::ReceivingFirmwareMetadata;
+				metadataReceiver_.startSubtransaction();
+			}
+			return result;
+		}
+		case Status::ReceivingFirmwareMetadata: {
+
+			auto const result = metadataReceiver_.receive(reg, command, value);
+			if (metadataReceiver_.done()) {
+				status_ = Status::Ready;
+				finishFlashingTransaction();
+			}
+			return result;
+		}
 		case Status::Error:
-			return HandshakeResponse::HandshakeSequenceError;
+			return HandshakeResponse::BootloaderInError;
+		}
+
+		assert_unreachable();
+	}
+
+	void Bootloader::processHandshakeAck(HandshakeResponse const response) {
+		switch (status_) {
+		case Status::TransmittingPhysicalMemoryBlocks:
+			if (physicalMemoryMapTransmitter_.shouldYield()) {
+				physicalMemoryMapTransmitter_.endSubtransaction();
+
+				firmwareMemoryMapReceiver_.startSubtransaction();
+				status_ = Status::ReceivingFirmwareMemoryMap;
+
+				can_.yieldCommunication();
+			}
+			else
+				can_.SendHandshake(physicalMemoryMapTransmitter_.update());
+			return;
+		case Status::ReceivingFirmwareMemoryMap:
+			if (firmwareMemoryMapReceiver_.tryYield()) {
+				can_.yieldCommunication();
+				return;
+			}
+			else {
+				status_ = Status::Error;
+				[[fallthrough]];
+			}
+
+		default:
+			status_ = Status::Error; //TODO make more concrete
+			return;
 		}
 		assert_unreachable();
 	}
@@ -282,5 +599,10 @@ namespace boot {
 		entryReason_ = reason;
 	}
 
+
+	bool FirmwareMemoryMapReceiver::logicalMemoryValid() const {
+		//TODO implement
+		return true;
+	}
 
 }

@@ -18,7 +18,7 @@ namespace boot {
 
 	std::size_t const Flash::availableMemory = available_flash_end - available_flash_start;
 	std::uint32_t const Flash::jumpTableAddress = reinterpret_cast<std::uint32_t>(&jumpTable_start);
-
+	std::uint32_t const Flash::applicationAddress = reinterpret_cast<std::uint32_t>(&available_flash_start);
 
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
 		__disable_irq();

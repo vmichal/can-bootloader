@@ -4,6 +4,7 @@
 #include "canmanager.hpp"
 #include "options.hpp"
 #include "main.hpp"
+#include "bootloader.hpp"
 
 #include <BSP/timer.hpp>
 #include <library/utility.hpp>
@@ -34,60 +35,6 @@ namespace {
 		assert_unreachable();
 	}
 
-	Bootloader_State toCan(boot::Bootloader::Status s) {
-		using namespace boot;
-		switch (s) {
-
-		case Bootloader::Status::Ready: return Bootloader_State_Ready;
-		case Bootloader::Status::TransactionStarted: return Bootloader_State_TransactionStarted;
-		case Bootloader::Status::ReceivedFirmwareSize: return Bootloader_State_ReceivedFirmwareSize;
-		case Bootloader::Status::ReceivedNumPagestoErase: return Bootloader_State_ReceivedNumPagestoErase;
-		case Bootloader::Status::ErasingPages: return Bootloader_State_ErasingPages;
-		case Bootloader::Status::ReceivedEntryPoint: return Bootloader_State_ReceivedEntryPoint;
-		case Bootloader::Status::ReceivedInterruptVector: return Bootloader_State_ReceivedInterruptVector;
-		case Bootloader::Status::ReceivingData: return Bootloader_State_ReceivingData; 
-		case Bootloader::Status::ReceivedChecksum: return Bootloader_State_ReceivedChecksum;
-		case Bootloader::Status::Error: return Bootloader_State_Error;
-		}
-		assert_unreachable();
-	}
-
-	Bootloader_HandshakeResponse toCan(boot::HandshakeResponse response) {
-		using namespace boot;
-
-		switch (response) {
-		case HandshakeResponse::Ok:
-			return Bootloader_HandshakeResponse_OK;
-
-		case HandshakeResponse::PageAddressNotAligned:
-			return Bootloader_HandshakeResponse_PageAddressNotAligned;
-		case HandshakeResponse::AddressNotInFlash:
-			return Bootloader_HandshakeResponse_AddressNotInFlash;
-		case HandshakeResponse::PageProtected:
-			return Bootloader_HandshakeResponse_PageProtected;
-		case HandshakeResponse::ErasedPageCountMismatch:
-			return Bootloader_HandshakeResponse_ErasedPageCountMismatch;
-		case HandshakeResponse::InvalidTransactionMagic:
-			return Bootloader_HandshakeResponse_InvalidTransactionMagic;
-		case HandshakeResponse::HandshakeSequenceError:
-			return Bootloader_HandshakeResponse_HandshakeSequenceError;
-		case HandshakeResponse::InterruptVectorNotAligned:
-			return Bootloader_HandshakeResponse_InterruptVectorNotAligned;
-		case HandshakeResponse::BinaryTooBig:
-			return Bootloader_HandshakeResponse_BinaryTooBig;
-		case HandshakeResponse::PageAlreadyErased:
-			return Bootloader_HandshakeResponse_PageAlreadyErased;
-		case HandshakeResponse::NotEnoughPages:
-			return Bootloader_HandshakeResponse_NotEnoughPages;
-		case HandshakeResponse::NumWrittenBytesMismatch:
-			return Bootloader_HandshakeResponse_NumWrittenBytesMismatch;
-		case HandshakeResponse::EntryPointAddressMismatch:
-			return Bootloader_HandshakeResponse_EntryPointAddressMismatch;
-		case HandshakeResponse::ChecksumMismatch:
-			return Bootloader_HandshakeResponse_ChecksumMismatch;
-		}
-		assert_unreachable();
-	}
 }
 
 namespace boot {
@@ -133,7 +80,7 @@ namespace boot {
 
 	void CanManager::SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const {
 		Bootloader_HandshakeAck_t message;
-		message.Register = regToReg(reg);
+		message.Register = static_cast<Bootloader_Register>(reg);
 		message.Response = static_cast<Bootloader_HandshakeResponse>(response);
 		message.Value = val;
 
@@ -142,23 +89,52 @@ namespace boot {
 		send(message);
 	}
 
-	void CanManager::SendBeacon() const {
+	void CanManager::SendTransactionMagic() const {
+		Bootloader_Handshake_t const msg = handshake::get(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
+
+		//prevent the data form getting lost if all mailboxes are full
+		for (; !CanManager::hasEmptyMailbox<1>();); //TODO check correct bus
+		send(msg);
+	}
+
+	void CanManager::yieldCommunication() const {
+		Bootloader_CommunicationYield_t msg;
+		msg.Target = Bootloader::thisUnit;
+
+		//prevent the data form getting lost if all mailboxes are full
+		for (; !CanManager::hasEmptyMailbox<1>();); //TODO check correct bus
+		send(msg);
+	}
+
+	void CanManager::SendHandshake(Bootloader_Handshake_t const& msg) {
+
+		for (; !CanManager::hasEmptyMailbox<1>();); //TODO check correct bus
+		if (send(msg) == 0) //if message sent successfully, copy new message to storage
+			lastSentHandshake_ = msg;
+	}
+
+	void CanManager::SendHandshake(Register reg, Command command, std::uint32_t value) {
+		return SendHandshake(handshake::get(reg, command, value));
+	}
+
+
+	void CanManager::SendBeacon(Status const BLstate, EntryReason const entryReason) const {
 		Bootloader_Beacon_t message;
-		message.State = toCan(bootloader_.status());
+		message.State = static_cast<Bootloader_State>(BLstate);
 		message.Target = Bootloader::thisUnit;
 		message.FlashSize = Flash::availableMemory / 1024;
-		message.EntryReason = static_cast<Bootloader_EntryReason>(bootloader_.entryReason()); //TODO should probably be replaced by a conversion functions
+		message.EntryReason = static_cast<Bootloader_EntryReason>(entryReason);
 
 		send(message);
 	}
 
-	void CanManager::Update() {
+	void CanManager::Update(Bootloader const& bl) {
 
 		if (need_to_send<Bootloader_SoftwareBuild_t>())
 			SendSoftwareBuild();
 
 		if (need_to_send<Bootloader_Beacon_t>())
-			SendBeacon();
+			SendBeacon(bl.status(), bl.entryReason());
 
 	}
 

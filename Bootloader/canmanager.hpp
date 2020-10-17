@@ -9,30 +9,36 @@
 #pragma once
 
 #include "flash.hpp"
-#include "bootloader.hpp"
+#include "enums.hpp"
 
 namespace boot {
 
+	class Bootloader;
+
+	
 
 	class CanManager {
 
 		void SendSoftwareBuild() const;
-		void SendBeacon() const;
+		void SendBeacon(Status const BLstate, EntryReason const entryReason) const;
 
 		template<int periph>
 		static bool hasEmptyMailbox();
 
-		Bootloader const& bootloader_;
+		Bootloader_Handshake_t lastSentHandshake_;
 
 	public:
-		void Update();
+		void Update(Bootloader const & bl);
 
 		void SendDataAck(std::uint32_t address, WriteStatus result) const;
 		void SendExitAck(bool exitPossible) const;
 		void SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const;
+		void SendHandshake(Register reg, Command command, std::uint32_t value);
+		void SendHandshake(Bootloader_Handshake_t const& msg);
+		void SendTransactionMagic() const;
+		void yieldCommunication() const;
 
-		CanManager(Bootloader const& bootloader) : bootloader_{bootloader} {}
-
+		Bootloader_Handshake_t const& lastSentHandshake() const { return lastSentHandshake_;}
 	};
 
 }

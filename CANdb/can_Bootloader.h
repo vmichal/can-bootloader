@@ -21,10 +21,22 @@ enum { Bootloader_ExitAck_id            = STD_ID(0x5F6) };
 enum { Bootloader_Handshake_id          = STD_ID(0x5FA) };
 enum { Bootloader_HandshakeAck_id       = STD_ID(0x5FB) };
 enum { Bootloader_SoftwareBuild_id      = STD_ID(0x5FD) };
+enum { Bootloader_CommunicationYield_id = STD_ID(0x5FF) };
 
 enum Bootloader_BootTarget {
     /* Accumulator management System */
     Bootloader_BootTarget_AMS = 0,
+};
+
+enum Bootloader_Command {
+    /* Sent by master to initialize FLASHING transaction */
+    Bootloader_Command_StartTransactionFlashing = 0,
+    /* Sent by master to request verification that the firmware's memory map fits into the available flash */
+    Bootloader_Command_VerifyLogicalMemoryMap = 1,
+    /* Nothing has to be done right now */
+    Bootloader_Command_None = 2,
+    /* Something failed horribly. Kill the process */
+    Bootloader_Command_AbortTransaction = 3,
 };
 
 enum Bootloader_EntryReason {
@@ -77,6 +89,22 @@ enum Bootloader_HandshakeResponse {
     Bootloader_HandshakeResponse_EntryPointAddressMismatch = 12,
     /* Received checksum of the firmware does not match the computed checksum. */
     Bootloader_HandshakeResponse_ChecksumMismatch = 13,
+    /* The specified number of logical blocks does not fit into the internal bootloader's memory */
+    Bootloader_HandshakeResponse_TooManyLogicalMemoryBlocks = 14,
+    /* The bootloader expected transaction type selection, but the master sent something else */
+    Bootloader_HandshakeResponse_UnknownTransactionType = 15,
+    /* The bootloader received some handshake message when it was the transmitting bus master */
+    Bootloader_HandshakeResponse_HandshakeNotExpected = 16,
+    /* The bootloader detected inconsistent internal state */
+    Bootloader_HandshakeResponse_InternalStateMachineError = 17,
+    /* Register is not command but command is not none */
+    Bootloader_HandshakeResponse_CommandNotNone = 18,
+    /* Bootloader or some module is in error state. */
+    Bootloader_HandshakeResponse_BootloaderInError = 19,
+    /* This command is not valid right now. */
+    Bootloader_HandshakeResponse_CommandInvalidInCurrentContext = 20,
+    /* Number of expected and received logical memory blocks do not match */
+    Bootloader_HandshakeResponse_LogicalBlockCountMismatch = 21,
 };
 
 enum Bootloader_Register {
@@ -84,39 +112,50 @@ enum Bootloader_Register {
     Bootloader_Register_EntryPoint = 0,
     /* Address of the isr vector. Must be aligned to 512B boundary (lower 9 bits cleared) */
     Bootloader_Register_InterruptVector = 1,
-    /* The number of flash pages to be erased */
-    Bootloader_Register_NumPagesToErase = 2,
-    /* Address of a flash page to erase */
-    Bootloader_Register_PageToErase = 3,
+    /* The number of flash physical memory blocks to be erased */
+    Bootloader_Register_NumPhysicalBlocksToErase = 2,
+    /* Address of a flash physical memory blockto erase */
+    Bootloader_Register_PhysicalBlockToErase = 3,
     /* Size in bytes of the firmware to be flashed. */
     Bootloader_Register_FirmwareSize = 4,
     /* Checksum of the firmware. Taken as the sum of all transmitted halfwords (16bit) */
     Bootloader_Register_Checksum = 5,
-    /* Magic value. Writing 0x48656c69 starts and ends the transaction. */
+    /* Magic value. Writing 0x696c6548 starts and ends the transaction. */
     Bootloader_Register_TransactionMagic = 6,
+    /* Number of memory blocks constituting the memory map of firmware */
+    Bootloader_Register_NumLogicalMemoryBlocks = 7,
+    /* The starting address for given logical memory block */
+    Bootloader_Register_LogicalBlockStart = 8,
+    /* The length in bytes of given logical memory block */
+    Bootloader_Register_LogicalBlockLength = 9,
+    /* Number of physical memory blocks constituting the available flash memory */
+    Bootloader_Register_NumPhysicalMemoryBlocks = 10,
+    /* The starting address for given physical memory block */
+    Bootloader_Register_PhysicalBlockStart = 11,
+    /* The length in bytes of given physical memory block */
+    Bootloader_Register_PhysicalBlockLength = 12,
+    /* Use the Command field in message Handshake to determine the requested task */
+    Bootloader_Register_Command = 13,
+
 };
 
 enum Bootloader_State {
     /* Bootloader is ready to commence handshake with the flashing system */
     Bootloader_State_Ready = 0,
-    /* Bootloader received transaction magic and has started listening for data. */
-    Bootloader_State_TransactionStarted = 1,
-    /* The device has received the expected size of flashed binary. */
-    Bootloader_State_ReceivedFirmwareSize = 2,
-    /* The device received number of pages to erase */
-    Bootloader_State_ReceivedNumPagestoErase = 3,
-    /* The device is erasing requested pages */
-    Bootloader_State_ErasingPages = 4,
-    /* The device received the address of entry point */
-    Bootloader_State_ReceivedEntryPoint = 5,
-    /* The device received the address of Interrupt vector */
-    Bootloader_State_ReceivedInterruptVector = 6,
-    /* Bootloader is currently receiving bytes over the bus */
-    Bootloader_State_ReceivingData = 7,
-    /* The device has received checksum of the firmware. */
-    Bootloader_State_ReceivedChecksum = 8,
+    /* Master sent initial transaction magic and the bootloader is now awaiting the selection of transaction type */
+    Bootloader_State_Initialization = 1,
+    /* BL is sending the available memory map */
+    Bootloader_State_TransmittingPhysicalMemoryBlocks = 2,
+    /* BL is receiving the memory map of new firmware */
+    Bootloader_State_ReceivingFirmwareMemoryMap = 3,
+    /* BL is erasing physical blocks */
+    Bootloader_State_ErasingPhysicalBlocks = 4,
+    /* BL is flashing new firmware */
+    Bootloader_State_DownloadingFirmware = 5,
+    /* BL is receiving entry point/isr vector */
+    Bootloader_State_ReceivingFirmwareMetadata = 6,
     /* Some error occured. //TODO make it more concrete */
-    Bootloader_State_Error = 9,
+    Bootloader_State_Error = 7,
 };
 
 enum Bootloader_WriteResult {
@@ -188,13 +227,16 @@ typedef struct Bootloader_DataAck_t {
 typedef struct Bootloader_ExitReq_t {
 	/* Which unit shall leave the bootloader. */
 	enum Bootloader_BootTarget	Target;
+
+	/* Force the bootloader to reset regardless of current state. Necessary when there is an ongoing transaction. */
+	uint8_t	Force;
 } Bootloader_ExitReq_t;
 
 
 /*
  * Acknowledgement for a request to leave the bootloader.
  * Carries information, whether the unit can transition from the bootloader to the main firmware at the moment.
- * This transition is prohibited during the process of erasing or flashing. In that case only a power down can cause the bootloader to quit.
+ * This transition is prohibited during the process of erasing or flashing. In that case only a power cycle or asserting the Force bit in ExitReq can cause the bootloader to quit.
  */
 typedef struct Bootloader_ExitAck_t {
 	/* Identifies the target unit */
@@ -206,11 +248,14 @@ typedef struct Bootloader_ExitAck_t {
 
 
 /*
- * Configuration message sent by the flashing master to the bootloader.
+ * Configuration message exchanged between the flashing master and the bootloader. Has corresponding acknowledge.
  */
 typedef struct Bootloader_Handshake_t {
 	/* Which register is currently configured */
 	enum Bootloader_Register	Register;
+
+	/* Command to be carried out by the bootloader */
+	enum Bootloader_Command	Command;
 
 	/* Value for selected register */
 	uint32_t	Value;
@@ -243,6 +288,14 @@ typedef struct Bootloader_SoftwareBuild_t {
 	uint8_t	DirtyRepo;
 } Bootloader_SoftwareBuild_t;
 
+/*
+ * Current bus master yields control of communication to the other node.
+ * Sent between subtransactions.
+ */
+typedef struct Bootloader_CommunicationYield_t {
+    /* Identifies targeted unit. */
+    enum Bootloader_BootTarget	Target;
+} Bootloader_CommunicationYield_t;
 
 void candbInit(void);
 
@@ -252,14 +305,20 @@ int Bootloader_Beacon_need_to_send(void);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
 int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint8_t* HalfwordAccess_out, uint32_t* Word_out);
+int Bootloader_send_Data_s(const Bootloader_Data_t* data);
 int Bootloader_get_Data(Bootloader_Data_t* data_out);
 void Bootloader_Data_on_receive(int (*callback)(Bootloader_Data_t* data));
+int Bootloader_send_Data(uint32_t Address, uint8_t HalfwordAccess, uint32_t Word);
 
+int Bootloader_decode_DataAck_s(const uint8_t* bytes, size_t length, Bootloader_DataAck_t* data_out);
+int Bootloader_decode_DataAck(const uint8_t* bytes, size_t length, uint32_t* Address_out, enum Bootloader_WriteResult* Result_out);
 int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data);
+int Bootloader_get_DataAck(Bootloader_DataAck_t* data_out);
+void Bootloader_DataAck_on_receive(int (*callback)(Bootloader_DataAck_t* data));
 int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result);
 
 int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out);
-int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
+int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* Force_out);
 int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
 void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 
@@ -267,16 +326,29 @@ int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
 int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
-int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, uint32_t* Value_out);
+int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, uint32_t* Value_out);
+int Bootloader_send_Handshake_s(const Bootloader_Handshake_t* data);
 int Bootloader_get_Handshake(Bootloader_Handshake_t* data_out);
 void Bootloader_Handshake_on_receive(int (*callback)(Bootloader_Handshake_t* data));
+int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, uint32_t Value);
 
+int Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootloader_HandshakeAck_t* data_out);
+int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out);
 int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data);
+int Bootloader_get_HandshakeAck(Bootloader_HandshakeAck_t* data_out);
+void Bootloader_HandshakeAck_on_receive(int (*callback)(Bootloader_HandshakeAck_t* data));
 int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_HandshakeResponse Response, uint32_t Value);
 
 int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data);
 int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo);
 int Bootloader_SoftwareBuild_need_to_send(void);
+
+int Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out);
+int Bootloader_decode_CommunicationYield(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
+int Bootloader_send_CommunicationYield_s(const Bootloader_CommunicationYield_t* data);
+int Bootloader_get_CommunicationYield(Bootloader_CommunicationYield_t* data_out);
+void Bootloader_CommunicationYield_on_receive(int (*callback)(Bootloader_CommunicationYield_t* data));
+int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target);
 
 #ifdef __cplusplus
 }
@@ -293,12 +365,20 @@ inline int send(const Bootloader_Beacon_t& data) {
     return Bootloader_send_Beacon_s(&data);
 }
 
+inline int send(const Bootloader_Data_t& data) {
+    return Bootloader_send_Data_s(&data);
+}
+
 inline int send(const Bootloader_DataAck_t& data) {
     return Bootloader_send_DataAck_s(&data);
 }
 
 inline int send(const Bootloader_ExitAck_t& data) {
     return Bootloader_send_ExitAck_s(&data);
+}
+
+inline int send(const Bootloader_Handshake_t& data) {
+    return Bootloader_send_Handshake_s(&data);
 }
 
 inline int send(const Bootloader_HandshakeAck_t& data) {
@@ -312,6 +392,10 @@ inline bool need_to_send<Bootloader_SoftwareBuild_t>() {
 
 inline int send(const Bootloader_SoftwareBuild_t& data) {
     return Bootloader_send_SoftwareBuild_s(&data);
+}
+
+inline int send(const Bootloader_CommunicationYield_t& data) {
+    return Bootloader_send_CommunicationYield_s(&data);
 }
 
 #endif

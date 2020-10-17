@@ -1,7 +1,7 @@
 /*
  * eForce CAN Bootloader
  *
- * Written by Vojt�ch Michal
+ * Written by Vojtech Michal
  *
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
@@ -10,6 +10,7 @@
 #pragma once
 
 #include <ufsel/bit.hpp>
+#include <library/assert.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -17,6 +18,16 @@
 #include "stm32f10x.h"
 
 namespace boot {
+
+	enum class PhysicalBlockSizes {
+		same,
+		different
+	};
+
+	struct MemoryBlock {
+		std::uint32_t address, length;
+	};
+
 
 	enum class AddressSpace {
 		BootloaderFlash,
@@ -38,11 +49,14 @@ namespace boot {
 
 	struct Flash {
 
-		static constexpr std::size_t pageCount = 128; //taken from the reference manual
+		static constexpr std::size_t pageCountTotal = 128; //taken from the reference manual
 		static constexpr std::uint32_t pageSize = 1 << 11; //taken from the reference manual
 		static constexpr std::uint32_t pageAlignmentMask = pageSize - 1;
+
 		static std::size_t const availableMemory;
 		static std::uint32_t const jumpTableAddress;
+		static std::uint32_t const applicationAddress;
+
 
 		static bool ErasePage(std::uint32_t pageAddress);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);
@@ -63,6 +77,31 @@ namespace boot {
 		static AddressSpace addressOrigin(std::uint32_t address);
 	};
 
+	struct PhysicalMemoryMap {
+		constexpr static PhysicalBlockSizes physicalBlockSizes = PhysicalBlockSizes::same; //TODO customization point
+		static inline std::uint32_t const availablePages = Flash::availableMemory / Flash::pageSize;
+
+		static inline MemoryBlock block(std::uint32_t const index) {
+
+			if constexpr (physicalBlockSizes == PhysicalBlockSizes::same) {
+				assert(index < availablePages);
+
+				std::uint32_t const address = Flash::applicationAddress + index * Flash::pageSize;
+				std::uint32_t const length = Flash::pageSize;
+
+				return {address, length};
+			}
+			else {
+				constexpr std::array<MemoryBlock, Flash::pageCountTotal> blocks_ {{0,0}};
+				constexpr std::uint32_t firstApplicationBlock = 2; //TODO customization point
+				assert(index+ firstApplicationBlock < availablePages);
+				
+				return blocks_[firstApplicationBlock];
+			}
+		}
+
+	};
+
 	struct BackupDomain {
 		constexpr static std::uint16_t reset_value = 0x00'00; //value after power reset. Enter the application
 		//Writing this value to the Backup register 1 requests entering the bootloader after reset
@@ -71,10 +110,6 @@ namespace boot {
 
 		inline static std::uint16_t volatile& bootControlRegister = BKP->DR1;
 
-	};
-
-	struct Segment {
-		std::uint32_t begin, size;
 	};
 
 	struct ApplicationJumpTable {
@@ -95,9 +130,9 @@ namespace boot {
 		std::uint32_t magic3_;
 		std::uint32_t firmwareSize_;
 		std::uint32_t magic4_;
-		std::uint32_t segmentCount_;
+		std::uint32_t logical_memory_block_count_;
 		std::uint32_t magic5_;
-		std::array<Segment, (Flash::pageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(Segment)> segments_;
+		std::array<MemoryBlock, (Flash::pageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
 
 		//Returns true iff all magics are valid
 		bool magicValid() const {
