@@ -34,10 +34,9 @@ namespace bsp {
 
 		//Application entry point is saved as the second word of the interrupt table
 		std::uint32_t const * const interruptVector = reinterpret_cast<std::uint32_t const *>(boot::jumpTable.interruptVector_);
-		if (boot::jumpTable.entryPoint_ != interruptVector[1]) //If they do not match, enter the bootloader
-			return boot::EntryReason::EntryPointMismatch;
+		std::uint32_t const entryPoint = interruptVector[1];
 
-		if (boot::Flash::addressOrigin(boot::jumpTable.entryPoint_) != boot::AddressSpace::AvailableFlash)
+		if (boot::Flash::addressOrigin(entryPoint) != boot::AddressSpace::AvailableFlash)
 			return boot::EntryReason::InvalidEntryPoint;
 
 		if (boot::Flash::addressOrigin(boot::jumpTable.interruptVector_) != boot::AddressSpace::AvailableFlash)
@@ -102,7 +101,7 @@ namespace bsp {
 			std::uint32_t const * const isr_vector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
 			__set_MSP(isr_vector[0]);
 
-			reinterpret_cast<int(*)()>(boot::jumpTable.entryPoint_)(); //Jump to the main application
+			reinterpret_cast<void(*)()>(isr_vector[1])(); //Jump to the main application
 
 			//can't be reached since we have overwritten our stack pointer
 		}

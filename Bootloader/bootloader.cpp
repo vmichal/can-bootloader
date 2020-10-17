@@ -137,7 +137,7 @@ namespace boot {
 		constexpr auto empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
 		assert(jumpTable.magic1_ == empty && jumpTable.magic2_ == empty && jumpTable.magic3_ == empty);
 
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.entryPoint_), firmware.entryPoint_);
+		//entry point is not stored as it can be derived from the isr vector
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware.interruptVector_);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.firmwareSize_), firmware.writtenBytes_.toBytes());
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_block_count_), firmware.logical_memory_block_count_);

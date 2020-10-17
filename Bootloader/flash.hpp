@@ -120,11 +120,10 @@ namespace boot {
 		constexpr static std::uint32_t expected_magic5_value = 0xface'b00c;
 
 	private:
-		constexpr static int members_before_segment_array = 9;
+		constexpr static int members_before_segment_array = 8;
 	public:
 
 		std::uint32_t magic1_;
-		std::uint32_t entryPoint_;
 		std::uint32_t magic2_;
 		std::uint32_t interruptVector_;
 		std::uint32_t magic3_;
