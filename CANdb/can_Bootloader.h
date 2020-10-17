@@ -105,6 +105,16 @@ enum Bootloader_HandshakeResponse {
     Bootloader_HandshakeResponse_CommandInvalidInCurrentContext = 20,
     /* Number of expected and received logical memory blocks do not match */
     Bootloader_HandshakeResponse_LogicalBlockCountMismatch = 21,
+    /* Two received logical memory blocks are overlapping */
+    Bootloader_HandshakeResponse_LogicalBlocksOverlapping = 22,
+    /* The start address of received logical memory block < end address of previous memory block */
+    Bootloader_HandshakeResponse_LogicalBlockAddressesNotIncreasing = 23,
+    /* Received logical block cannot be covered using available physical blocks */
+    Bootloader_HandshakeResponse_LogicalBlockNotCoverable = 24,
+    /* Received address of logical memory block does not fit into the available flash. */
+    Bootloader_HandshakeResponse_LogicalBlockNotInFlash = 25,
+    /* Received logical memory block's length exceeds available flash memory. */
+    Bootloader_HandshakeResponse_LogicalBlockTooLong = 26,
 };
 
 enum Bootloader_Register {

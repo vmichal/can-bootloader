@@ -207,8 +207,8 @@ namespace boot {
 			if (reg != Register::NumLogicalMemoryBlocks)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value > blocks_.size()) //That many memory blocks cant be stored
-				return HandshakeResponse::TooManyLogicalMemoryBlocks;
+			if (value > blocks_.size() || value == 0) //That many memory blocks cant be stored
+				return HandshakeResponse::TooManyLogicalMemoryBlocks; //TODO distinguish case for value == 0
 
 			blocks_expected_ = value;
 			status_ = Status::waitingForBlockAddress;
@@ -220,15 +220,28 @@ namespace boot {
 				if (blocks_received_ == blocks_expected_) //no more memory blocks may be received
 					return HandshakeResponse::LogicalBlockCountMismatch;
 
-				blocks_[blocks_received_].address = value;
+				if (Flash::addressOrigin(value) != AddressSpace::AvailableFlash)
+					return HandshakeResponse::LogicalBlockNotInFlash;
+
+				if (blocks_received_) { //We have already received at least one block
+					MemoryBlock const& previous = blocks_[blocks_received_ - 1];
+
+					if (previous.address <= value && value < previous.end())
+						return HandshakeResponse::LogicalBlocksOverlapping;
+
+					if (value < previous.address)
+						return HandshakeResponse::LogicalBlockAddressesNotIncreasing;
+				}
+
+				blocks_[blocks_received_].address = value; //Add the address to list of received.
 				status_ = Status::waitingForBlockLength;
 
 				return HandshakeResponse::Ok;
 
-			case Register::Command:
-				if (com != Command::VerifyLogicalMemoryMap)
-					return HandshakeResponse::CommandInvalidInCurrentContext;
-				status_ = Status::receivedVerificationCommand;
+			case Register::TransactionMagic:
+				if (value != Bootloader::transactionMagic)
+					return HandshakeResponse::InvalidTransactionMagic;
+				status_ = Status::done;
 				return HandshakeResponse::Ok;
 
 			default:
@@ -239,26 +252,18 @@ namespace boot {
 		case Status::waitingForBlockLength:
 			if (reg != Register::LogicalBlockLength)
 				return HandshakeResponse::HandshakeSequenceError;
+			if (value > Flash::availableMemory) //the block is too long
+				return HandshakeResponse::LogicalBlockTooLong;
 
-			blocks_[blocks_received_++].length = value;
+			blocks_[blocks_received_].length = value;
+
+			if (!PhysicalMemoryMap::canCover(blocks_[blocks_received_]))
+				return HandshakeResponse::LogicalBlockNotCoverable;
+
+			++blocks_received_;
 			status_ = Status::waitingForBlockAddress;
 			return HandshakeResponse::Ok;
 
-		case Status::receivedVerificationCommand:
-			//Master should have yielded at this point
-		case Status::masterYielded:
-		case Status::shouldYield:
-			return HandshakeResponse::HandshakeNotExpected;
-
-		case Status::bootloaderYielded:
-			if (reg != Register::TransactionMagic)
-				return HandshakeResponse::HandshakeSequenceError;
-
-			if (value != Bootloader::transactionMagic)
-				return HandshakeResponse::InvalidTransactionMagic;
-
-			status_ = Status::done;
-			return HandshakeResponse::Ok;
 		case Status::done:
 			return HandshakeResponse::InternalStateMachineError;
 		case Status::error:
@@ -270,7 +275,8 @@ namespace boot {
 	HandshakeResponse PhysicalMemoryBlockEraser::receive(Register reg, Command com, std::uint32_t value) {
 		switch (status_) {
 		case Status::uninitialized:
-			return HandshakeResponse::InvalidTransactionMagic;
+			status_ = Status::error;
+			return HandshakeResponse::InternalStateMachineError;
 		case Status::pending:
 			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
 				return res;
@@ -452,17 +458,6 @@ namespace boot {
 		case Status::TransmittingPhysicalMemoryBlocks:
 			physicalMemoryMapTransmitter_.processYield();
 			return physicalMemoryMapTransmitter_.update(); //send the initial transaction magic straight away
-
-		case Status::ReceivingFirmwareMemoryMap:
-			if (firmwareMemoryMapReceiver_.yieldExpected()) {
-				firmwareMemoryMapReceiver_.processYield();
-				return firmwareMemoryMapReceiver_.logicalMemoryValid()
-					? handshake::transactionMagic
-					: handshake::abort;
-			}
-
-			status_ = Status::Error;
-			[[fallthrough]];
 		default:
 			status_ = Status::Error; //TODO make more concrete
 			return handshake::abort;
@@ -560,16 +555,6 @@ namespace boot {
 			else
 				can_.SendHandshake(physicalMemoryMapTransmitter_.update());
 			return;
-		case Status::ReceivingFirmwareMemoryMap:
-			if (firmwareMemoryMapReceiver_.tryYield()) {
-				can_.yieldCommunication();
-				return;
-			}
-			else {
-				status_ = Status::Error;
-				[[fallthrough]];
-			}
-
 		default:
 			status_ = Status::Error; //TODO make more concrete
 			return;
@@ -596,12 +581,6 @@ namespace boot {
 		assert(reason != EntryReason::DontEnter); //Sanity check
 
 		entryReason_ = reason;
-	}
-
-
-	bool FirmwareMemoryMapReceiver::logicalMemoryValid() const {
-		//TODO implement
-		return true;
 	}
 
 }

@@ -58,7 +58,11 @@ namespace boot {
 		BootloaderInError = Bootloader_HandshakeResponse_BootloaderInError,
 		CommandInvalidInCurrentContext = Bootloader_HandshakeResponse_CommandInvalidInCurrentContext,
 		LogicalBlockCountMismatch = Bootloader_HandshakeResponse_LogicalBlockCountMismatch,
-
+		LogicalBlocksOverlapping = Bootloader_HandshakeResponse_LogicalBlocksOverlapping,
+		LogicalBlockAddressesNotIncreasing = Bootloader_HandshakeResponse_LogicalBlockAddressesNotIncreasing,
+		LogicalBlockNotCoverable = Bootloader_HandshakeResponse_LogicalBlockNotCoverable,
+		LogicalBlockNotInFlash = Bootloader_HandshakeResponse_LogicalBlockNotInFlash,
+		LogicalBlockTooLong = Bootloader_HandshakeResponse_LogicalBlockTooLong,
 	};
 
 	enum class EntryReason {

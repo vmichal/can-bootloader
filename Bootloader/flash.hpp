@@ -26,6 +26,8 @@ namespace boot {
 
 	struct MemoryBlock {
 		std::uint32_t address, length;
+
+		constexpr std::uint32_t end() const { return address + length; }
 	};
 
 
@@ -81,7 +83,7 @@ namespace boot {
 		constexpr static PhysicalBlockSizes physicalBlockSizes = PhysicalBlockSizes::same; //TODO customization point
 		static inline std::uint32_t const availablePages = Flash::availableMemory / Flash::pageSize;
 
-		static inline MemoryBlock block(std::uint32_t const index) {
+		static MemoryBlock block(std::uint32_t const index) {
 
 			if constexpr (physicalBlockSizes == PhysicalBlockSizes::same) {
 				assert(index < availablePages);
@@ -94,13 +96,68 @@ namespace boot {
 			else {
 				constexpr std::array<MemoryBlock, Flash::pageCountTotal> blocks_ {{0,0}};
 				constexpr std::uint32_t firstApplicationBlock = 2; //TODO customization point
-				assert(index+ firstApplicationBlock < availablePages);
+				assert(index + firstApplicationBlock < availablePages);
 				
 				return blocks_[firstApplicationBlock];
 			}
 		}
 
+		struct iterator {
+			struct end_sentinel_t {};
+
+			std::uint32_t index_;
+
+			MemoryBlock operator*() const {
+				return block(index_);
+			}
+
+			auto& operator++() { ++index_; return *this; }
+
+			bool operator!= (end_sentinel_t) const {
+				return index_ < availablePages;
+			}
+
+			end_sentinel_t end() { return {}; }
+			iterator& begin() { return *this; }
+		};
+
+		static iterator iterate() {
+			return {};
+		}
+
+		static bool canCover(MemoryBlock logical) {
+
+			for (MemoryBlock const& physical : iterate()) {
+
+				if (physical.end() <= logical.address)
+					continue; //Ignore all physical blocks that end before the logical block even starts
+
+
+				//There are pretty much three options as far as starting address is concerned:
+				//1) The logical block starts at lower address -> error as we cannot cover its beginning
+				//2,3) They start at the same address or the physical blocks starts on lower addres -> OK 
+
+				if (logical.address < physical.address)
+					return false; //option 1
+
+				//option 2 - 3 will certainly cover the memory range from start of logical block to physical block end
+				//assume there is shared address range:
+				//the physical block starts at lower address and spans at least part of the logical block
+				std::uint32_t const covered_bytes = physical.end() - logical.address;
+				if (covered_bytes >= logical.length)
+					return true; //Remaining uncovered ranges of logical block have been depleted. We can cover it
+
+				//The logical block spans further than the current physical. Shrink it and continue to next physical block.
+				logical.address += covered_bytes; //remove the covered address range from remaining logical block
+				logical.length -= covered_bytes;
+			}
+
+			return false; //We have run out of physical memory blocks
+		}
+
+
 	};
+
 
 	struct BackupDomain {
 		constexpr static std::uint16_t reset_value = 0x00'00; //value after power reset. Enter the application

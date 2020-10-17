@@ -66,11 +66,6 @@ namespace boot {
 			waitingForBlockAddress,
 			waitingForBlockLength,
 
-			receivedVerificationCommand,
-			masterYielded,
-			shouldYield,
-			bootloaderYielded,
-
 			done,
 			error
 		};
@@ -88,20 +83,9 @@ namespace boot {
 		void startSubtransaction() { status_ = Status::pending; }
 
 		bool done() const { return status_ == Status::done; }
-		bool tryYield() { 
-			if (status_ != Status::shouldYield)
-				return false;
-			status_ = Status::bootloaderYielded;
-			return true;
-		}
-		bool yieldExpected() const { return status_ == Status::receivedVerificationCommand; }
 		bool error() const { return status_ == Status::error; }
-		void processYield() { status_ = Status::masterYielded; }
 
 		HandshakeResponse receive(Register reg, Command com, std::uint32_t value);
-
-		bool logicalMemoryValid() const;
-
 	};
 
 	class PhysicalMemoryBlockEraser {
