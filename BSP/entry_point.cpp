@@ -17,14 +17,64 @@
 #include "can.hpp"
 #include "timer.hpp"
 
+extern "C" {
+#if 0
+	//The following is taken from linker.ld:
+	//the LOADADDR is the address FROM which the section shall be loaded.
+	//It is set by the AT > declaration
+
+	  /* used by the startup to initialize data */
+	_sidata = LOADADDR(.data);
+
+	/* Initialized data sections goes into RAM, load LMA copy after code */
+	.data :
+	{
+		. = ALIGN(4);
+		_sdata = .;        /* create a global symbol at data start */
+		*(.data)           /* .data sections */
+			* (.data*)          /* .data* sections */
+
+			. = ALIGN(4);
+		_edata = .;        /* define a global symbol at data end */
+	} > RAM AT > BootloaderFlash
+#endif
+
+	extern std::uint32_t _sdata[]; //Points to the start of data in RAM
+	extern std::uint32_t _edata[]; //Points past the end of data in RAM
+	extern std::uint32_t _sidata[]; //Points to the start of data in FLASH
+
+	extern std::uint32_t _sbss[]; //Points to the beginning of .bss in RAM
+	extern std::uint32_t _ebss[]; //Points past the end of .bss in RAM
+
+	void __libc_init_array();
+}
 
 namespace bsp {
+
+	void clear_bss() {
+		//Clear the bss section
+		std::uint32_t* bss_begin = reinterpret_cast<std::uint32_t*>(_sbss);
+		std::uint32_t* const bss_end = reinterpret_cast<std::uint32_t*>(_ebss);
+
+		for (; bss_begin != bss_end; ++bss_begin)
+			*bss_begin = 0;
+	}
+
+	void initialize_data() {
+		//Copy data from flash to their location in RAM
+		std::uint32_t const* loadaddress = reinterpret_cast<std::uint32_t const*>(_sidata);
+		std::uint32_t* begin = reinterpret_cast<std::uint32_t*>(_sdata);
+		std::uint32_t* const end = reinterpret_cast<std::uint32_t*>(_edata);
+
+		for (; begin != end; ++begin, ++loadaddress)
+			*begin = *loadaddress;
+	}
 
 	using namespace ufsel;
 
 	/* Checks the backup domain, jump table in flash, firmware integrity etc.
 	to decide whether the application or the bootloader shall be entered.*/
-	boot::EntryReason bootloader_requested() {
+	boot::EntryReason determineApplicationAvailability() {
 
 		if (!boot::jumpTable.magicValid())
 			return boot::EntryReason::InvalidMagic; //Magics do not match. Enter the bootloader
@@ -85,20 +135,22 @@ namespace bsp {
 	}
 
 	//Decides whether the CPU shall enter the application firmware or start listening for communication in bootloader mode
-	extern "C" void pre_main() {
-		//Beware that absolutely nothing has been enabled by now. .data is filled and .bss is cleared, but that is all
+	extern "C" void Reset_Handler() {
+		//Beware that absolutely nothing has been enabled by now.
+		// .data and .bss have not been touched yet.
 		//No static constructors have been called yet either.
+		//This is the first instruction executed after system reset
 
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
 
-		boot::EntryReason const reason = bootloader_requested();
+		boot::EntryReason const reason = determineApplicationAvailability();
 		//Disable clock to backup registers (to make the application feel as if no bootloader was present)
 		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
 
 		if (reason == boot::EntryReason::DontEnter) {
 			SCB->VTOR = boot::jumpTable.interruptVector_; //Set the address of application's interrupt vector
 
-			std::uint32_t const * const isr_vector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
+			std::uint32_t const* const isr_vector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
 			__set_MSP(isr_vector[0]);
 
 			reinterpret_cast<void(*)()>(isr_vector[1])(); //Jump to the main application
@@ -106,14 +158,15 @@ namespace bsp {
 			//can't be reached since we have overwritten our stack pointer
 		}
 
-		//Reached only if we have to enter the bootloader or the application returned from it's main
-		boot::Bootloader::setEntryReason(reason);
+		//Reached only if we have to enter the bootloader. We shall can initialize the system now
+
+		clear_bss();
+		initialize_data();
 		configure_system_clock();
-	}
+		__libc_init_array(); //Branch to static constructors
 
-	extern "C" int main() {
+		boot::Bootloader::setEntryReason(reason);
 		gpio::Initialize();
-
 		can::Initialize();
 
 		boot::main();

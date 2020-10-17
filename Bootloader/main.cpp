@@ -20,8 +20,6 @@ namespace boot {
 	CanManager canManager;
 	Bootloader bootloader {canManager};
 
-	SysTickTimer lastBlueToggle;
-
 	void setupCanCallbacks() {
 		Bootloader_Data_on_receive([](Bootloader_Data_t* data) -> int {
 			std::uint32_t const address = data->Address << 2;
