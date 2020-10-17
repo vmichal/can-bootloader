@@ -19,8 +19,6 @@ namespace boot {
 
 	class CanManager {
 
-		void SendSoftwareBuild() const;
-		void SendBeacon(Status const BLstate, EntryReason const entryReason) const;
 
 		template<int periph>
 		static bool hasEmptyMailbox();
@@ -28,7 +26,8 @@ namespace boot {
 		Bootloader_Handshake_t lastSentHandshake_;
 
 	public:
-		void Update(Bootloader const & bl);
+		void SendSoftwareBuild() const;
+		void SendBeacon(Status const BLstate, EntryReason const entryReason) const;
 
 		void SendDataAck(std::uint32_t address, WriteStatus result) const;
 		void SendExitAck(bool exitPossible) const;

@@ -33,6 +33,11 @@ namespace boot {
 			return 0;
 			});
 
+		Bootloader_DataAck_on_receive([](Bootloader_DataAck_t * data) -> int {
+			//TODO implement for firmware dumping
+			assert_unreachable();
+			});
+
 		Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
 			Register const reg = static_cast<Register>(data->Register);
 			auto const response = bootloader.processHandshake(reg, static_cast<Command>(data->Command), data->Value);
@@ -169,7 +174,11 @@ namespace boot {
 
 		for (;;) { //main loop
 
-			canManager.Update(bootloader);
+			if (need_to_send<Bootloader_SoftwareBuild_t>())
+				canManager.SendSoftwareBuild();
+
+			if (need_to_send<Bootloader_Beacon_t>())
+				canManager.SendBeacon(bootloader.status(), bootloader.entryReason());
 
 			txProcess();
 		}

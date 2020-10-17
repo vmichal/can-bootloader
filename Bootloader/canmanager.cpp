@@ -128,15 +128,4 @@ namespace boot {
 		send(message);
 	}
 
-	void CanManager::Update(Bootloader const& bl) {
-
-		if (need_to_send<Bootloader_SoftwareBuild_t>())
-			SendSoftwareBuild();
-
-		if (need_to_send<Bootloader_Beacon_t>())
-			SendBeacon(bl.status(), bl.entryReason());
-
-	}
-
-
 }
