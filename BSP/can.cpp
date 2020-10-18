@@ -56,13 +56,14 @@ namespace bsp::can {
 				rflm ? CAN_MCR_RFLM : 0,
 				txfp ? CAN_MCR_TXFP : 0);
 
-			can.BTR =
-				silent ? CAN_BTR_SILM : 0
-				| loopback ? CAN_BTR_LBKM : 0
-				| (sjw - 1) << 24
-				| (bs2 - 1) << 20
-				| (bs1 - 1) << 16
-				| (prescaler - 1);
+			can.BTR = bit::bitmask(
+				silent ? CAN_BTR_SILM : 0,
+				loopback ? CAN_BTR_LBKM : 0,
+				(sjw - 1) << 24,
+				(bs2 - 1) << 20,
+				(bs1 - 1) << 16,
+				(prescaler - 1)
+			);
 
 			//request to enter normal mode
 			bit::clear(std::ref(can.MCR), CAN_MCR_INRQ);
