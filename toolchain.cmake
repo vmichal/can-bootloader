@@ -11,14 +11,14 @@ set(CMAKE_SIZE arm-none-eabi-size)
 
 SET(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/linker.ld)
 
-SET(OPTIMIZATION_LEVEL "2")
+SET(OPTIMIZATION_LEVEL "s")
 
 set (CMAKE_C_STANDARD 11)
 set (CMAKE_CXX_STANDARD 17)
 
 #TODO make things like MCU configurable
 SET(DEVICE_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft")
-SET(OPTIMIZATIONS_FLAGS "-g3 -O${OPTIMIZATION_LEVEL} -funsigned-char -funsigned-bitfields -ffunction-sections -fdata-sections -fdiagnostics-color=always -fno-stack-protector -finline-small-functions -findirect-inlining -fstack-usage")
+SET(OPTIMIZATIONS_FLAGS "-g3 -O${OPTIMIZATION_LEVEL} -finline-functions-called-once -funsigned-char -funsigned-bitfields -ffunction-sections -fdata-sections -fdiagnostics-color=always -fno-stack-protector -finline-small-functions -findirect-inlining -fstack-usage")
 
 SET(DEFINES "-DSTM32F105xC -DTX_WITH_CANDB=1 -DUSE_STDPERIPH_DRIVER -DHSE_VALUE=8000000 -DSTM32F10X_CL -D__weak='__attribute__((weak))' -D__packed='__attribute__((__packed__))'")
 
