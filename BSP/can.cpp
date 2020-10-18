@@ -18,40 +18,76 @@ namespace bsp::can {
 		CAN_ITConfig(CAN2, CAN_IT_FMP0, ENABLE);
 	}
 
+	namespace {
+
+		void peripheralRequestInitialization(CAN_TypeDef& can) {
+			using namespace ufsel;
+
+			//exit sleep mode and enter initialization
+			std::uint32_t const copy = bit::clear(can.MCR, CAN_MCR_SLEEP);
+			can.MCR = bit::set(copy, CAN_MCR_INRQ);
+		}
+
+		//wait for bxCAN to synchronize with the bus (leave initialization)
+		void peripheralAwaitSynchronization(CAN_TypeDef& can) {
+			for (; ufsel::bit::all_set(can.MSR, CAN_MSR_INAK););
+		}
+
+		void peripheralInit(CAN_TypeDef& can, unsigned prescaler) {
+			using namespace ufsel;
+			//await acknowledge that the peripheral entered initialization mode
+			for (; bit::all_cleared(can.MSR, CAN_MSR_INAK););
+
+			constexpr bool ttcm = false,
+				abom = true,
+				awum = false,
+				nart = false,
+				rflm = false,
+				txfp = true;
+
+			constexpr unsigned sjw = 1, bs1 = 3, bs2 = 2;
+			constexpr bool silent = false, loopback = false;
+
+			bit::set(std::ref(can.MCR),
+				ttcm ? CAN_MCR_TTCM : 0,
+				abom ? CAN_MCR_ABOM : 0,
+				awum ? CAN_MCR_AWUM : 0,
+				nart ? CAN_MCR_NART : 0,
+				rflm ? CAN_MCR_RFLM : 0,
+				txfp ? CAN_MCR_TXFP : 0);
+
+			can.BTR =
+				silent ? CAN_BTR_SILM : 0
+				| loopback ? CAN_BTR_LBKM : 0
+				| (sjw - 1) << 24
+				| (bs2 - 1) << 20
+				| (bs1 - 1) << 16
+				| (prescaler - 1);
+
+			//request to enter normal mode
+			bit::clear(std::ref(can.MCR), CAN_MCR_INRQ);
+		}
+	}
+
 	void Initialize(void) {
-		CAN_InitTypeDef CAN_InitStructure;
+		using namespace ufsel;
 
 		//enable peripheral clock to CAN1, CAN2
-		ufsel::bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_CAN1EN, RCC_APB1Periph_CAN2);
-
-		/* CAN cell init */
-		CAN_InitStructure.CAN_TTCM = DISABLE;
-		CAN_InitStructure.CAN_ABOM = ENABLE;
-		CAN_InitStructure.CAN_AWUM = DISABLE;
-		CAN_InitStructure.CAN_NART = DISABLE;
-		CAN_InitStructure.CAN_RFLM = DISABLE;
-		CAN_InitStructure.CAN_TXFP = ENABLE;
-		CAN_InitStructure.CAN_Mode = CAN_Mode_Normal;
-
-		/* CAN Baudrate */
-		CAN_InitStructure.CAN_SJW = CAN_SJW_1tq;
-		CAN_InitStructure.CAN_BS1 = CAN_BS1_3tq;
-		CAN_InitStructure.CAN_BS2 = CAN_BS2_2tq;
+		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_CAN1EN, RCC_APB1Periph_CAN2);
+		//wake up both peripherals and send them to initialization mode
+		peripheralRequestInitialization(*CAN1);
+		peripheralRequestInitialization(*CAN2);
 
 		constexpr Frequency APB1_frequency = 36'000'000_Hz;
 		constexpr int quanta_per_bit = 6;
 
-		CAN_InitStructure.CAN_Prescaler = APB1_frequency / can1_frequency / quanta_per_bit;
-		CAN_Init(CAN1, &CAN_InitStructure);
-
-		CAN_InitStructure.CAN_Prescaler = APB1_frequency / can2_frequency / quanta_per_bit;
-		CAN_Init(CAN2, &CAN_InitStructure);
+		//Initialize peripherals
+		peripheralInit(*CAN1, APB1_frequency / can1_frequency / quanta_per_bit);
+		peripheralInit(*CAN2, APB1_frequency / can2_frequency / quanta_per_bit);
 
 		//11 bits standard IDs. They share prefix 0x62_, the last nibble is variable
 		constexpr unsigned sharedPrefix = 0x62 << 4;
-		constexpr unsigned mustMatch = ufsel::bit::bitmask_of_width(7) << 4;
-
-		using namespace ufsel;
+		constexpr unsigned mustMatch = bit::bitmask_of_width(7) << 4;
 
 		//All filters must be accessed via CAN1, because
 		//[ref manual f105 24.9.5] In connectivity line devices, the registers from offset 0x200 to 31C are present only in CAN1.
@@ -61,7 +97,6 @@ namespace bsp::can {
 		bit::modify(std::ref(CAN1->FM1R), bit::bitmask_of_width(2), 0);
 
 		bit::modify(std::ref(CAN1->FS1R), bit::bitmask_of_width(2), 0b11); //make filters 32bits wide
-
 
 		bit::modify(std::ref(CAN1->FFA1R), bit::bitmask_of_width(2), 0); //assign filters to FIFO 0
 
@@ -75,9 +110,12 @@ namespace bsp::can {
 		bit::modify(std::ref(CAN1->FMR), bit::bitmask_of_width(6), 1, 8);
 		bit::clear(std::ref(CAN1->FMR), CAN_FMR_FINIT);
 
-
 		NVIC_EnableIRQ(CAN1_RX0_IRQn);
 		NVIC_EnableIRQ(CAN2_RX0_IRQn);
+
+		//make sure CAN peripherals have snychronized with the bus
+		peripheralAwaitSynchronization(*CAN1);
+		peripheralAwaitSynchronization(*CAN2);
 	}
 }
 
