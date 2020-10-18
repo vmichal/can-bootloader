@@ -13,15 +13,15 @@ enum {
     bus_UNDEFINED = 2,
 };
 
-enum { Bootloader_Beacon_id             = STD_ID(0x5F2) };
-enum { Bootloader_Data_id               = STD_ID(0x5F3) };
-enum { Bootloader_DataAck_id            = STD_ID(0x5F4) };
-enum { Bootloader_ExitReq_id            = STD_ID(0x5F5) };
-enum { Bootloader_ExitAck_id            = STD_ID(0x5F6) };
-enum { Bootloader_Handshake_id          = STD_ID(0x5FA) };
-enum { Bootloader_HandshakeAck_id       = STD_ID(0x5FB) };
-enum { Bootloader_SoftwareBuild_id      = STD_ID(0x5FD) };
-enum { Bootloader_CommunicationYield_id = STD_ID(0x5FF) };
+enum { Bootloader_Beacon_id             = STD_ID(0x622) };
+enum { Bootloader_Data_id               = STD_ID(0x623) };
+enum { Bootloader_DataAck_id            = STD_ID(0x624) };
+enum { Bootloader_ExitReq_id            = STD_ID(0x625) };
+enum { Bootloader_ExitAck_id            = STD_ID(0x626) };
+enum { Bootloader_Handshake_id          = STD_ID(0x62A) };
+enum { Bootloader_HandshakeAck_id       = STD_ID(0x62B) };
+enum { Bootloader_SoftwareBuild_id      = STD_ID(0x62D) };
+enum { Bootloader_CommunicationYield_id = STD_ID(0x62F) };
 
 enum Bootloader_BootTarget {
     /* Accumulator management System */
