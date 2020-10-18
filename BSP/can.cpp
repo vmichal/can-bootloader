@@ -47,29 +47,34 @@ namespace bsp::can {
 		CAN_InitStructure.CAN_Prescaler = APB1_frequency / can2_frequency / quanta_per_bit;
 		CAN_Init(CAN2, &CAN_InitStructure);
 
-		//Message IDs share prefix 0x62_, the last nibble is variable
-		constexpr unsigned sharedPrefix = 0x620;
-		constexpr unsigned mustMatch = 0x7f0;
+		//11 bits standard IDs. They share prefix 0x62_, the last nibble is variable
+		constexpr unsigned sharedPrefix = 0x62 << 4;
+		constexpr unsigned mustMatch = ufsel::bit::bitmask_of_width(7) << 4;
 
-		CAN_FilterInitTypeDef  CAN_FilterInitStructure;
-		/* CAN filter init */
-		CAN_FilterInitStructure.CAN_FilterMode = CAN_FilterMode_IdMask;
-		CAN_FilterInitStructure.CAN_FilterScale = CAN_FilterScale_32bit;
-		CAN_FilterInitStructure.CAN_FilterIdHigh = sharedPrefix << 5;
-		CAN_FilterInitStructure.CAN_FilterIdLow = 0x0000;
-		CAN_FilterInitStructure.CAN_FilterMaskIdHigh = mustMatch << 5;
-		CAN_FilterInitStructure.CAN_FilterMaskIdLow = 0x0000;
-		CAN_FilterInitStructure.CAN_FilterFIFOAssignment = 0;
-		CAN_FilterInitStructure.CAN_FilterActivation = ENABLE;
+		using namespace ufsel;
+
+		//All filters must be accessed via CAN1, because
+		//[ref manual f105 24.9.5] In connectivity line devices, the registers from offset 0x200 to 31C are present only in CAN1.
+		bit::set(std::ref(CAN1->FMR), CAN_FMR_FINIT);
+
+		//Configure filters in mask mode
+		bit::modify(std::ref(CAN1->FM1R), bit::bitmask_of_width(2), 0);
+
+		bit::modify(std::ref(CAN1->FS1R), bit::bitmask_of_width(2), 0b11); //make filters 32bits wide
 
 
-		CAN_FilterInitStructure.CAN_FilterNumber = 0;
-		CAN_FilterInit(&CAN_FilterInitStructure);
+		bit::modify(std::ref(CAN1->FFA1R), bit::bitmask_of_width(2), 0); //assign filters to FIFO 0
 
-		CAN_FilterInitStructure.CAN_FilterNumber = 1;
-		CAN_FilterInit(&CAN_FilterInitStructure);
+		//activate filters (they can still be modified, because FINIT flag overrides this)
+		bit::modify(std::ref(CAN1->FA1R), bit::bitmask_of_width(2), 0b11);
 
-		CAN_SlaveStartBank(1);
+		CAN1->sFilterRegister[0].FR1 = CAN1->sFilterRegister[1].FR1 = sharedPrefix << (5 + 16);
+		CAN1->sFilterRegister[0].FR2 = CAN1->sFilterRegister[1].FR2 = mustMatch << (5 + 16);
+
+		//Each CAN peripheral gets only one filter.
+		bit::modify(std::ref(CAN1->FMR), bit::bitmask_of_width(6), 1, 8);
+		bit::clear(std::ref(CAN1->FMR), CAN_FMR_FINIT);
+
 
 		NVIC_EnableIRQ(CAN1_RX0_IRQn);
 		NVIC_EnableIRQ(CAN2_RX0_IRQn);
