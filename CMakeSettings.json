@@ -1,0 +1,27 @@
+﻿{
+	// See https://go.microsoft.com//fwlink//?linkid=834763 for more information about this file.
+	"configurations": [
+		{
+			"name": "Linux-Debug",
+			"generator": "Ninja",
+			"configurationType": "Debug",
+			"cmakeExecutable": "/usr/bin/cmake",
+			"remoteCopySourcesExclusionList": [ ".vs", ".git", "out" ],
+			"cmakeCommandArgs": "",
+			"buildCommandArgs": "",
+			"ctestCommandArgs": "",
+			"cmakeToolchain": "/mnt/c/Users/vomi/source/repos/bootloader/toolchain.cmake",
+			"inheritEnvironments": [ "linux_x64" ],
+			"remoteMachineName": "1773855479;Vojta (username=vomi, port=22, authentication=Password)",
+			"remoteCMakeListsRoot": "/mnt/c/Users/vomi/source/repos/bootloader/",
+			"remoteBuildRoot": "/mnt/c/Users/vomi/source/repos/bootloader/build",
+			"remoteInstallRoot": "/mnt/c/Users/vomi/source/repos/bootloader/build",
+			"remoteCopySources": false,
+			"rsyncCommandArgs": "-t --delete --delete-excluded",
+			"remoteCopyBuildOutput": false,
+			"remoteCopySourcesMethod": "rsync",
+			"addressSanitizerRuntimeFlags": "detect_leaks=0",
+			"variables": []
+		}
+	]
+}
