@@ -13,10 +13,6 @@
 
 namespace boot {
 
-	class Bootloader;
-
-	
-
 	class CanManager {
 
 

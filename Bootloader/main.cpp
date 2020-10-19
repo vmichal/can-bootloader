@@ -172,6 +172,8 @@ namespace boot {
 		setupCanCallbacks();
 		bsp::can::enableIRQs(); //Enable reception from CAN
 
+		canManager.SendSoftwareBuild();
+
 		for (;;) { //main loop
 
 			if (need_to_send<Bootloader_SoftwareBuild_t>())
