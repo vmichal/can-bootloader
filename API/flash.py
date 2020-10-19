@@ -22,7 +22,7 @@ args = parser.parse_args()
 # python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f list /dev/ttyS4
 # python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f flash -u AMS -x build/AMS.hex /dev/ttyS4
 from pycandb.candb import CanDB
-import ocarina
+import ocarina_sw.api.ocarina as ocarina
 import time
 
 #taken from https://stackoverflow.com/questions/2084508/clear-terminal-in-python

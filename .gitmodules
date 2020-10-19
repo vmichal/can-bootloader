@@ -1,3 +1,9 @@
 [submodule "ufsel"]
 	path = ufsel
 	url = ../ufsel.git
+[submodule "API/ocarina_sw"]
+	path = API/ocarina_sw
+	url = ../../fse/ocarina-sw.git
+[submodule "API/pycandb"]
+	path = API/pycandb
+	url = ../../fse/pycandb.git
