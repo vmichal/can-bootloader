@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <functional>
 
+#include <ufsel/bit_operations.hpp>
 
 namespace gpio {
 
@@ -28,13 +29,11 @@ namespace gpio {
 
 	void Initialize(void)
 	{
-		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
 
-		RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-
-		GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+		//Enable clock to GPIOA, GPIOB
+		ufsel::bit::set(std::ref(RCC->APB2ENR),
+			RCC_APB2ENR_IOPAEN,
+			RCC_APB2ENR_IOPBEN);
 
 		//Most of the following pin configurations are based on section 9.1.11 GPIO configurations for device peripherals
 		//from the STM32f105 reference manual
@@ -45,7 +44,6 @@ namespace gpio {
 
 		/* INPUTS floating */
 		InitializePins(GPIO_Speed_2MHz, GPIO_Mode_IN_FLOATING, inputs_floating);
-		GPIO_PinRemapConfig(GPIO_FullRemap_TIM3, ENABLE);
 
 		/* OUTPUTS WITH AF */
 		InitializePins(GPIO_Speed_10MHz, GPIO_Mode_AF_PP, alternate_pushpull);
