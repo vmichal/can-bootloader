@@ -7,10 +7,7 @@ build:
     GIT_SUBMODULE_STRATEGY: recursive
 
   script:
-    - mkdir build
-    - cd    build
-    - cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake ..
-    - ninja
+    - bash ./compile.sh
 
   artifacts:
     paths:
