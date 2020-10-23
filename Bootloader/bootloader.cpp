@@ -138,6 +138,7 @@ namespace boot {
 		assert(jumpTable.magic1_ == empty && jumpTable.magic2_ == empty && jumpTable.magic3_ == empty);
 
 		//entry point is not stored as it can be derived from the isr vector
+		Flash::Unlock();
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware.interruptVector_);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.firmwareSize_), firmware.writtenBytes_.toBytes());
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_block_count_), firmware.logical_memory_block_count_);
@@ -152,6 +153,7 @@ namespace boot {
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic3_), ApplicationJumpTable::expected_magic3_value);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic4_), ApplicationJumpTable::expected_magic4_value);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic5_), ApplicationJumpTable::expected_magic5_value);
+		Flash::Lock();
 	}
 
 	Bootloader_Handshake_t PhysicalMemoryMapTransmitter::update() {
@@ -292,7 +294,7 @@ namespace boot {
 				return HandshakeResponse::NotEnoughPages;
 
 			expectedPageCount_ = value;
-			status_ = Status::receivingMemoryBlocks;
+			status_ = Status::waitingForMemoryBlocks;
 			return HandshakeResponse::Ok;
 
 		case Status::waitingForMemoryBlocks:
@@ -300,6 +302,7 @@ namespace boot {
 				return HandshakeResponse::HandshakeSequenceError;
 
 			//We are about to erase one of the pages of flash. It meas that we are really commited
+			Flash::Unlock();
 			jumpTable.invalidate();
 
 			if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
@@ -324,6 +327,7 @@ namespace boot {
 			case Register::TransactionMagic:
 				if (value != Bootloader::transactionMagic)
 					return HandshakeResponse::InvalidTransactionMagic;
+				Flash::Lock();
 				status_ = Status::done;
 				return HandshakeResponse::Ok;
 
@@ -365,6 +369,7 @@ namespace boot {
 				return HandshakeResponse::BinaryTooBig;
 
 			firmware_size_ = InformationSize::fromBytes(value);
+			Flash::Unlock();
 			status_ = Status::receivingData;
 			return HandshakeResponse::Ok;
 
@@ -375,6 +380,7 @@ namespace boot {
 			if (value != checksum_)
 				return HandshakeResponse::ChecksumMismatch;
 
+			Flash::Lock();
 			status_ = Status::receivedChecksum;
 			return HandshakeResponse::Ok;
 

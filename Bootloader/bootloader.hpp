@@ -124,7 +124,7 @@ namespace boot {
 			error
 		};
 
-		Status status_;
+		Status status_ = Status::unitialized;
 		InformationSize firmware_size_ = 0_B, written_bytes_ = 0_B;
 		std::uint32_t checksum_ = 0;
 
@@ -150,7 +150,7 @@ namespace boot {
 			error
 		};
 
-		Status status_;
+		Status status_ = Status::unitialized;
 		std::uint32_t entry_point_ = 0, isr_vector_ = 0;
 
 	public:

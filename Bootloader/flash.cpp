@@ -22,26 +22,22 @@ namespace boot {
 
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
 		__disable_irq();
-		FLASH_Unlock();
 		FLASH->SR = FLASH_FLAG_EOP | FLASH_FLAG_WRPRTERR | FLASH_FLAG_PGERR;
 
-		FLASH_ErasePage(pageAddress);
+		auto const res = FLASH_ErasePage(pageAddress);
 		__enable_irq();
 
-		FLASH_Lock();
-		return true;
+		return res == FLASH_COMPLETE;
 	}
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint16_t halfWord) {
 
 		__disable_irq();
-		FLASH_Unlock();
 		FLASH->SR = FLASH_SR_EOP | FLASH_FLAG_PGERR;
 
 		FLASH_Status const ret = FLASH_ProgramHalfWord(address, halfWord);
 
 		__enable_irq();
-		FLASH_Lock();
 
 		switch (ret) {
 		case FLASH_BUSY:  return WriteStatus::Timeout;
@@ -57,13 +53,11 @@ namespace boot {
 	WriteStatus Flash::Write(std::uint32_t address, std::uint32_t word) {
 
 		__disable_irq();
-		FLASH_Unlock();
 		FLASH->SR = FLASH_SR_EOP | FLASH_FLAG_PGERR;
 
 		FLASH_Status const ret = FLASH_ProgramWord(address, word); //TODO probably return this result
 
 		__enable_irq();
-		FLASH_Lock();
 
 		switch (ret) {
 		case FLASH_BUSY: case FLASH_TIMEOUT: return WriteStatus::Timeout;

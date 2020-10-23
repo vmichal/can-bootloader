@@ -59,6 +59,8 @@ namespace boot {
 		static std::uint32_t const jumpTableAddress;
 		static std::uint32_t const applicationAddress;
 
+		static void Lock() { FLASH_Lock(); }
+		static void Unlock() { FLASH_Unlock(); }
 
 		static bool ErasePage(std::uint32_t pageAddress);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);
