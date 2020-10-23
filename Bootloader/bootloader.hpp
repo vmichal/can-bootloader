@@ -71,6 +71,7 @@ namespace boot {
 		};
 
 		decltype(ApplicationJumpTable::logical_memory_blocks_) blocks_;
+		std::uint32_t remaining_bytes_ = Flash::availableMemory;
 		std::uint32_t blocks_received_ = 0;
 
 		std::uint32_t blocks_expected_ = 0;

@@ -228,11 +228,11 @@ namespace boot {
 				if (blocks_received_) { //We have already received at least one block
 					MemoryBlock const& previous = blocks_[blocks_received_ - 1];
 
-					if (previous.address <= value && value < previous.end())
-						return HandshakeResponse::LogicalBlocksOverlapping;
-
 					if (value < previous.address)
 						return HandshakeResponse::LogicalBlockAddressesNotIncreasing;
+
+					if (value < previous.end())
+						return HandshakeResponse::LogicalBlocksOverlapping;
 				}
 
 				blocks_[blocks_received_].address = value; //Add the address to list of received.
@@ -254,14 +254,15 @@ namespace boot {
 		case Status::waitingForBlockLength:
 			if (reg != Register::LogicalBlockLength)
 				return HandshakeResponse::HandshakeSequenceError;
-			if (value > Flash::availableMemory) //the block is too long
+			//TODO add separate return value for length 0 block
+			if (value == 0 || value > remaining_bytes_) //the block is too long
 				return HandshakeResponse::LogicalBlockTooLong;
-
-			blocks_[blocks_received_].length = value;
 
 			if (!PhysicalMemoryMap::canCover(blocks_[blocks_received_]))
 				return HandshakeResponse::LogicalBlockNotCoverable;
 
+			remaining_bytes_ -= value;
+			blocks_[blocks_received_].length = value;
 			++blocks_received_;
 			status_ = Status::waitingForBlockAddress;
 			return HandshakeResponse::Ok;

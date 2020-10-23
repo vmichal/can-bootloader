@@ -29,14 +29,12 @@ enum Bootloader_BootTarget {
 };
 
 enum Bootloader_Command {
-    /* Sent by master to initialize FLASHING transaction */
-    Bootloader_Command_StartTransactionFlashing = 0,
-    /* Sent by master to request verification that the firmware's memory map fits into the available flash */
-    Bootloader_Command_VerifyLogicalMemoryMap = 1,
     /* Nothing has to be done right now */
-    Bootloader_Command_None = 2,
+    Bootloader_Command_None = 0,
+    /* Sent by master to initiate FLASHING transaction */
+    Bootloader_Command_StartTransactionFlashing = 1,
     /* Something failed horribly. Kill the process */
-    Bootloader_Command_AbortTransaction = 3,
+    Bootloader_Command_AbortTransaction = 2,
 };
 
 enum Bootloader_EntryReason {

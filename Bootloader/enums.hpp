@@ -29,9 +29,8 @@ namespace boot {
 	};
 
 	enum class Command {
-		StartTransactionFlashing = Bootloader_Command_StartTransactionFlashing,
-		VerifyLogicalMemoryMap = Bootloader_Command_VerifyLogicalMemoryMap,
 		None = Bootloader_Command_None,
+		StartTransactionFlashing = Bootloader_Command_StartTransactionFlashing,
 		AbortTransaction = Bootloader_Command_AbortTransaction,
 	};
 
