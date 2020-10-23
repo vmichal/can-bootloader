@@ -249,7 +249,7 @@ class Firmware():
 class FlashMaster():
 
 	transactionMagicString = "Heli"
-	transactionMagic = sum(ord(c) << index for index, char in enumerate(transactionMagicString))
+	transactionMagic = sum(ord(char) << 8*index for index, char in enumerate(transactionMagicString[::-1]))
 
 	def __init__(self, unit):
 
