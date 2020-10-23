@@ -199,7 +199,15 @@ namespace boot {
 
 		//TODO make this a customization point
 		constexpr static Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
+		[[nodiscard]]
 		Status status() const { return status_; }
+		[[nodiscard]]
+		bool transactionInProgress() const { return !isPassive() && status_ != Status::Error && status_ != Status::Ready; }
+
+		void enterPassiveMode() { status_ = Status::OtherBootloaderDetected; }
+		void exitPassiveMode() { status_ = Status::Ready; }
+		[[nodiscard]]
+		bool isPassive() const { return status_ == Status::OtherBootloaderDetected; }
 
 		[[noreturn]]
 		static void resetToApplication();

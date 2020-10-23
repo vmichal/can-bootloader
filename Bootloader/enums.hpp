@@ -93,6 +93,8 @@ namespace boot {
 		ReceivingFirmwareMetadata = Bootloader_State_ReceivingFirmwareMetadata,
 		/* Some error occured. //TODO make it more concrete */
 		Error = Bootloader_State_Error,
+		/* There is another bootloader present on the bus! */
+		OtherBootloaderDetected = Bootloader_State_OtherBootloaderDetected,
 	};
 
 }

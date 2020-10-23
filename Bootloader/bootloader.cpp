@@ -543,6 +543,8 @@ namespace boot {
 		}
 		case Status::Error:
 			return HandshakeResponse::BootloaderInError;
+		case Status::OtherBootloaderDetected:
+			assert_unreachable();
 		}
 
 		assert_unreachable();
