@@ -131,6 +131,7 @@ namespace {
 		//Configure and start system milisecond clock
 		SystemTimer::Initialize();
 	}
+}
 
 	//Decides whether the CPU shall enter the application firmware or start listening for communication in bootloader mode
 	extern "C" void Reset_Handler() {
@@ -169,4 +170,3 @@ namespace {
 
 		boot::main();
 	}
-}

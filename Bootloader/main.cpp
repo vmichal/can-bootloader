@@ -20,6 +20,8 @@ namespace boot {
 	CanManager canManager;
 	Bootloader bootloader {canManager};
 
+	namespace {
+
 	void setupCanCallbacks() {
 		Bootloader_Data_on_receive([](Bootloader_Data_t* data) -> int {
 			std::uint32_t const address = data->Address << 2;
@@ -73,6 +75,7 @@ namespace boot {
 			return 0;
 			
 			});
+	}
 	}
 
 	void main() {
