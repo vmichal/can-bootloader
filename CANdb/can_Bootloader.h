@@ -14,6 +14,7 @@ enum {
 };
 
 enum { Bootloader_Beacon_id             = STD_ID(0x622) };
+enum { Bootloader_Beacon_timeout = 1000 };
 enum { Bootloader_Data_id               = STD_ID(0x623) };
 enum { Bootloader_DataAck_id            = STD_ID(0x624) };
 enum { Bootloader_ExitReq_id            = STD_ID(0x625) };
@@ -29,7 +30,7 @@ enum Bootloader_BootTarget {
 };
 
 enum Bootloader_Command {
-    /* Nothing has to be done right now */
+    /* Nothing needs to be done right now */
     Bootloader_Command_None = 0,
     /* Sent by master to initiate FLASHING transaction */
     Bootloader_Command_StartTransactionFlashing = 1,
@@ -48,14 +49,12 @@ enum Bootloader_EntryReason {
     Bootloader_EntryReason_InvalidEntryPoint = 3,
     /* The vector table pointer not point into flash */
     Bootloader_EntryReason_InvalidInterruptVector = 4,
-    /* The entry point is not the same as the second word of interrupt vector */
-    Bootloader_EntryReason_EntryPointMismatch = 5,
     /* The specified top of stack points to flash */
-    Bootloader_EntryReason_InvalidTopOfStack = 6,
+    Bootloader_EntryReason_InvalidTopOfStack = 5,
     /* The backup register contained value different from 0 (reset value) or application_magic */
-    Bootloader_EntryReason_backupRegisterCorrupted = 7,
+    Bootloader_EntryReason_BackupRegisterCorrupted = 6,
     /* The bootloader was requested */
-    Bootloader_EntryReason_Requested = 8,
+    Bootloader_EntryReason_Requested = 7,
 };
 
 enum Bootloader_HandshakeResponse {
@@ -111,7 +110,7 @@ enum Bootloader_HandshakeResponse {
     Bootloader_HandshakeResponse_LogicalBlockNotCoverable = 24,
     /* Received address of logical memory block does not fit into the available flash. */
     Bootloader_HandshakeResponse_LogicalBlockNotInFlash = 25,
-    /* Received logical memory block's length exceeds available flash memory. */
+    /* Received logical memory block's length exceeds remaining flash memory. */
     Bootloader_HandshakeResponse_LogicalBlockTooLong = 26,
 };
 
@@ -144,7 +143,6 @@ enum Bootloader_Register {
     Bootloader_Register_PhysicalBlockLength = 12,
     /* Use the Command field in message Handshake to determine the requested task */
     Bootloader_Register_Command = 13,
-
 };
 
 enum Bootloader_State {
@@ -164,6 +162,8 @@ enum Bootloader_State {
     Bootloader_State_ReceivingFirmwareMetadata = 6,
     /* Some error occured. //TODO make it more concrete */
     Bootloader_State_Error = 7,
+    /* There is another bootloader present on the bus! */
+    Bootloader_State_OtherBootloaderDetected = 8,
 };
 
 enum Bootloader_WriteResult {
@@ -187,11 +187,11 @@ typedef struct Bootloader_Beacon_t {
 	/* Current state of the bootloader */
 	enum Bootloader_State	State;
 
-	/* Available flash size in kibibytes. */
-	uint16_t	FlashSize;
-
 	/* Why is the bootloader active? */
 	enum Bootloader_EntryReason	EntryReason;
+
+	/* Available flash size in kibibytes. */
+	uint16_t	FlashSize;
 } Bootloader_Beacon_t;
 
 #define Bootloader_Beacon_FlashSize_OFFSET	((float)0)
@@ -214,7 +214,7 @@ typedef struct Bootloader_Data_t {
 } Bootloader_Data_t;
 
 #define Bootloader_Data_Address_OFFSET	((float)0)
-#define Bootloader_Data_Address_FACTOR	((float)1)
+#define Bootloader_Data_Address_FACTOR	((float)4)
 #define Bootloader_Data_Address_MIN	((float)0)
 
 /*
@@ -228,6 +228,9 @@ typedef struct Bootloader_DataAck_t {
 	enum Bootloader_WriteResult	Result;
 } Bootloader_DataAck_t;
 
+#define Bootloader_DataAck_Address_OFFSET	((float)0)
+#define Bootloader_DataAck_Address_FACTOR	((float)4)
+#define Bootloader_DataAck_Address_MIN	((float)0)
 
 /*
  * Request from the flash master to an ECU to exit the bootloader.
@@ -272,6 +275,7 @@ typedef struct Bootloader_Handshake_t {
 
 /*
  * Acknowledgement that a Handshake message has been received.
+ * //TODO wastes bandwidth - remove reserved fields ASAP
  */
 typedef struct Bootloader_HandshakeAck_t {
 	/* Last written register */
@@ -294,21 +298,30 @@ typedef struct Bootloader_SoftwareBuild_t {
 
 	/* True iff the currently flashed code contains uncommited changes */
 	uint8_t	DirtyRepo;
+
+	/* Unit which sent this message */
+	enum Bootloader_BootTarget	Target;
 } Bootloader_SoftwareBuild_t;
+
 
 /*
  * Current bus master yields control of communication to the other node.
  * Sent between subtransactions.
  */
 typedef struct Bootloader_CommunicationYield_t {
-    /* Identifies targeted unit. */
-    enum Bootloader_BootTarget	Target;
+	/* Identifies targeted unit. */
+	enum Bootloader_BootTarget	Target;
 } Bootloader_CommunicationYield_t;
+
 
 void candbInit(void);
 
+int Bootloader_decode_Beacon_s(const uint8_t* bytes, size_t length, Bootloader_Beacon_t* data_out);
+int Bootloader_decode_Beacon(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, enum Bootloader_State* State_out, enum Bootloader_EntryReason* EntryReason_out, uint16_t* FlashSize_out);
 int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
-int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, uint16_t FlashSize, enum Bootloader_EntryReason EntryReason);
+int Bootloader_get_Beacon(Bootloader_Beacon_t* data_out);
+void Bootloader_Beacon_on_receive(int (*callback)(Bootloader_Beacon_t* data));
+int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, enum Bootloader_EntryReason EntryReason, uint16_t FlashSize);
 int Bootloader_Beacon_need_to_send(void);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
@@ -348,7 +361,7 @@ void Bootloader_HandshakeAck_on_receive(int (*callback)(Bootloader_HandshakeAck_
 int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_HandshakeResponse Response, uint32_t Value);
 
 int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data);
-int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo);
+int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo, enum Bootloader_BootTarget Target);
 int Bootloader_SoftwareBuild_need_to_send(void);
 
 int Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out);

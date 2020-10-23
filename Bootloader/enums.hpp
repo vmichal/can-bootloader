@@ -71,9 +71,8 @@ namespace boot {
 		UnalignedInterruptVector = Bootloader_EntryReason_UnalignedInterruptVector, //The application's interrupt vector is not aligned properly
 		InvalidEntryPoint = Bootloader_EntryReason_InvalidEntryPoint, //The entry point pointer does not point into flash
 		InvalidInterruptVector = Bootloader_EntryReason_InvalidInterruptVector, //The vector table pointer not point into flash
-		EntryPointMismatch = Bootloader_EntryReason_EntryPointMismatch, //The entry point is not the same as the second word of interrupt vector
 		InvalidTopOfStack = Bootloader_EntryReason_InvalidTopOfStack, //The specified top of stack points to flash
-		backupRegisterCorrupted = Bootloader_EntryReason_backupRegisterCorrupted, //The backup register contained value different from 0 (reset value) or application_magic
+		BackupRegisterCorrupted = Bootloader_EntryReason_BackupRegisterCorrupted, //The backup register contained value different from 0 (reset value) or application_magic
 		Requested = Bootloader_EntryReason_Requested, //The bootloader was requested
 	};
 

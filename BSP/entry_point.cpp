@@ -104,7 +104,7 @@ namespace {
 		}
 
 		//the backup domain contains unknown value
-		return boot::EntryReason::backupRegisterCorrupted;
+		return boot::EntryReason::BackupRegisterCorrupted;
 	}
 
 	//Initializes system clock to max frequencies: 72MHz SYSCLK, AHB, APB2; 36MHz APB1
