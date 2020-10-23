@@ -6,8 +6,8 @@ import argparse
 import sys
 from collections import namedtuple
 
-parser = argparse.ArgumentParser(description='Desktop interface to CAN bootloaders embedded into the electric formula.',\
-	formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description="=========== CAN bootloader ============\nDesktop interface to CAN bootloaders embedded into the electric formula.\nWritten by Vojtech Michal, (c) eForce FEE Prague Formula 2020",\
+	formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('-j', metavar="file", dest='json_files', type=str, action='append', help='add candb json file to parse')
 parser.add_argument('-f', dest='feature', type=str, choices=["list", "flash"], default="list", help='choose feature - list bootloader aware units or flash new firmware')
