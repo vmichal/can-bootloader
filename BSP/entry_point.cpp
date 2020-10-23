@@ -18,11 +18,11 @@
 #include "timer.hpp"
 
 extern "C" {
-#if 0
 	//The following is taken from linker.ld:
 	//the LOADADDR is the address FROM which the section shall be loaded.
 	//It is set by the AT > declaration
 
+#if 0
 	  /* used by the startup to initialize data */
 	_sidata = LOADADDR(.data);
 
@@ -49,8 +49,7 @@ extern "C" {
 	void __libc_init_array();
 }
 
-namespace bsp {
-
+namespace {
 	void clear_bss() {
 		//Clear the bss section
 		std::uint32_t* bss_begin = reinterpret_cast<std::uint32_t*>(_sbss);
@@ -82,15 +81,14 @@ namespace bsp {
 		if (!bit::all_cleared(boot::jumpTable.interruptVector_, isrVectorAlignmentMask))
 			return boot::EntryReason::UnalignedInterruptVector; //The interrupt table is not properly aligned to the 512 B boundary
 
-		//Application entry point is saved as the second word of the interrupt table
-		std::uint32_t const * const interruptVector = reinterpret_cast<std::uint32_t const *>(boot::jumpTable.interruptVector_);
-		std::uint32_t const entryPoint = interruptVector[1];
-
-		if (boot::Flash::addressOrigin(entryPoint) != boot::AddressSpace::AvailableFlash)
-			return boot::EntryReason::InvalidEntryPoint;
-
 		if (boot::Flash::addressOrigin(boot::jumpTable.interruptVector_) != boot::AddressSpace::AvailableFlash)
 			return boot::EntryReason::InvalidInterruptVector;
+
+		//Application entry point is saved as the second word of the interrupt table. Initial stack pointer is the first word
+		std::uint32_t const* const interruptVector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
+
+		if (boot::Flash::addressOrigin(interruptVector[1]) != boot::AddressSpace::AvailableFlash)
+			return boot::EntryReason::InvalidEntryPoint;
 
 		//Application initial stack pointer is saved as the first word of the interrupt table
 		if (boot::Flash::addressOrigin(interruptVector[0]) == boot::AddressSpace::AvailableFlash)
@@ -166,8 +164,8 @@ namespace bsp {
 		__libc_init_array(); //Branch to static constructors
 
 		boot::Bootloader::setEntryReason(reason);
-		gpio::Initialize();
-		can::Initialize();
+		bsp::gpio::Initialize();
+		bsp::can::Initialize();
 
 		boot::main();
 	}

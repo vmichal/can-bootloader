@@ -7,7 +7,7 @@
 
 /* Outputs */
 
-namespace gpio {
+namespace bsp::gpio {
 
 	namespace pins {
 

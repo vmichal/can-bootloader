@@ -10,7 +10,7 @@
 
 #include <ufsel/bit_operations.hpp>
 
-namespace gpio {
+namespace bsp::gpio {
 
 	using namespace pins;
 
