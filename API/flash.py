@@ -65,12 +65,11 @@ def find_bootloader_beacon(): #returns the obect with message BootloaderBeacon
 
 def list_bootloader_aware_units():
 	beacon = find_bootloader_beacon() #all bootloader aware units transmit this message
-	fields = beacon.fields
 
 	try:
-		target_index = fields.index(next(field for field in fields if field.description.name == "Target"))
-		state_index  = fields.index(next(field for field in fields if field.description.name == "State"))
-		flash_index  = fields.index(next(field for field in fields if field.description.name == "FlashSize"))
+		beacon["Target"]
+		beacon["State"]
+		beacon["FlashSize"]
 	except:
 		print("ERROR: Given message does not include fields 'Target', 'State', 'FlashSize'", file=sys.stderr)
 		return
@@ -79,7 +78,7 @@ def list_bootloader_aware_units():
 	last_print = time.time() - 1
 	last_timestamp = 0
 	while True:
-		if time.time() - last_print > 1:
+		if time.time() - last_print >= 1:
 			clearscreen()
 			last_print = time.time()
 			print('Connected bootloader aware units:')
@@ -87,11 +86,11 @@ def list_bootloader_aware_units():
 				print('None')
 				continue
 			for unit, data in received.items():
-				target_name = fields[target_index].linked_enum.enum[unit].name
-				state_name = fields[state_index].linked_enum.enum[data[0]].name
+				target_name = beacon["Target"].linked_enum.enum[unit].name
+				state_name = beacon["State"].linked_enum.enum[data[0]].name
 				flash_size = int(data[1])
-				connected = time.time() - data[2] < 5
-				print(f'{target_name}{" (lost)" if not connected else ""}:\t{flash_size} KiB of Flash\t{state_name}')
+				connected = time.time() - data[2] < 2
+				print(f'{target_name}{" (lost)" if not connected else "":10}{flash_size} KiB of Flash\t{state_name}')
 			continue
 
 		#receive message and check whether we are interested
@@ -101,11 +100,10 @@ def list_bootloader_aware_units():
 
 		#extract information from message's bits
 		db.parseData(beacon.identifier, ev.data, ev.timestamp)
-		fields = db.getMsgById(beacon.identifier).fields
 
-		target = fields[target_index] # Identifies the bootloader-aware unit
-		state = fields[state_index] 
-		flash = fields[flash_index] #Size of available flash
+		target = beacon["Target"] # Identifies the bootloader-aware unit
+		state = beacon["State"] 
+		flash = beacon["FlashSize"] #Size of available flash
 
 		received[target.value[0]] = (state.value[0], flash.value[0], time.time())
 
@@ -271,7 +269,6 @@ class FlashMaster():
 		self.DataAck = find_message("Bootloader", "DataAck")
 		self.Handshake = find_message("Bootloader", "Handshake")
 		self.HandshakeAck = find_message("Bootloader", "HandshakeAck")
-		self.SerialOutput = find_message("Bootloader", "SerialOutput")
 
 		self.unitName = unit
 		self.target = enumerator_by_name(self.unitName, self.BootTargetEnum)
@@ -279,12 +276,10 @@ class FlashMaster():
 		self.print_header()
 
 	def receive_handshake_ack(self, ev, sent, print_result):
-		fields = self.HandshakeAck.fields
-
 		try:
-			register_index = fields.index(next(field for field in fields if field.description.name == "Register"))
-			response_index = fields.index(next(field for field in fields if field.description.name == "Response"))
-			value_index = fields.index(next(field for field in fields if field.description.name == "Value"))
+			self.HandshakeAck["Register"]
+			self.HandshakeAck["Response"]
+			self.HandshakeAck["Value"]
 		except:
 			print("ERROR: Message HandshakeAck does not include fields 'Register', 'Response', 'Value'")
 			assert False
@@ -293,28 +288,25 @@ class FlashMaster():
 
 		#extract information from message's bits
 		db.parseData(ev.id.value, ev.data, ev.timestamp)
-		fields = db.getMsgById(ev.id.value).fields
 
 		#TODO check that this response is to our last transmit
-		received = (fields[register_index].value[0], fields[value_index].value[0])
+		received = (self.HandshakeAck["Register"].value[0], self.HandshakeAck["Value"].value[0])
 
 		if received != sent :
 			print(f'Received ack to different handshake! Sent {sent}, received {received}')
 			return False
 
 		
-		enumerator = self.HandshakeResponseEnum.enum[fields[response_index].value[0]].name
+		enumerator = self.HandshakeResponseEnum.enum[self.HandshakeAck["Response"].value[0]].name
 		succ = enumerator == 'OK'
 		if not succ or print_result:
 			print(enumerator)
 		return succ
 
 	def receive_data_ack(self, ev, sent):
-		fields = self.DataAck.fields
-
 		try:
-			address_index = fields.index(next(field for field in fields if field.description.name == "Address"))
-			result_index = fields.index(next(field for field in fields if field.description.name == "Result"))
+			self.DataAck["Address"]
+			self.DataAck["Result"]
 		except:
 			print("ERROR: Message DataAck does not include fields 'Address', 'Result'")
 			assert False
@@ -323,11 +315,10 @@ class FlashMaster():
 
 		#extract information from message's bits
 		db.parseData(ev.id.value, ev.data, ev.timestamp)
-		fields = db.getMsgById(ev.id.value).fields
 
 		#TODO check that this response is to our last transmit
-		address = fields[address_index].value[0]
-		result = self.WriteResultEnum.enum[fields[result_index].value[0]].name
+		address = self.DataAck["Address"].value[0]
+		result = self.WriteResultEnum.enum[self.DataAck["Result"].value[0]].name
 
 		if address != sent[0]:
 			print(f'Received acknowledge to different data! Written address 0x{sent[0]:08x}, received 0x{address:08x}')
@@ -336,11 +327,9 @@ class FlashMaster():
 		return result == 'Ok'
 
 	def receive_exit_ack(self, ev, sent):
-		fields = self.ExitAck.fields
-
 		try:
-			target_index = fields.index(next(field for field in fields if field.description.name == "Target"))
-			confirmed_index = fields.index(next(field for field in fields if field.description.name == "Confirmed"))
+			self.ExitAck["Target"]
+			self.ExitAck["Confirmed"]
 		except:
 			print("ERROR: Message ExitAck does not include fields 'Target', 'Confirmed'")
 			assert False
@@ -349,11 +338,11 @@ class FlashMaster():
 
 		#extract information from message's bits
 		db.parseData(ev.id.value, ev.data, ev.timestamp)
-		fields = db.getMsgById(ev.id.value).fields
+
 
 		#TODO check that this response is to our last transmit
-		target = fields[target_index].value[0]
-		confirmed = fields[confirmed_index].value[0]
+		target = self.ExitAck["Target"].value[0]
+		confirmed = self.ExitAck["Confirmed"].value[0]
 
 		if target != sent[0]:
 			enum = self.BootTargetEnum.enum
@@ -364,11 +353,9 @@ class FlashMaster():
 		return confirmed
 
 	def receive_entry_ack(self, ev, sent):
-		fields = self.EntryAck.fields
-
 		try:
-			target_index = fields.index(next(field for field in fields if field.description.name == "Target"))
-			confirmed_index = fields.index(next(field for field in fields if field.description.name == "Confirmed"))
+			self.EntryAck["Target"]
+			self.EntryAck["Confirmed"]
 		except:
 			print("ERROR: Message EntryAck does not include fields 'Target', 'Confirmed'")
 			assert False
@@ -377,11 +364,10 @@ class FlashMaster():
 
 		#extract information from message's bits
 		db.parseData(ev.id.value, ev.data, ev.timestamp)
-		fields = db.getMsgById(ev.id.value).fields
 
 		#TODO check that this response is to our last transmit
-		target = fields[target_index].value[0]
-		confirmed = fields[confirmed_index].value[0]
+		target = self.EntryAck["Target"].value[0]
+		confirmed = self.EntryAck["Confirmed"].value[0]
 
 		if target != sent[0]:
 			enum = self.BootTargetEnum.enum
@@ -393,11 +379,9 @@ class FlashMaster():
 
 	#returns pair (target, state)
 	def receive_beacon(self, ev):
-		fields = self.Beacon.fields
-
 		try:
-			target_index = fields.index(next(field for field in fields if field.description.name == "Target"))
-			state_index = fields.index(next(field for field in fields if field.description.name == "State"))
+			self.Beacon["Target"]
+			self.Beacon["State"]
 		except:
 			print("ERROR: Message Beacon does not include fields 'Target', 'State'")
 			assert False
@@ -406,41 +390,12 @@ class FlashMaster():
 
 		#extract information from message's bits
 		db.parseData(ev.id.value, ev.data, ev.timestamp)
-		fields = db.getMsgById(ev.id.value).fields
 
 		#TODO check that this response is to our last transmit
-		target = fields[target_index].value[0]
-		state = fields[state_index].value[0]
+		target = self.Beacon["Target"].value[0]
+		state = self.Beacon["State"].value[0]
 
 		return (target, state)
-
-	#print piece of bootloader's standard output to the output file
-	def receive_serial_output(self, ev, output_file = sys.stderr):
-		fields = self.SerialOutput.fields
-
-		try:
-			seq_index = fields.index(next(field for field in fields if field.description.name == "SEQ"))
-			truncated_index = fields.index(next(field for field in fields if field.description.name == "Truncated"))
-			completed_index = fields.index(next(field for field in fields if field.description.name == "Completed"))
-			payload_index = fields.index(next(field for field in fields if field.description.name == "Payload"))
-		except:
-			print("ERROR: Given message does not include fields 'SEQ', 'Truncated', 'Completed', 'Payload'")
-			assert False
-
-		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.SerialOutput.identifier
-
-		#extract information from message's bits
-		db.parseData(self.SerialOutput.identifier, ev.data, ev.timestamp)
-		fields = db.getMsgById(self.SerialOutput.identifier).fields
-
-		seq = fields[seq_index] # sequence counter, increasing number between 0 and (typically) 15
-		truncated = fields[truncated_index] 
-		completed = fields[completed_index] #Board sent all enqued data
-		payload = fields[payload_index] # 7 characters of output
-
-		output_file.write("".join(map(chr, map(int, filter(lambda c: c != 0, payload.value)))))
-		if completed.value[0]:
-			output_file.flush()
 
 	def wait_for_message(self, expected_id, sent, print_result = True):
 		while True:
@@ -453,8 +408,6 @@ class FlashMaster():
 				ret = self.receive_handshake_ack(ev, sent, print_result)
 			elif ev.id.value == self.DataAck.identifier:
 				ret = self.receive_data_ack(ev, sent)
-			elif ev.id.value == self.SerialOutput.identifier:
-				ret = self.receive_serial_output(ev)
 			elif ev.id.value == self.ExitAck.identifier:
 				ret = self.receive_exit_ack(ev, sent)
 			elif ev.id.value == self.EntryAck.identifier:
