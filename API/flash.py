@@ -70,6 +70,7 @@ def list_bootloader_aware_units():
 		beacon["Target"]
 		beacon["State"]
 		beacon["FlashSize"]
+		beacon["EntryReason"]
 	except:
 		print("ERROR: Given message does not include fields 'Target', 'State', 'FlashSize'", file=sys.stderr)
 		return
@@ -81,16 +82,34 @@ def list_bootloader_aware_units():
 		if time.time() - last_print >= 1:
 			clearscreen()
 			last_print = time.time()
-			print('Connected bootloader aware units:')
+			print('Connected bootloader aware units:\n')
 			if len(received) == 0:
 				print('None')
 				continue
+
+			targets = []
+			states = []
+			flash_sizes = []
+			entry_reasons = []
+			connected = []
+
+			#copy data to separate lists
 			for unit, data in received.items():
-				target_name = beacon["Target"].linked_enum.enum[unit].name
-				state_name = beacon["State"].linked_enum.enum[data[0]].name
-				flash_size = int(data[1])
-				connected = time.time() - data[2] < 2
-				print(f'{target_name}{" (lost)" if not connected else "":10}{flash_size} KiB of Flash\t{state_name}')
+				targets.append(beacon["Target"].linked_enum.enum[unit].name)
+				states.append(beacon["State"].linked_enum.enum[data[0]].name)
+				entry_reasons.append(beacon["EntryReason"].linked_enum.enum[data[3]].name)
+				flash_sizes.append(int(data[1]))
+				connected.append(time.time() - data[2] < 2)
+
+			#find longest strings in each list
+			longest_target = max(max(map(lambda s:len(s), targets))         , 12)
+			longest_state  = max(max(map(lambda s:len(s), states))          , 12)
+			longest_reason = max(max(map(lambda s:len(s), entry_reasons))   , len("Activation reason"))
+
+			print(f'{"Target":{longest_target}}{"State":{longest_state}}{"Flash [KiB]":20}{"Activation reason":{longest_reason}}')
+			print('-' * (longest_target + longest_state + longest_reason + 20))
+			for target, state, reason, flash_size, connected in zip(targets, states, entry_reasons, flash_sizes, connected):
+				print(f'{target:{longest_target}}{state:{longest_state}}{str(flash_size):20}{reason:{longest_reason}}')
 			continue
 
 		#receive message and check whether we are interested
@@ -101,11 +120,7 @@ def list_bootloader_aware_units():
 		#extract information from message's bits
 		db.parseData(beacon.identifier, ev.data, ev.timestamp)
 
-		target = beacon["Target"] # Identifies the bootloader-aware unit
-		state = beacon["State"] 
-		flash = beacon["FlashSize"] #Size of available flash
-
-		received[target.value[0]] = (state.value[0], flash.value[0], time.time())
+		received[beacon["Target"].value[0]] = (beacon["State"].value[0], beacon["FlashSize"].value[0], time.time(), beacon["EntryReason"].value[0])
 
 
 def enumerator_by_name(enumerator, enum):
