@@ -54,18 +54,19 @@ oc.set_bitrate_auto()
 printtime = time.time()
 id_seen = [] #list all of msg ids received during this session
 
-#Customization point for other low level communication drivers
-def send_message(id, data):
-	apostrophe = "'"
-
-	#print(f"Note: Sending message {hex(id)} with data 0x{apostrophe.join('{:02x}'.format(val) for val in data)}")
-	oc.send_message_std(id, data)
-
 def find_message(owner, name):
-	return next(msg for id, msg in db.parsed_messages.items() if msg.owner == owner and msg.description.name == name)
+	try:
+		return next(msg for id, msg in db.parsed_messages.items() if msg.owner == owner and msg.description.name == name)
+	except:
+		raise Exception(f"Message {owner}::{name} does not exist!")
 
 def find_enum(owner, name):
-	return next(e for e in db.parsed_enums if e.name == f'{owner}_{name}')
+	try:
+		return next(e for e in db.parsed_enums if e.name == f'{owner}_{name}')
+	except:
+		raise Exception(f"Enum {owner}::{name} does not exist!")
+
+TargetData = namedtuple('TargetData', ['state', 'flash_size', 'last_response', 'entry_reason'])
 
 class BootloaderListing:
 	def __init__(self, oc, canDB):
@@ -88,7 +89,7 @@ class BootloaderListing:
 		except:
 			raise Exception("ERROR: Given message does not include fields 'Target', 'BootloaderPending'")
 
-		self.received = {unit : ("Unknown", "Unknown", None, "Unknown") for unit in self.beacon["Target"].linked_enum.enum}
+		self.received = {unit : TargetData("Unknown", "Unknown", None, "Unknown") for unit in self.beacon["Target"].linked_enum.enum}
 		self.printThread = threading.Thread(target = BootloaderListing._do_print_bootloader_aware_units, args = (self,), daemon=True)
 		self.pingThread = threading.Thread(target = BootloaderListing._do_ping_bootloader_aware_units, args = (self,), daemon=True)
 		self.receiving_acks = False
@@ -115,13 +116,13 @@ class BootloaderListing:
 			#copy data to separate lists
 			for unit, data in self.received.items():
 				targets.append(self.beacon["Target"].linked_enum.enum[unit].name)
-				states.append(data[0])
-				entry_reasons.append(data[3])
-				flash_sizes.append(data[1])
-				if data[2] is None:
+				states.append(data.state)
+				entry_reasons.append(data.entry_reason)
+				flash_sizes.append(data.flash_size)
+				if data.last_response is None:
 					last_response.append('Never seen')
 				else:
-					last_response.append("yep" if time.time() - data[2] < 2.0 else "connection lost")
+					last_response.append("yep" if time.time() - data.last_response < 2.0 else "connection lost")
 	
 			#find longest strings in each list
 			space_width = 6
@@ -177,27 +178,30 @@ class BootloaderListing:
 				#extract information from message's bits
 				self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
 				#append its data to the list
-				self.received[self.beacon["Target"].value[0]] = (self.beacon["State"].linked_enum.enum[self.beacon["State"].value[0]].name,
+				self.received[self.beacon["Target"].value[0]] = TargetData(self.beacon["State"].linked_enum.enum[self.beacon["State"].value[0]].name,
 					str(int(self.beacon["FlashSize"].value[0])), time.time(), self.beacon["EntryReason"].linked_enum.enum[self.beacon["EntryReason"].value[0]].name)
 	
 			elif ev.id.value == self.pingResponse.identifier: #some bootloader aware unit responded
 				#extract information from message's bits
 				self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
 				state = "FirmwareRunning" if not self.pingResponse["BootloaderPending"].value[0] else "BLpending"
-				self.received[self.pingResponse["Target"].value[0]] = (state, "Unknown", time.time(), "None")
+				self.received[self.pingResponse["Target"].value[0]] = TargetData(state, "Unknown", time.time(), "None")
 	
 		printThread.join()
 		pingThread.join()
 
 
 
-
 def enumerator_by_name(enumerator, enum):
-	return next(val for val in enum.enum if enum.enum[val].name == enumerator)
+	try:
+		return next(val for val, elem in enum.enum.items() if elem.name == enumerator)
+	except:
+		raise Exception(f"Enumerator {enum}::{enumerator} does not exist!")
 
 class HexRecord:
 	def __init__(self, line):
-		assert line[0] == ':'
+		if line[0] != ':':
+			raise Exception(f'Invalid hex record {line} (missing starting colon).')
 		self.length = int(line[1:3], 16)
 		self.address = int(line[3:7], 16)
 		self.type = int(line[7:9], 16)
@@ -207,9 +211,10 @@ class HexRecord:
 		assert 1 + 2 + 4 + 2 + len(self.data) + 2 == len(line)
 
 		#check hex record checksum
-		assert sum(int(line[i:i+2],16) for i in range(1, len(line)-1,2)) % 256 == 0
+		checksum = sum(int(line[i:i+2],16) for i in range(1, len(line), 2)) % 256
+		if checksum != 0:
+			raise Exception(f'Checksum {checksum} of hex record {line} does not match!')
 
-		#TODO this assertions should probably be error handling
 		if not self.isDataRecord():
 			assert self.address == 0
 
@@ -219,8 +224,6 @@ class HexRecord:
 			assert self.length == 2
 		elif self.isStartLinearAddressRecord():
 			assert self.length == 4
-
-
 
 	def isDataRecord(self):
 		return self.type == 0
@@ -344,8 +347,8 @@ class FlashMaster():
 
 
 		#get references to messages
-		self.EntryReq = find_message("Bootloader", "EntryReq")
-		self.EntryAck = find_message("Bootloader", "EntryAck")
+		self.Ping = find_message("Bootloader", "Ping")
+		self.PingResponse = find_message("Bootloader", "PingResponse")
 		self.ExitReq = find_message("Bootloader", "ExitReq")
 		self.ExitAck = find_message("Bootloader", "ExitAck")
 		self.Beacon = find_message("Bootloader", "Beacon")
@@ -505,9 +508,9 @@ class FlashMaster():
 		self.Handshake.assemble([reg, value],buffer)
 
 		attempts = 0
-		send_message(self.Handshake.identifier, buffer)
+		oc.send_message(self.Handshake.identifier, buffer)
 		while attempts < 5 and not self.wait_for_message(self.HandshakeAck.identifier, (reg, value), print_result):
-			send_message(self.Handshake.identifier, buffer)
+			oc.send_message(self.Handshake.identifier, buffer)
 			attempts = attempts + 1
 
 		if attempts == 5:
@@ -522,9 +525,9 @@ class FlashMaster():
 		self.Data.assemble([shifted_address, False, word], buffer)
 
 		attempts = 0
-		send_message(self.Data.identifier, buffer)
+		oc.send_message(self.Data.identifier, buffer)
 		while attempts < 5 and not self.wait_for_message(self.DataAck.identifier, (shifted_address, word)):
-			send_message(self.Data.identifier, buffer)
+			oc.send_message(self.Data.identifier, buffer)
 			attempts = attempts + 1
 			
 		if attempts == 5:
@@ -540,9 +543,9 @@ class FlashMaster():
 		self.ExitReq.assemble([target], buffer)
 
 		attempts = 0
-		send_message(self.ExitReq.identifier, buffer)
+		oc.send_message(self.ExitReq.identifier, buffer)
 		while attempts < 5 and not self.wait_for_message(self.ExitAck.identifier, [target]):
-			send_message(self.ExitReq.identifier, buffer)
+			oc.send_message(self.ExitReq.identifier, buffer)
 			attempts = attempts + 1
 
 		if attempts == 5:
@@ -554,9 +557,9 @@ class FlashMaster():
 		self.EntryReq.assemble([target], buffer)
 
 		attempts = 0
-		send_message(self.EntryReq.identifier, buffer)
+		oc.send_message(self.EntryReq.identifier, buffer)
 		while attempts < 5 and not self.wait_for_message(self.EntryAck.identifier, [target]):
-			send_message(self.EntryReq.identifier, buffer)
+			oc.send_message(self.EntryReq.identifier, buffer)
 			attempts = attempts + 1
 
 		if attempts == 5:
