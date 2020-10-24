@@ -106,17 +106,15 @@ struct Current : public Quantity<int, Current> {
     information about the unit and thus shall be prefered. */
 template<typename T>
 struct GenericDuration : Quantity<T, GenericDuration<T>> {
-    //Internally stores duration in microseconds
+    //Internally stores duration in milliseconds
 
-    constexpr static GenericDuration fromMicroseconds(unsigned micros) { return {micros}; }
-    constexpr static GenericDuration fromMilliseconds(unsigned millis) { return { millis * 1'000 }; }
-    constexpr static GenericDuration fromSeconds     (unsigned seconds) { return { seconds * 1'000'000 }; }
-    constexpr static GenericDuration fromMinutes     (unsigned minutes) { return { minutes * (1'000 * 60 * 1'000) }; }
+    constexpr static GenericDuration fromMilliseconds(unsigned millis) { return { millis  }; }
+    constexpr static GenericDuration fromSeconds     (unsigned seconds) { return { seconds * 1'000 }; }
+    constexpr static GenericDuration fromMinutes     (unsigned minutes) { return { minutes * (1'000 * 60) }; }
 
-    constexpr T     toMicroseconds() const { return this->raw_value ;}
-    constexpr T     toMilliseconds() const { return this->raw_value / 1'000;}
-    constexpr float      toSeconds() const { return this->raw_value / 1'000'000.0f;}
-    constexpr float      toMinutes() const { return this->raw_value / (1000.0f * 60 * 1'000);}
+    constexpr T     toMilliseconds() const { return this->raw_value;}
+    constexpr float      toSeconds() const { return this->raw_value / 1'000.0f;}
+    constexpr float      toMinutes() const { return this->raw_value / (1000.0f * 60);}
 
     template<typename Rhs> constexpr bool operator==(GenericDuration<Rhs> rhs) const { return this->raw_value == rhs.raw_value; }
     template<typename Rhs> constexpr bool operator!=(GenericDuration<Rhs> rhs) const { return this->raw_value != rhs.raw_value; }
@@ -178,7 +176,6 @@ constexpr Power operator""_kW(unsigned long long power)         { return Power::
 
 constexpr Frequency operator""_Hz(unsigned long long freq)      { return Frequency::fromHertz(freq); }
 
-constexpr Duration operator""_us (unsigned long long dur)     { return Duration::fromMicroseconds(dur); }
 constexpr Duration operator""_ms (unsigned long long dur)     { return Duration::fromMilliseconds(dur); }
 constexpr Duration operator""_s  (unsigned long long dur)     { return Duration::fromSeconds(dur); }
 constexpr Duration operator""_min(unsigned long long dur)     { return Duration::fromMinutes(dur); }

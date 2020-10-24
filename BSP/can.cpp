@@ -132,7 +132,7 @@ static_assert(bus_connected_to_CAN2 != bus_UNDEFINED);
 
 extern "C" {
 	uint32_t txGetTimeMillis() {
-		return (Timestamp::Now() - SystemTimer::bootTime).toMilliseconds();
+		return SystemTimer::GetUptime().toMilliseconds();
 	}
 
 	int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length) {
