@@ -186,6 +186,9 @@ class BootloaderListing:
 				self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
 				state = "FirmwareRunning" if not self.pingResponse["BootloaderPending"].value[0] else "BLpending"
 				self.received[self.pingResponse["Target"].value[0]] = TargetData(state, "Unknown", time.time(), "None")
+
+
+			#TODO listen for SoftwareBuild
 	
 		printThread.join()
 		pingThread.join()
@@ -247,27 +250,24 @@ class Firmware():
 	def __init__(self, path):
 		with open(path, 'r') as code:
 			self.records = [HexRecord(line.rstrip()) for line in code]
-		print(f'Input contains {len(self.records)} hex records')
+		print(f'Input consists of {len(self.records)} hex records.')
 
 		#Memory map is list of MemoryBlocks (start address + list of bytes)
-		self.memory_map, self.entry_point = self.process_hex_records(self.records)
+		self.logical_memory_map, self.entry_point = self.process_hex_records(self.records)
 		
 		#total size of the firmware in bytes
-		self.length = sum(len(block.data) for block in self.memory_map)
+		self.length = sum(len(block.data) for block in self.logical_memory_map)
 
-		print(f'Firmware memory map ({self.length} bytes in total):')
-		for block in self.memory_map:
-			print(f'\t[0x{block.begin:08x} - 0x{block.begin + len(block.data) - 1:08x}] {len(block.data):8} B ({len(block.data)/1024:.2f} KiB)')
+		print(f'Firmware logical memory map ({self.length} bytes in total):')
+		for block in self.logical_memory_map:
+			print(f'\t[0x{block.begin:08x} - 0x{block.begin + len(block.data) - 1:08x}] ... {len(block.data):8} B ({len(block.data)/1024:.2f} KiB)')
 
-		self.influenced_pages = self.identify_influenced_pages(self.memory_map)
-		print(f'Flashing requires {len(self.influenced_pages)} flash pages to be erased\n')
-		
-	def identify_influenced_pages(self, memory_map):
+	def identify_influenced_pages(self, logical_memory_map):
 		pages = set()
 		page_size = 2 * 1024 #TODO make this a customization point
 		page_alignment = ~ (page_size - 1)
 
-		for block in memory_map:
+		for block in logical_memory_map:
 			aligned_block_begin = block.begin & page_alignment
 			block_end = block.begin + len(block.data)
 
@@ -279,16 +279,17 @@ class Firmware():
 	#takes a list of HexRecords and returns a list of MemoryBlocks
 	#returned list models the firmware's memory map
 	def process_hex_records(self, records : list):
-		assert records.pop().isEofRecord() # EOF record must be the last thing in the file
+		if not records.pop().isEofRecord(): # EOF record must be the last thing in the file
+			raise Exception('Input file was not terminated by OEF hex record!')
 
-		memory_map = []
+		logical_memory_map = []
 
 		entry_point = None
 		current_block = None
 		base_address = 0 # set by extended linear address record
 
 
-		for index, record in enumerate(records):
+		for record in records:
 
 			if record.isStartLinearAddressRecord(): #we have address of the entry point
 				entry_point = int(record.data, 16) #store it to send it to the bootloader later
@@ -301,7 +302,7 @@ class Firmware():
 				base_address = int(record.data, 16) << 4
 				continue
 			elif record.isEofRecord():
-				assert False #There may not be any more eof records
+				raise Exception('There shall not be multiple eof records in a valid input file.')
 			
 			#We have data record
 			assert record.isDataRecord()
@@ -313,23 +314,26 @@ class Firmware():
 				current_block = MemoryBlock(absolute_address, [])
 
 			elif absolute_address != current_block.begin + len(current_block.data):
-				if len(current_block.data) % 4: #The flash must be programmed 16bits at a time. Assure our data is aligned properly
-					print('Memory block not aligned to word boundary. Appending ones (flash untouched) to make it halfword aligned')
-					while len(current_block.data) % 4:
+				#we are starting a new memory block
+
+				#TODO make this '2' a customization point (send flash memory alignment in Beacon)
+				if len(current_block.data) % 2: #The flash must be programmed 16bits at a time. Assure our data is aligned properly
+					print(f'Memory block {current_block} not aligned to halfword boundary. Appending ones (flash untouched) to make it halfword aligned.')
+					while len(current_block.data) % 2:
 						current_block.data.append(0xff)
 
-				memory_map.append(current_block) #append the completed block to our memory map and create a new one
+				logical_memory_map.append(current_block) #append the completed block to our memory map and create a new one
 				current_block = MemoryBlock(absolute_address, [])
 
 			for byte in (record.data[i : i + 2] for i in range(0, len(record.data), 2)):
-				current_block.data.append(byte) #append all record's bytes to the current memory block
+				current_block.data.append(int(byte,16)) #append all record's bytes to the current memory block
 
 		assert current_block is not None #We sure had some data records, right?
 		#TODO entry point recognition my be implemented differently
 		assert entry_point is not None #We did find the entry point, right? 
-		memory_map.append(current_block)
+		logical_memory_map.append(current_block)
 
-		return (memory_map,	entry_point)
+		return (logical_memory_map,	entry_point)
 
 class FlashMaster():
 
@@ -344,6 +348,8 @@ class FlashMaster():
 		self.RegisterEnum = find_enum("Bootloader", "Register")
 		self.StateEnum = find_enum("Bootloader", "State")
 		self.WriteResultEnum = find_enum("Bootloader", "WriteResult")
+		self.CommandEnum = find_enum('Bootloader', 'Command')
+		self.EntryReasonEnum = find_enum('Bootloader', 'EntryReason')
 
 
 		#get references to messages
@@ -356,9 +362,11 @@ class FlashMaster():
 		self.DataAck = find_message("Bootloader", "DataAck")
 		self.Handshake = find_message("Bootloader", "Handshake")
 		self.HandshakeAck = find_message("Bootloader", "HandshakeAck")
+		self.CommunicationYield = find_message('Bootloader', 'CommunicationYield')
+		self.SoftwareBuild = find_message('Bootloader', 'SoftwareBuild')
 
-		self.unitName = unit
-		self.target = enumerator_by_name(self.unitName, self.BootTargetEnum)
+		self.targetName = unit
+		self.target = enumerator_by_name(self.targetName, self.BootTargetEnum)
 
 		self.print_header()
 
@@ -569,15 +577,15 @@ class FlashMaster():
 	def get_target_state(self, target):
 		while True:
 			#receive message and check whether we are interested
-			ev = oc.read_event()
-			if ev == None or not isinstance(ev, ocarina.CanMsgEvent):
+			ev = oc.read_event(blocking = True)
+			if not isinstance(ev, ocarina.CanMsgEvent):
 				continue
 
 			if ev.id.value == self.Beacon.identifier:
 				unit, state = self.receive_beacon(ev)
-				print(f'{self.BootTargetEnum.enum[unit].name}\t{self.StateEnum.enum[state].name}')
+				print(f'\t{self.BootTargetEnum.enum[unit].name}\t{self.StateEnum.enum[state].name}')
 				if unit == target:
-					return self.StateEnum.enum[state].name
+					return state
 
 
 	def await_bootloader_ready(self, target):
@@ -596,14 +604,14 @@ class FlashMaster():
 
 	def print_header(self):
 		print('Desktop interface to CAN Bootloader')
-		print('Written by Vojtech Michal, eForce FEE Prague Formula 2020\n')
+		print('Written by Vojtech Michal, (c) eForce FEE Prague Formula 2020\n')
 
-		targets = [self.BootTargetEnum.enum[val].name for val in self.BootTargetEnum.enum]
+		targets = [elem.name for val, elem in self.BootTargetEnum.enum.items()]
 		if len(targets) == 1:
 			print(f"The only targetable unit is {targets[0]}")
 		else:
 			print(f"Targetable units are {', '.join(targets)}")
-		print(f"Starting flash process for {self.unitName} (target id {self.target})\n")
+		print(f"Initiating flash process for {self.targetName} (target id {self.target})\n")
 
 	def parseFirmware(self, firmwarePath):
 		print(f'Parsing hex file {firmwarePath}')
@@ -614,7 +622,7 @@ class FlashMaster():
 		state = self.get_target_state(self.target)
 		print("Target's presence on the CAN bus confirmed.")
 
-		if state == 'FirmwareActive':
+		if state == enumerator_by_name('FirmwareActive',self.StateEnum):
 			print(f'Sending request to {self.BootTargetEnum.enum[self.target].name} to reset into bootloader ... ', end = '')
 			self.request_bootloader_entry(self.target)
 			print(f'Waiting for {self.BootTargetEnum.enum[self.target].name} bootloader to respond ...  ', end='')
@@ -648,7 +656,7 @@ class FlashMaster():
 
 		print('Sending interrupt vector ... ', end = '')
 		#TODO make sure this is really the interrupt vector
-		self.send_handshake(enumerator_by_name('InterruptVector', self.RegisterEnum), self.firmware.memory_map[0].begin)
+		self.send_handshake(enumerator_by_name('InterruptVector', self.RegisterEnum), self.firmware.logical_memory_map[0].begin)
 
 		print('Sending second transaction magic ... ', end = '')
 		self.send_transaction_magic()
@@ -656,7 +664,7 @@ class FlashMaster():
 		print('Sending words of firmware...')
 		print(f'\tProgress ... {0:05}%', end='')
 		checksum = 0
-		for block in self.firmware.memory_map:
+		for block in self.firmware.logical_memory_map:
 			assert len(block.data) % 4 == 0 #all messages will carry whole word
 
 			for offset in range(0, len(block.data), 4):
