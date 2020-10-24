@@ -15,6 +15,7 @@ parser.add_argument('-j', metavar="file", dest='json_files', type=str, action='a
 parser.add_argument('-f', dest='feature', type=str, choices=["list", "flash"], default="list", help='choose feature - list bootloader aware units or flash new firmware')
 parser.add_argument('-u', dest='unit', type=str, help='Unit to flash.')
 parser.add_argument('-x', dest='firmware', type=str, help='Path to hex file for flashing')
+parser.add_argument('-t', dest='terminal', type=str, help='Path to second terminal for pretty bootloader listing')
 
 parser.add_argument('ocarina',  metavar='ocarina', type=str, help='path to ocarina COM port device (/dev/ocarina, /dev/ttyUSB0,...)')
 
@@ -28,14 +29,14 @@ import ocarina_sw.api.ocarina as ocarina
 import time
 
 #taken from https://stackoverflow.com/questions/2084508/clear-terminal-in-python
-def clearscreen(numlines=100):
+def clearscreen(terminal, numlines=100):
 	"""Clear the console.
 numlines is an optional argument used only as a fall-back.
 """
 	# Thanks to Steven D'Aprano, http://www.velocityreviews.com/forums
 	if os.name == "posix":
 		# Unix/Linux/MacOS/BSD/etc
-		os.system('clear')
+		os.system(f'clear > {terminal}')
 	elif os.name in ("nt", "dos", "ce"):
 		# DOS/Windows
 		os.system('CLS')
@@ -67,14 +68,20 @@ def find_enum(owner, name):
 		raise Exception(f"Enum {owner}::{name} does not exist!")
 
 TargetData = namedtuple('TargetData', ['state', 'flash_size', 'last_response', 'entry_reason'])
+TargetSoftwareBuild = namedtuple('TargetSoftwareBuild', ['CommitSHA', 'DirtyRepo'])
+ApplicationData = namedtuple('ApplicationData', ['BLpending', 'last_response'])
 
 class BootloaderListing:
-	def __init__(self, oc, canDB):
+	def __init__(self, oc, canDB, terminal):
+		self.terminal_name = terminal
+		self.terminal = open(terminal, 'w') if terminal is not None else None
+
 		self.oc = oc
 		self.candb = canDB
 		self.beacon = find_message("Bootloader", "Beacon") #all active bootloaders transmit this message
 		self.pingResponse = find_message("Bootloader", "PingResponse") #whereas units with active firmware transmit this
 		self.ping = find_message("Bootloader", "Ping")
+		self.SoftwareBuild = find_message("Bootloader", "SoftwareBuild")
 	
 		try:
 			self.beacon["Target"]
@@ -82,118 +89,174 @@ class BootloaderListing:
 			self.beacon["FlashSize"]
 			self.beacon["EntryReason"]
 		except:
-			raise Exception("ERROR: Given message does not include fields 'Target', 'State', 'FlashSize'")
+			raise Exception("ERROR: Message 'Beacon' does not include fields 'Target', 'State', 'FlashSize'")
 		try:
 			self.pingResponse["Target"]
 			self.pingResponse["BootloaderPending"]
 		except:
-			raise Exception("ERROR: Given message does not include fields 'Target', 'BootloaderPending'")
+			raise Exception("ERROR: Message 'PingResponse' does not include fields 'Target', 'BootloaderPending'")
 
-		self.received = {unit : TargetData("Unknown", "Unknown", None, "Unknown") for unit in self.beacon["Target"].linked_enum.enum}
-		self.printThread = threading.Thread(target = BootloaderListing._do_print_bootloader_aware_units, args = (self,), daemon=True)
-		self.pingThread = threading.Thread(target = BootloaderListing._do_ping_bootloader_aware_units, args = (self,), daemon=True)
+		try:
+			self.SoftwareBuild["CommitSHA"]
+			self.SoftwareBuild["DirtyRepo"]
+			self.SoftwareBuild["Target"]
+		except:
+			raise Exception("ERROR: Message 'SoftwareBuild' does not include fields 'Target', 'CommitSHA', 'DirtyRepo'")
+
+		self.targetable_units = self.beacon["Target"].linked_enum.enum
+		self.active_bootloaders  = { }
+		self.bootloader_versions = { }
+		self.aware_applications  = { unit : ApplicationData(None, None) for unit in self.targetable_units }
+
+		self.exit = False
 		self.receiving_acks = False
 
-	def _do_print_bootloader_aware_units(self):
-		while True:
+		if self.terminal is not None:
+			self.printThread = threading.Thread(target = BootloaderListing._do_print, args = (self,), daemon=True)
+			self.printThread.start()
+		self.pingThread = threading.Thread(target = BootloaderListing._do_ping_bootloader_aware_units, args = (self,), daemon=True)
+		self.pingThread.start()
+
+	def _do_print(self):
+		while not self.exit:
+			assert self.terminal is not None
 			time.sleep(1)
-			clearscreen()
+			clearscreen(self.terminal_name)
 
 			if not self.receiving_acks:
-				print('WARNING: Ocarina is not receving acknowledge frames!\n')
+				print('WARNING: Ocarina is not receving acknowledge frames!\n', file = self.terminal)
 
-			print('State of bootloader aware units:\n')
-			if len(self.received) == 0:
-				print('None')
+			print('State of bootloader aware units:\n', file = self.terminal)
+			if len(self.aware_applications) == 0 and len(self.active_bootloaders) == 0:
+				print('None', file = self.terminal)
 				continue
-	
+
 			targets = []
 			states = []
 			flash_sizes = []
 			entry_reasons = []
+			commits = []
 			last_response = []
 	
 			#copy data to separate lists
-			for unit, data in self.received.items():
+			for unit, data in self.active_bootloaders.items():
+				commits.append('N/A')
+				if unit in self.bootloader_versions:
+					commit = self.bootloader_versions[unit]
+
+					if commit.CommitSHA is not None:
+						commits[-1] = f'0x{commit.CommitSHA:08x}{"(dirty)" if commit.DirtyRepo else ""}'
+
 				targets.append(self.beacon["Target"].linked_enum.enum[unit].name)
-				states.append(data.state)
-				entry_reasons.append(data.entry_reason)
-				flash_sizes.append(data.flash_size)
-				if data.last_response is None:
-					last_response.append('Never seen')
-				else:
-					last_response.append("yep" if time.time() - data.last_response < 2.0 else "connection lost")
+				states.append(self.beacon["State"].linked_enum.enum[data.state].name)
+				entry_reasons.append(self.beacon["EntryReason"].linked_enum.enum[data.entry_reason].name)
+				flash_sizes.append(str(data.flash_size))
+				last_response.append("yep" if time.time() - data.last_response < 2.0 else "connection lost")
 	
+			for unit, data in self.aware_applications.items():
+				targets.append(self.beacon["Target"].linked_enum.enum[unit].name)
+				flash_sizes.append('')
+				commits.append('')
+				entry_reasons.append('')
+
+				if data.last_response is not None:
+					last_response.append("yep" if time.time() - data.last_response < 2.0 else "connection lost")
+					state = "FirmwareRunning" if not data.BLpending else "BLpending"
+				else:
+					last_response.append("Never seen")
+					state = 'Unknown'
+
+				states.append(state)
+
+				
 			#find longest strings in each list
 			space_width = 6
 			length_target    = space_width + max(max(map(lambda s:len(s), targets))         , len("Target"))
 			length_state     = space_width + max(max(map(lambda s:len(s), states))          , len("State"))
 			length_reason    = space_width + max(max(map(lambda s:len(s), entry_reasons))   , len("Activation reason"))
 			length_flash     = space_width + len("Flash [KiB]")
+			length_commit    = space_width + max(max(map(lambda s:len(s), commits))         , len("Bootloader build"))
 			length_connected = len("connection lost")
 	
-			print(f'{"Target":{length_target}}{"State":{length_state}}{"Flash [KiB]":{length_flash}}{"Activation reason":{length_reason}}{"Responding?":{length_connected}}')
-			print('-' * (length_target + length_state + length_reason + length_flash + length_connected))
-			for target, state, reason, flash_size, response in zip(targets, states, entry_reasons, flash_sizes, last_response):
-				print(f'{target:{length_target}}{state:{length_state}}{flash_size:{length_flash}}{reason:{length_reason}}{response:{length_connected}}')
+			print(f'{"Target":{length_target}}{"State":{length_state}}{"Flash [KiB]":{length_flash}}{"Activation reason":{length_reason}}{"Bootloader build":{length_commit}}{"Responding?":{length_connected}}', file = self.terminal)
+			print('-' * (length_target + length_state + length_reason + length_flash + length_connected + length_commit), file = self.terminal)
+			for target, state, reason, flash_size, commit, response in zip(targets, states, entry_reasons, flash_sizes, commits, last_response):
+				print(f'{target:{length_target}}{state:{length_state}}{flash_size:{length_flash}}{reason:{length_reason}}{commit:{length_commit}}{response:{length_connected}}', file = self.terminal)
 		
 	def _do_ping_bootloader_aware_units(self):
 		#cycle through all possible boot targets and ping them
-		for unit in itertools.cycle(self.ping["Target"].linked_enum.enum):
-			buffer = [0] * 1
-			self.ping.assemble([unit, False], buffer)
-	
-			if self.receiving_acks: #there is some other node on the bus
-				self.oc.send_message_std(self.ping.identifier, buffer)
-			time.sleep(1.0 / len(self.ping["Target"].linked_enum.enum)) #200ms interval
-	
-	def list_bootloader_aware_units(self):
-		self.printThread.start()
-		self.pingThread.start()
-	
-		while True:
-			#receive message and check whether we are interested
-	
-			ev = self.oc.read_event(blocking = True)
-			assert ev is not None
+		while not self.exit:
+			targets = list(filter(lambda t: t not in self.active_bootloaders, self.targetable_units)) #target only those units that are not in bootloader
 
-			if isinstance(ev, ocarina.CANErrorEvent): #there is some error on CAN
-				if ev.eType.value == ocarina.CANERROR.ACKNOWLEDGMENT:
-					self.receiving_acks = False
-				else:
-					print(f'Other error {ev}', file = sys.stderr)
-				continue
+			for unit in itertools.cycle(targets):
+				buffer = [0] * 1
+				self.ping.assemble([unit, False], buffer)
+	
+				if self.receiving_acks: #there is some other node on the bus
+					self.oc.send_message_std(self.ping.identifier, buffer)
+				time.sleep(1.0 / len(targets))
 
-			elif isinstance(ev, ocarina.HeartbeatEvent) or isinstance(ev, ocarina.ErrorFlagsEvent):
-				continue #ignore HeartbeatEvent
+	def process_event(self, ev):
+		if isinstance(ev, ocarina.CANErrorEvent): #there is some error on CAN
+			if ev.eType.value == ocarina.CANERROR.ACKNOWLEDGMENT:
+				self.receiving_acks = False
+			else:
+				print(f'Other error {ev}', file = sys.stderr)
+			return
+
+		elif isinstance(ev, ocarina.HeartbeatEvent) or isinstance(ev, ocarina.ErrorFlagsEvent):
+			return#ignore HeartbeatEvent
 	
-			elif not isinstance(ev, ocarina.CanMsgEvent): #ignore other events
-				print(f'other event {ev}', file= sys.stderr)
-				continue
+		elif not isinstance(ev, ocarina.CanMsgEvent): #ignore other events
+			print(f'other event {ev}', file= sys.stderr)
+			return
 	
-			if not self.receiving_acks:
-				self.receiving_acks = True  
-				self.oc.query_error_flags()
-			if ev.id.value == self.beacon.identifier: #we have received a bootloader beacon
-				#extract information from message's bits
-				self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
-				#append its data to the list
-				self.received[self.beacon["Target"].value[0]] = TargetData(self.beacon["State"].linked_enum.enum[self.beacon["State"].value[0]].name,
-					str(int(self.beacon["FlashSize"].value[0])), time.time(), self.beacon["EntryReason"].linked_enum.enum[self.beacon["EntryReason"].value[0]].name)
-	
-			elif ev.id.value == self.pingResponse.identifier: #some bootloader aware unit responded
-				#extract information from message's bits
-				self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
-				state = "FirmwareRunning" if not self.pingResponse["BootloaderPending"].value[0] else "BLpending"
-				self.received[self.pingResponse["Target"].value[0]] = TargetData(state, "Unknown", time.time(), "None")
+		if not self.receiving_acks:
+			self.receiving_acks = True  
+			self.oc.query_error_flags()
+
+		if ev.id.value == self.beacon.identifier: #we have received a bootloader beacon
+			#extract information from message's bits
+			self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
+
+			#append its data to the list
+			target = self.beacon["Target"].value[0]
+			state = self.beacon["State"].value[0]
+			flash_size = int(self.beacon["FlashSize"].value[0])
+			entry_reason = self.beacon["EntryReason"].value[0]
 
 
-			#TODO listen for SoftwareBuild
+			self.active_bootloaders[target] = TargetData(state, flash_size, time.time(), entry_reason)
+			if target in self.aware_applications:
+				del self.aware_applications[target] #target has entered bootloader -> remove it from list of aware applications
 	
-		printThread.join()
+		elif ev.id.value == self.pingResponse.identifier: #some bootloader aware unit responded
+			#extract information from message's bits
+			self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
+			state = "FirmwareRunning" if not self.pingResponse["BootloaderPending"].value[0] else "BLpending"
+			target = self.pingResponse["Target"].value[0]
+
+			self.aware_applications[target] = TargetData(state, None, time.time(), None)
+			if target in self.active_bootloaders: #remove the target from list of active bootloaders
+				del self.active_bootloaders[target]
+
+
+		elif ev.id.value == self.SoftwareBuild.identifier:
+			#extract information from message's bits
+			self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
+
+			target = self.SoftwareBuild["Target"].value[0]
+			sha = int(self.SoftwareBuild["CommitSHA"].value[0])
+			dirty = bool(self.SoftwareBuild["DirtyRepo"].value[0])
+
+			self.bootloader_versions[target] = TargetSoftwareBuild(sha, dirty)
+
+	def terminate(self):
+		self.exit = True
+
 		pingThread.join()
-
-
+		if self.terminal is not None:
+			printThread.join()
 
 def enumerator_by_name(enumerator, enum):
 	try:
@@ -693,14 +756,23 @@ class FlashMaster():
 		self.request_bootloader_exit(self.target)
 		
 
+this_terminal = os.ttyname(sys.stdout.fileno())
 
-clearscreen()
 if args.feature == 'list':
-	listing = BootloaderListing(oc, db)
-	listing.list_bootloader_aware_units();
+	listing = BootloaderListing(oc, db, this_terminal if args.terminal is None else args.terminal)
+
+	while True:
+		ev = oc.read_event(blocking = True)
+		assert ev is not None
+		listing.process_event(ev)
+
+	listing.terminate()
 
 elif args.feature == 'flash':
 	#TODO add error checking if there is no -u or -f
+	assert args.unit is not None
+	assert args.firmware is not None
+
 	master = FlashMaster(args.unit)
 	master.parseFirmware(args.firmware)
 	master.flash()
