@@ -51,7 +51,6 @@ oc.set_silent(False) #send ack frames to estabilish communication between the ma
 oc.set_message_forwarding(True)
 oc.query_error_flags() #clear errors
 oc.set_bitrate_manual(ocarina.Bitrate(ocarina.BITRATE.KBIT500)) #TODO use autobitrate
-oc.query_error_flags()
 
 printtime = time.time()
 id_seen = [] #list all of msg ids received during this session
@@ -141,26 +140,33 @@ def list_bootloader_aware_units():
 
 	
 	received = {unit : ("Unknown", "Unknown", None, "Unknown") for unit in beacon["Target"].linked_enum.enum}
-	printThread = threading.Thread(target = do_print_bootloader_aware_units, args = (received,))
-	pingThread = threading.Thread(target = do_ping_bootloader_aware_units)
+	printThread = threading.Thread(target = do_print_bootloader_aware_units, args = (received,), daemon=True)
+	pingThread = threading.Thread(target = do_ping_bootloader_aware_units, daemon=True)
 	printThread.start()
 	pingThread.start()
 
 	while True:
 		#receive message and check whether we are interested
-		ev = oc.read_event()
-		if ev == None or not isinstance(ev, ocarina.CanMsgEvent): #ignore other events
+
+		ev = oc.read_event(blocking = True)
+		assert ev is not None
+
+		if not isinstance(ev, ocarina.CanMsgEvent): #ignore other events
+			print(f'rip {ev}', file= sys.stderr)
+			sys.stderr.flush()
 			continue
 
-		#extract information from message's bits
-		db.parseData(ev.id.value, ev.data, ev.timestamp)
 
 		if ev.id.value == beacon.identifier: #we have received a bootloader beacon
+			#extract information from message's bits
+			db.parseData(ev.id.value, ev.data, ev.timestamp)
 			#append its data to the list
 			received[beacon["Target"].value[0]] = (beacon["State"].linked_enum.enum[beacon["State"].value[0]].name,
 				str(int(beacon["FlashSize"].value[0])), time.time(), beacon["EntryReason"].linked_enum.enum[beacon["EntryReason"].value[0]].name)
 
 		elif ev.id.value == pingResponse.identifier: #some bootloader aware unit responded
+			#extract information from message's bits
+			db.parseData(ev.id.value, ev.data, ev.timestamp)
 			state = "FirmwareRunning" if not pingResponse["BootloaderPending"].value[0] else "BLpending"
 			received[pingResponse["Target"].value[0]] = (state, "Unknown", time.time(), "None")
 
