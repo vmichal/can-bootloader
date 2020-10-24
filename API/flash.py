@@ -132,6 +132,13 @@ def list_bootloader_aware_units():
 	except:
 		print("ERROR: Given message does not include fields 'Target', 'State', 'FlashSize'", file=sys.stderr)
 		return
+	try:
+		pingResponse["Target"]
+		pingResponse["BootloaderPending"]
+	except:
+		print("ERROR: Given message does not include fields 'Target', 'BootloaderPending'", file=sys.stderr)
+		return
+
 	
 	received = {unit : ("Unknown", "Unknown", None, "Unknown") for unit in beacon["Target"].linked_enum.enum}
 	printThread = threading.Thread(target = do_print_bootloader_aware_units, args = (received,))
