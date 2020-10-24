@@ -6,6 +6,7 @@ import argparse
 import sys
 import threading
 import itertools
+import queue
 from collections import namedtuple
 
 parser = argparse.ArgumentParser(description="=========== CAN bootloader ============\nDesktop interface to CAN bootloaders embedded into the electric formula.\nWritten by Vojtech Michal, (c) eForce FEE Prague Formula 2020",\
@@ -51,9 +52,6 @@ oc = ocarina.Ocarina(args.ocarina)
 oc.set_silent(False) #send ack frames to estabilish communication between the master and bootloader
 oc.set_message_forwarding(True)
 oc.set_bitrate_auto()
-
-printtime = time.time()
-id_seen = [] #list all of msg ids received during this session
 
 def find_message(owner, name):
 	try:
@@ -401,9 +399,9 @@ class Firmware():
 class FlashMaster():
 
 	transactionMagicString = "Heli"
-	transactionMagic = sum(ord(char) << 8*index for index, char in enumerate(transactionMagicString[::-1]))
+	transactionMagic = sum(ord(char) << 8*index for index, char in enumerate(transactionMagicString))
 
-	def __init__(self, unit):
+	def __init__(self, unit, other_terminal):
 
 		#get references to enumerations
 		self.BootTargetEnum = find_enum("Bootloader", "BootTarget")
@@ -430,240 +428,110 @@ class FlashMaster():
 
 		self.targetName = unit
 		self.target = enumerator_by_name(self.targetName, self.BootTargetEnum)
+		self.exit = False
+		self.isBusMaster = True
+
+		self.db = CanDB(args.json_files) #create our own version of CanDB
+
+		self.listing = BootloaderListing(oc, db, other_terminal)
+		self.ocarinaReadingThread = threading.Thread(target = FlashMaster.eventReadingThread, args=(self,), daemon = True)
+
+		self.message_queue = queue.Queue()
 
 		self.print_header()
 
-	def receive_handshake_ack(self, ev, sent, print_result):
-		try:
-			self.HandshakeAck["Register"]
-			self.HandshakeAck["Response"]
-			self.HandshakeAck["Value"]
-		except:
-			print("ERROR: Message HandshakeAck does not include fields 'Register', 'Response', 'Value'")
-			assert False
-
-		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.HandshakeAck.identifier
-
-		#extract information from message's bits
-		db.parseData(ev.id.value, ev.data, ev.timestamp)
-
-		#TODO check that this response is to our last transmit
-		received = (self.HandshakeAck["Register"].value[0], self.HandshakeAck["Value"].value[0])
-
-		if received != sent :
-			print(f'Received ack to different handshake! Sent {sent}, received {received}')
-			return False
-
-		
-		enumerator = self.HandshakeResponseEnum.enum[self.HandshakeAck["Response"].value[0]].name
-		succ = enumerator == 'OK'
-		if not succ or print_result:
-			print(enumerator)
-		return succ
-
-	def receive_data_ack(self, ev, sent):
-		try:
-			self.DataAck["Address"]
-			self.DataAck["Result"]
-		except:
-			print("ERROR: Message DataAck does not include fields 'Address', 'Result'")
-			assert False
-
-		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.DataAck.identifier
-
-		#extract information from message's bits
-		db.parseData(ev.id.value, ev.data, ev.timestamp)
-
-		#TODO check that this response is to our last transmit
-		address = self.DataAck["Address"].value[0]
-		result = self.WriteResultEnum.enum[self.DataAck["Result"].value[0]].name
-
-		if address != sent[0]:
-			print(f'Received acknowledge to different data! Written address 0x{sent[0]:08x}, received 0x{address:08x}')
-			return False
-
-		return result == 'Ok'
-
-	def receive_exit_ack(self, ev, sent):
-		try:
-			self.ExitAck["Target"]
-			self.ExitAck["Confirmed"]
-		except:
-			print("ERROR: Message ExitAck does not include fields 'Target', 'Confirmed'")
-			assert False
-
-		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.ExitAck.identifier
-
-		#extract information from message's bits
-		db.parseData(ev.id.value, ev.data, ev.timestamp)
-
-
-		#TODO check that this response is to our last transmit
-		target = self.ExitAck["Target"].value[0]
-		confirmed = self.ExitAck["Confirmed"].value[0]
-
-		if target != sent[0]:
-			enum = self.BootTargetEnum.enum
-			print(f'Received ExitAck from different unit! Targeted {enum[target]} but {enum[sent[0]]} responded.')
-			return False
-
-		print("Ok" if confirmed else "Refused")
-		return confirmed
-
-	def receive_entry_ack(self, ev, sent):
-		try:
-			self.EntryAck["Target"]
-			self.EntryAck["Confirmed"]
-		except:
-			print("ERROR: Message EntryAck does not include fields 'Target', 'Confirmed'")
-			assert False
-
-		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.EntryAck.identifier
-
-		#extract information from message's bits
-		db.parseData(ev.id.value, ev.data, ev.timestamp)
-
-		#TODO check that this response is to our last transmit
-		target = self.EntryAck["Target"].value[0]
-		confirmed = self.EntryAck["Confirmed"].value[0]
-
-		if target != sent[0]:
-			enum = self.BootTargetEnum.enum
-			print(f'Received EntryAck from different unit! Targeted {enum[target]} but {enum[sent[0]]} responded.')
-			return False
-
-		print("Ok" if confirmed else "Refused")
-		return confirmed
-
-	#returns pair (target, state)
-	def receive_beacon(self, ev):
-		try:
-			self.Beacon["Target"]
-			self.Beacon["State"]
-		except:
-			print("ERROR: Message Beacon does not include fields 'Target', 'State'")
-			assert False
-
-		assert ev is not None and isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.Beacon.identifier
-
-		#extract information from message's bits
-		db.parseData(ev.id.value, ev.data, ev.timestamp)
-
-		#TODO check that this response is to our last transmit
-		target = self.Beacon["Target"].value[0]
-		state = self.Beacon["State"].value[0]
-
-		return (target, state)
-
-	def wait_for_message(self, expected_id, sent, print_result = True):
-		while True:
-			#receive message and check whether we are interested
-			ev = oc.read_event()
-			if ev == None or not isinstance(ev, ocarina.CanMsgEvent):
-				continue
-
-			if ev.id.value == self.HandshakeAck.identifier:
-				ret = self.receive_handshake_ack(ev, sent, print_result)
-			elif ev.id.value == self.DataAck.identifier:
-				ret = self.receive_data_ack(ev, sent)
-			elif ev.id.value == self.ExitAck.identifier:
-				ret = self.receive_exit_ack(ev, sent)
-			elif ev.id.value == self.EntryAck.identifier:
-				ret = self.receive_entry_ack(ev, sent)
-
-			if ev.id.value == expected_id:
-				return ret
-
-	def send_handshake(self, reg, value, print_result = True):
-		buffer = [0] * 5
-		self.Handshake.assemble([reg, value],buffer)
-
-		attempts = 0
-		oc.send_message(self.Handshake.identifier, buffer)
-		while attempts < 5 and not self.wait_for_message(self.HandshakeAck.identifier, (reg, value), print_result):
-			oc.send_message(self.Handshake.identifier, buffer)
-			attempts = attempts + 1
-
-		if attempts == 5:
-			print('Could not proceed.')
-			sys.exit(0)
-
-	def send_data(self, address, data):
-		assert len(data) == 4 # we support only word writes now
-		buffer = [0] * 8
-		word = int(''.join(data[::-1]), 16)
-		shifted_address = address >> 2
-		self.Data.assemble([shifted_address, False, word], buffer)
-
-		attempts = 0
-		oc.send_message(self.Data.identifier, buffer)
-		while attempts < 5 and not self.wait_for_message(self.DataAck.identifier, (shifted_address, word)):
-			oc.send_message(self.Data.identifier, buffer)
-			attempts = attempts + 1
-			
-		if attempts == 5:
-			print('Could not proceed.')
-			sys.exit(0)
-		
-
-	def send_transaction_magic(self):
-		self.send_handshake(enumerator_by_name("TransactionMagic", self.RegisterEnum), FlashMaster.transactionMagic)
-
-	def request_bootloader_exit(self, target):
-		buffer = [0]
-		self.ExitReq.assemble([target], buffer)
-
-		attempts = 0
-		oc.send_message(self.ExitReq.identifier, buffer)
-		while attempts < 5 and not self.wait_for_message(self.ExitAck.identifier, [target]):
-			oc.send_message(self.ExitReq.identifier, buffer)
-			attempts = attempts + 1
-
-		if attempts == 5:
-			print('Could not proceed.')
-			sys.exit(0)
-
-	def request_bootloader_entry(self, target):
-		buffer = [0]
-		self.EntryReq.assemble([target], buffer)
-
-		attempts = 0
-		oc.send_message(self.EntryReq.identifier, buffer)
-		while attempts < 5 and not self.wait_for_message(self.EntryAck.identifier, [target]):
-			oc.send_message(self.EntryReq.identifier, buffer)
-			attempts = attempts + 1
-
-		if attempts == 5:
-			print('Could not proceed.')
-			sys.exit(0)
-
-	def get_target_state(self, target):
-		while True:
-			#receive message and check whether we are interested
+	def eventReadingThread(self):
+		while not self.exit:
 			ev = oc.read_event(blocking = True)
+			assert ev is not None
+			self.listing.process_event(ev)
+			self.message_queue.put(ev)
+
+			if isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.Handshake.identifier: #test for abortion...
+				self.db.parseData(ev.id.value, ev.data, ev.timestamp)
+				if self.Handshake['Command'].value[0] == enumerator_by_name('AbortTransaction', self.CommandEnum):
+					print('Bootloader aborted transaction!')
+					sys.exit(1) #todo this deserves a bit nicer handling
+
+	def receive_generic_response(self, id, sent : tuple, must_match : list, wanted : list):
+		message = self.db.getMsgById(id)
+
+		for field in must_match:
+			if sent._asdict()[field] != message[field].value[0]:
+				print(f'Received unrelated acknowledge!')
+				return False
+
+		return [message[field] for field in wanted]
+
+	def wait_for_response(self, expected_id, sent):
+		while True:
+			#receive message and check whether we are interested
+			ev = self.message_queue.get()
+			assert ev is not None
 			if not isinstance(ev, ocarina.CanMsgEvent):
 				continue
 
-			if ev.id.value == self.Beacon.identifier:
-				unit, state = self.receive_beacon(ev)
-				print(f'\t{self.BootTargetEnum.enum[unit].name}\t{self.StateEnum.enum[state].name}')
-				if unit == target:
-					return state
+			#extract information from message's bits
+			self.db.parseData(ev.id.value, ev.data, ev.timestamp)
+
+			if ev.id.value in (self.SoftwareBuild.identifier, self.Beacon.identifier):
+				continue #these messages are not part of protocol - ignore them
+
+			if ev.id.value == self.HandshakeAck.identifier:
+				ret = self.receive_generic_response(self.HandshakeAck.identifier, sent, ['Register', 'Value'], ['Response'])
+			elif ev.id.value == self.Handshake.identifier:
+				assert False #shall not be received here
+			elif ev.id.value == self.CommunicationYield.identifier:
+				assert False #shall not be received here
+			elif ev.id.value == self.Data.identifier:
+				assert False #shall not be received yet
+			elif ev.id.value == self.DataAck.identifier:
+				ret = self.receive_generic_response(self.DataAck.identifier, sent, ['Address'], ['Result'])
+			elif ev.id.value == self.ExitAck.identifier:
+				ret = self.receive_generic_response(self.ExitAck.identifier, sent, ['Target'], ['Confirmed'])
+			elif ev.id.value == self.PingResponse.identifier:
+				ret = self.receive_generic_response(self.PingResponse.identifier, sent, ['Target'], ['Bootloader'])
+
+			print(f'Done {ev.id.value}, waiting for {expected_id}')
+			if ev.id.value == expected_id:
+				return ret
+
+	def send_generic_message_and_await_response(self, id : int, data : list, responseID : int, await_response = True):
+		message = db.getMsgById(id)
+		buffer = [0] * message.length
+
+		sent = message.namedtuple(*data)
+		message.assemble(data, buffer)
+		oc.send_message_std(id, buffer)
 
 
-	def await_bootloader_ready(self, target):
-		#TODO merge this with get_target_state
-		while True:
-			#receive message and check whether we are interested
-			ev = oc.read_event()
-			if ev == None or not isinstance(ev, ocarina.CanMsgEvent):
-				continue
+		if await_response:
+			return self.wait_for_response(responseID, sent)
 
-			if ev.id.value == self.Beacon.identifier:
-				unit, state = self.receive_beacon(ev)
-				if unit == target and self.StateEnum.enum[state].name == 'Ready':
-					print('Ok')
-					return
+	def send_handshake(self, reg, command, value):
+		return self.send_generic_message_and_await_response(self.Handshake.identifier, [reg, command, value], self.HandshakeAck.identifier)
+
+	def send_data(self, address, data : list):
+		assert len(data) == 4 # we support only word writes now
+		word = sum(byte << 8 * index for index, byte in enumerate(byte))
+
+		return self.send_generic_message_and_await_response(self.Data.identifier, [address, word], self.DataAck.identifier)
+
+	def send_handshake_ack(self, reg, response, value):
+		return self.send_generic_message_and_await_response(self.HandshakeAck.identifier, [reg, response, value], None, False)
+
+	def yield_communication():
+		self.isBusMaster = False
+		return self.send_generic_message_and_await_response(self.CommunicationYield.identifier, [self.target], None, False)
+
+	def send_transaction_magic(self):
+		return self.send_handshake(enumerator_by_name("TransactionMagic", self.RegisterEnum), enumerator_by_name("None", self.CommandEnum), FlashMaster.transactionMagic)
+
+	def request_bootloader_exit(self, target, force):
+		return self.send_generic_message_and_await_response(self.ExitReq.identifier, [target, force], self.ExitAck.identifier)
+
+	def request_bootloader_entry(self, target):
+		return self.send_generic_message_and_await_response(self.Ping.identifier, [target, True], self.PingResponse.identifier)
 
 	def print_header(self):
 		print('Desktop interface to CAN Bootloader')
@@ -681,20 +549,47 @@ class FlashMaster():
 		self.firmware = Firmware(firmwarePath)
 
 	def flash(self):
-		print('Searching bootloader aware units present on the bus:')
-		state = self.get_target_state(self.target)
+		self.ocarinaReadingThread.start()
+
+		print('Searching bootloader aware units present on the bus...')
+
+		is_bootloader_active = lambda target: target in self.listing.active_bootloaders
+		is_application_active = lambda target: target in self.listing.aware_applications and self.listing.aware_applications[target].last_response is not None
+
+		while not is_bootloader_active(self.target) and not is_application_active(self.target):
+			time.sleep(0.1)
+		
 		print("Target's presence on the CAN bus confirmed.")
 
-		if state == enumerator_by_name('FirmwareActive',self.StateEnum):
-			print(f'Sending request to {self.BootTargetEnum.enum[self.target].name} to reset into bootloader ... ', end = '')
+		if is_application_active(self.target):
+			print(f'Sending request to {self.target_name} to reset into bootloader ... ', end = '')
 			self.request_bootloader_entry(self.target)
-			print(f'Waiting for {self.BootTargetEnum.enum[self.target].name} bootloader to respond ...  ', end='')
-			self.await_bootloader_ready(self.target)
-		elif state == 'Ready':
-			print('Target already in bootloader.')
+			print(f'Waiting for {self.target_name} bootloader to respond ...  ', end='')
+			while not is_bootloader_active(self.target):
+				time.sleep(0.5)
+
+		elif is_bootloader_active(self.target):
+			print('Target is already in bootloader.')
+			#TODO use --force cli argument
+			ready_state = enumerator_by_name('Ready', self.StateEnum)
+			if self.listing.active_bootloaders[self.target].state != ready_state: 
+				print('There is an ongoing transaction with targeted bootloader. Do you wish to abort it? [Y/N]')
+				answer = input().upper()
+				while answer != 'Y' and answer != 'N':
+					answer = input('Repeat your answer, please...')
+
+				if answer == 'Y':
+					print('Forcing bootloader to abort current transaction ... ')
+					self.request_bootloader_exit(self.target, force = True)
+				else:
+					print('Halting transaction until the ongoing one terminates.')
+				while self.listing.active_bootloaders[self.target].state != ready_state:
+					time.sleep(1)
+
+			print('Target bootloader is ready.')
+
 		else:
-			print('Cannot interfere with other ongoing flash transaction.')
-			sys.exit(1)
+			assert False
 
 		print('\nTransaction starts\n')
 		
@@ -702,24 +597,24 @@ class FlashMaster():
 		self.send_transaction_magic()
 		
 		print('Sending the size of new firmware ... ', end = '')
-		self.send_handshake(enumerator_by_name("FirmwareSize", self.RegisterEnum), self.firmware.length)
+		self.send_handshake(enumerator_by_name("FirmwareSize", self.RegisterEnum), enumerator_by_name("None", self.CommandEnum), self.firmware.length)
 		
 		print('Sending the number of pages to erase ... ', end = '')
-		self.send_handshake(enumerator_by_name('NumPagesToErase', self.RegisterEnum), len(self.firmware.influenced_pages))
+		self.send_handshake(enumerator_by_name('NumPagesToErase', self.RegisterEnum), enumerator_by_name("None", self.CommandEnum), len(self.firmware.influenced_pages))
 		
 		print('Sending page addresses...')
 		for index, page in enumerate(self.firmware.influenced_pages, 1):
 			print(f'\r\tErasing page {index:2}/{len(self.firmware.influenced_pages):2} @ 0x{page:08x} ... ', end = '')
-			self.send_handshake(enumerator_by_name('PageToErase', self.RegisterEnum), page, False)
+			self.send_handshake(enumerator_by_name('PageToErase', self.RegisterEnum), enumerator_by_name("None", self.CommandEnum), page, False)
 		print('OK')
 		#TODO send one more magic here
 
 		print('Sending entry point address ... ', end = '')
-		self.send_handshake(enumerator_by_name('EntryPoint', self.RegisterEnum), self.firmware.entry_point)
+		self.send_handshake(enumerator_by_name('EntryPoint', self.RegisterEnum), enumerator_by_name("None", self.CommandEnum), self.firmware.entry_point)
 
 		print('Sending interrupt vector ... ', end = '')
 		#TODO make sure this is really the interrupt vector
-		self.send_handshake(enumerator_by_name('InterruptVector', self.RegisterEnum), self.firmware.logical_memory_map[0].begin)
+		self.send_handshake(enumerator_by_name('InterruptVector', self.RegisterEnum), enumerator_by_name("None", self.CommandEnum), self.firmware.logical_memory_map[0].begin)
 
 		print('Sending second transaction magic ... ', end = '')
 		self.send_transaction_magic()
@@ -746,14 +641,20 @@ class FlashMaster():
 		print(f'Firmware checksum = 0x{checksum:08x}')
 
 		print('Sending checksum ... ', end = '')
-		self.send_handshake(enumerator_by_name('Checksum', self.RegisterEnum), checksum)
+		self.send_handshake(enumerator_by_name('Checksum', self.RegisterEnum), enumerator_by_name("None", self.CommandEnum), checksum)
 
 		print('Sending last transaction magic ... ', end = '')
 		self.send_transaction_magic()
 
 		print('Firmware flashed successfully')
 		print('Leaving bootloader ... ', end='')
-		self.request_bootloader_exit(self.target)
+		self.request_bootloader_exit(self.target, force = False)
+
+		self.terminate()
+
+	def terminate(self):
+		self.exit = True
+		self.ocarinaReadingThread.join()
 		
 
 this_terminal = os.ttyname(sys.stdout.fileno())
@@ -773,7 +674,7 @@ elif args.feature == 'flash':
 	assert args.unit is not None
 	assert args.firmware is not None
 
-	master = FlashMaster(args.unit)
+	master = FlashMaster(args.unit, args.terminal)
 	master.parseFirmware(args.firmware)
 	master.flash()
 
