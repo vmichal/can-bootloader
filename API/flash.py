@@ -4,6 +4,8 @@ import os
 import struct
 import argparse
 import sys
+import threading
+import itertools
 from collections import namedtuple
 
 parser = argparse.ArgumentParser(description="=========== CAN bootloader ============\nDesktop interface to CAN bootloaders embedded into the electric formula.\nWritten by Vojtech Michal, (c) eForce FEE Prague Formula 2020",\
@@ -54,17 +56,73 @@ oc.query_error_flags()
 printtime = time.time()
 id_seen = [] #list all of msg ids received during this session
 
+#Customization point for other low level communication drivers
+def send_message(id, data):
+	apostrophe = "'"
+
+	#print(f"Note: Sending message {hex(id)} with data 0x{apostrophe.join('{:02x}'.format(val) for val in data)}")
+	oc.send_message_std(id, data)
+
 def find_message(owner, name):
 	return next(msg for id, msg in db.parsed_messages.items() if msg.owner == owner and msg.description.name == name)
 
 def find_enum(owner, name):
 	return next(e for e in db.parsed_enums if e.name == f'{owner}_{name}')
 
-def find_bootloader_beacon(): #returns the obect with message BootloaderBeacon
-	return find_message("Bootloader", "Beacon")
+def do_print_bootloader_aware_units(received):
+	beacon = find_message("Bootloader", "Beacon") #all active bootloaders transmit this message
+
+	while True:
+		time.sleep(1)
+		clearscreen()
+		print('State of bootloader aware units:\n')
+		if len(received) == 0:
+			print('None')
+			continue
+
+		targets = []
+		states = []
+		flash_sizes = []
+		entry_reasons = []
+		last_response = []
+
+		#copy data to separate lists
+		for unit, data in received.items():
+			targets.append(beacon["Target"].linked_enum.enum[unit].name)
+			states.append(data[0])
+			entry_reasons.append(data[3])
+			flash_sizes.append(data[1])
+			if data[2] is None:
+				last_response.append('Never seen')
+			else:
+				last_response.append("yep" if time.time() - data[2] < 2.0 else "connection lost")
+
+		#find longest strings in each list
+		space_width = 6
+		length_target    = space_width + max(max(map(lambda s:len(s), targets))         , len("Target"))
+		length_state     = space_width + max(max(map(lambda s:len(s), states))          , len("State"))
+		length_reason    = space_width + max(max(map(lambda s:len(s), entry_reasons))   , len("Activation reason"))
+		length_flash     = space_width + len("Flash [KiB]")
+		length_connected = len("connection lost")
+
+		print(f'{"Target":{length_target}}{"State":{length_state}}{"Flash [KiB]":{length_flash}}{"Activation reason":{length_reason}}{"Responding?":{length_connected}}')
+		print('-' * (length_target + length_state + length_reason + length_flash + length_connected))
+		for target, state, reason, flash_size, response in zip(targets, states, entry_reasons, flash_sizes, last_response):
+			print(f'{target:{length_target}}{state:{length_state}}{flash_size:{length_flash}}{reason:{length_reason}}{response:{length_connected}}')
+	
+def do_ping_bootloader_aware_units():
+	Ping = find_message("Bootloader", "Ping")
+	possible_targets = [unit for unit in Ping["Target"].linked_enum.enum]
+	for unit in itertools.cycle(possible_targets): #cycle through all possible boot targets and ping them
+		buffer = [0] * 1
+		Ping.assemble([unit, False], buffer)
+
+		send_message(Ping.identifier, buffer)
+		time.sleep(0.2) #200ms interval
 
 def list_bootloader_aware_units():
-	beacon = find_bootloader_beacon() #all bootloader aware units transmit this message
+	beacon = find_message("Bootloader", "Beacon") #all active bootloaders transmit this message
+	pingResponse = find_message("Bootloader", "PingResponse") #whereas units with active firmware transmit this
 
 	try:
 		beacon["Target"]
@@ -75,52 +133,34 @@ def list_bootloader_aware_units():
 		print("ERROR: Given message does not include fields 'Target', 'State', 'FlashSize'", file=sys.stderr)
 		return
 	
-	received = {}
-	last_print = time.time() - 1
-	last_timestamp = 0
+	received = {unit : ("Unknown", "Unknown", None, "Unknown") for unit in beacon["Target"].linked_enum.enum}
+	printThread = threading.Thread(target = do_print_bootloader_aware_units, args = (received,))
+	pingThread = threading.Thread(target = do_ping_bootloader_aware_units)
+	printThread.start()
+	pingThread.start()
+
 	while True:
-		if time.time() - last_print >= 1:
-			clearscreen()
-			last_print = time.time()
-			print('Connected bootloader aware units:\n')
-			if len(received) == 0:
-				print('None')
-				continue
-
-			targets = []
-			states = []
-			flash_sizes = []
-			entry_reasons = []
-			connected = []
-
-			#copy data to separate lists
-			for unit, data in received.items():
-				targets.append(beacon["Target"].linked_enum.enum[unit].name)
-				states.append(beacon["State"].linked_enum.enum[data[0]].name)
-				entry_reasons.append(beacon["EntryReason"].linked_enum.enum[data[3]].name)
-				flash_sizes.append(int(data[1]))
-				connected.append(time.time() - data[2] < 2)
-
-			#find longest strings in each list
-			longest_target = max(max(map(lambda s:len(s), targets))         , 12)
-			longest_state  = max(max(map(lambda s:len(s), states))          , 12)
-			longest_reason = max(max(map(lambda s:len(s), entry_reasons))   , len("Activation reason"))
-
-			print(f'{"Target":{longest_target}}{"State":{longest_state}}{"Flash [KiB]":20}{"Activation reason":{longest_reason}}')
-			print('-' * (longest_target + longest_state + longest_reason + 20))
-			for target, state, reason, flash_size, connected in zip(targets, states, entry_reasons, flash_sizes, connected):
-				print(f'{target:{longest_target}}{state:{longest_state}}{str(flash_size):20}{reason:{longest_reason}}')
-			continue
-
 		#receive message and check whether we are interested
 		ev = oc.read_event()
-		if ev == None or not isinstance(ev, ocarina.CanMsgEvent) or ev.id.value != beacon.identifier:
+		if ev == None or not isinstance(ev, ocarina.CanMsgEvent): #ignore other events
 			continue
 
 		#extract information from message's bits
-		db.parseData(beacon.identifier, ev.data, ev.timestamp)
+		db.parseData(ev.id.value, ev.data, ev.timestamp)
 
-		received[beacon["Target"].value[0]] = (beacon["State"].value[0], beacon["FlashSize"].value[0], time.time(), beacon["EntryReason"].value[0])
+		if ev.id.value == beacon.identifier: #we have received a bootloader beacon
+			#append its data to the list
+			received[beacon["Target"].value[0]] = (beacon["State"].linked_enum.enum[beacon["State"].value[0]].name,
+				str(int(beacon["FlashSize"].value[0])), time.time(), beacon["EntryReason"].linked_enum.enum[beacon["EntryReason"].value[0]].name)
+
+		elif ev.id.value == pingResponse.identifier: #some bootloader aware unit responded
+			state = "FirmwareRunning" if not pingResponse["BootloaderPending"].value[0] else "BLpending"
+			received[pingResponse["Target"].value[0]] = (state, "Unknown", time.time(), "None")
+
+	printThread.join()
+	pingThread.join()
+
+
 
 
 def enumerator_by_name(enumerator, enum):
@@ -431,21 +471,14 @@ class FlashMaster():
 			if ev.id.value == expected_id:
 				return ret
 
-	#Customization point for other low level communication drivers
-	def send_message(self, id, data):
-		apostrophe = "'"
-
-		#print(f"Note: Sending message {hex(id)} with data 0x{apostrophe.join('{:02x}'.format(val) for val in data)}")
-		oc.send_message_std(id, data)
-
 	def send_handshake(self, reg, value, print_result = True):
 		buffer = [0] * 5
 		self.Handshake.assemble([reg, value],buffer)
 
 		attempts = 0
-		self.send_message(self.Handshake.identifier, buffer)
+		send_message(self.Handshake.identifier, buffer)
 		while attempts < 5 and not self.wait_for_message(self.HandshakeAck.identifier, (reg, value), print_result):
-			self.send_message(self.Handshake.identifier, buffer)
+			send_message(self.Handshake.identifier, buffer)
 			attempts = attempts + 1
 
 		if attempts == 5:
@@ -460,9 +493,9 @@ class FlashMaster():
 		self.Data.assemble([shifted_address, False, word], buffer)
 
 		attempts = 0
-		self.send_message(self.Data.identifier, buffer)
+		send_message(self.Data.identifier, buffer)
 		while attempts < 5 and not self.wait_for_message(self.DataAck.identifier, (shifted_address, word)):
-			self.send_message(self.Data.identifier, buffer)
+			send_message(self.Data.identifier, buffer)
 			attempts = attempts + 1
 			
 		if attempts == 5:
@@ -478,9 +511,9 @@ class FlashMaster():
 		self.ExitReq.assemble([target], buffer)
 
 		attempts = 0
-		self.send_message(self.ExitReq.identifier, buffer)
+		send_message(self.ExitReq.identifier, buffer)
 		while attempts < 5 and not self.wait_for_message(self.ExitAck.identifier, [target]):
-			self.send_message(self.ExitReq.identifier, buffer)
+			send_message(self.ExitReq.identifier, buffer)
 			attempts = attempts + 1
 
 		if attempts == 5:
@@ -492,9 +525,9 @@ class FlashMaster():
 		self.EntryReq.assemble([target], buffer)
 
 		attempts = 0
-		self.send_message(self.EntryReq.identifier, buffer)
+		send_message(self.EntryReq.identifier, buffer)
 		while attempts < 5 and not self.wait_for_message(self.EntryAck.identifier, [target]):
-			self.send_message(self.EntryReq.identifier, buffer)
+			send_message(self.EntryReq.identifier, buffer)
 			attempts = attempts + 1
 
 		if attempts == 5:
