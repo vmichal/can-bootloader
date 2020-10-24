@@ -41,7 +41,7 @@ namespace bsp::can {
 			constexpr bool ttcm = false,
 				abom = true,
 				awum = false,
-				nart = false,
+				nart = true, //Maybe make this dynamic - start requreing ACK frames when transaction starts
 				rflm = false,
 				txfp = true;
 

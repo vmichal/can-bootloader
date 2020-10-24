@@ -53,6 +53,7 @@ namespace boot {
 		Bootloader_SoftwareBuild_t msg;
 		msg.DirtyRepo = ufsel::git::has_dirty_working_tree();
 		msg.CommitSHA = ufsel::git::commit_hash();
+		msg.Target = Bootloader::thisUnit;
 
 		send(msg);
 	}
