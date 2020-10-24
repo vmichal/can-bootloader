@@ -483,7 +483,7 @@ namespace boot {
 				return res;
 
 			status_ = Status::Initialization;
-			break;
+			return HandshakeResponse::Ok;
 
 		case Status::Initialization:
 			if (reg != Register::Command)
