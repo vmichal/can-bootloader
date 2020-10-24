@@ -33,7 +33,7 @@ struct SystemTimer {
 	static constexpr std::uint32_t initialTickCount = 0;
 	static constexpr Timestamp bootTime{initialTickCount};
 
-	inline static std::uint32_t ticks = initialTickCount;
+	inline volatile static std::uint32_t ticks = initialTickCount;
 public:
 	static Timestamp Now();
 
