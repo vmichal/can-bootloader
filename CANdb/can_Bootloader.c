@@ -460,14 +460,14 @@ int Bootloader_get_CommunicationYield(Bootloader_CommunicationYield_t* data_out)
 int Bootloader_send_CommunicationYield_s(const Bootloader_CommunicationYield_t* data) {
     uint8_t buffer[1];
     buffer[0] = (data->Target & 0x0F);
-    int rc = txSendCANMessage(bus_UNDEFINED, Bootloader_CommunicationYield_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_CommunicationYield_status.bus, Bootloader_CommunicationYield_id, buffer, sizeof(buffer));
     return rc;
 }
 
 int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target) {
     uint8_t buffer[1];
     buffer[0] = (Target & 0x0F);
-    int rc = txSendCANMessage(bus_UNDEFINED, Bootloader_CommunicationYield_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_CommunicationYield_status.bus, Bootloader_CommunicationYield_id, buffer, sizeof(buffer));
     return rc;
 }
 
