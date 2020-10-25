@@ -71,7 +71,7 @@ namespace boot {
 		};
 
 		decltype(ApplicationJumpTable::logical_memory_blocks_) blocks_;
-		std::uint32_t remaining_bytes_ = Flash::availableMemory;
+		std::uint32_t remaining_bytes_ = 0;
 		std::uint32_t blocks_received_ = 0;
 
 		std::uint32_t blocks_expected_ = 0;
@@ -81,7 +81,10 @@ namespace boot {
 		auto const& logicalMemoryBlocks() const { return blocks_; }
 		std::uint32_t logicalMemoryBlockCount() const { return blocks_received_; }
 
-		void startSubtransaction() { status_ = Status::pending; }
+		void startSubtransaction() {
+			status_ = Status::pending;
+			remaining_bytes_ = Flash::availableMemory;
+		}
 
 		bool done() const { return status_ == Status::done; }
 		bool error() const { return status_ == Status::error; }

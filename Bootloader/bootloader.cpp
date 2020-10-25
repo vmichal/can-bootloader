@@ -97,8 +97,8 @@ namespace boot {
 		if (std::find(beg, end, address) != end)
 			return HandshakeResponse::PageAlreadyErased;
 
-		erased_pages_[erased_pages_count_++] = address;
 		Flash::ErasePage(address);
+		erased_pages_[erased_pages_count_++] = address;
 
 		return HandshakeResponse::Ok;
 	}
@@ -169,10 +169,10 @@ namespace boot {
 
 		case Status::sentInitialMagic:
 			status_ = Status::sendingBlockAddress;
-			return handshake::get(Register::NumPhysicalMemoryBlocks, Command::None, PhysicalMemoryMap::availablePages);
+			return handshake::get(Register::NumPhysicalMemoryBlocks, Command::None, PhysicalMemoryMap::availablePages());
 
 		case Status::sendingBlockAddress:
-			if (PhysicalMemoryMap::availablePages == blocks_sent_) { //we have sent all available blocks
+			if (PhysicalMemoryMap::availablePages() == blocks_sent_) { //we have sent all available blocks
 				status_ = Status::shouldYield;
 				return handshake::transactionMagic;
 			}
@@ -291,7 +291,7 @@ namespace boot {
 			if (reg != Register::NumPhysicalBlocksToErase)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value > PhysicalMemoryMap::availablePages || value == 0)
+			if (value > PhysicalMemoryMap::availablePages() || value == 0)
 				return HandshakeResponse::NotEnoughPages;
 
 			expectedPageCount_ = value;
@@ -309,7 +309,6 @@ namespace boot {
 			if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
 				return result;
 
-			erased_pages_[erased_pages_count_++] = value;
 			status_ = Status::receivingMemoryBlocks;
 			return HandshakeResponse::Ok;
 
@@ -322,7 +321,6 @@ namespace boot {
 				if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
 					return result;
 
-				erased_pages_[erased_pages_count_++] = value;
 				return HandshakeResponse::Ok;
 
 			case Register::TransactionMagic:
@@ -408,7 +406,7 @@ namespace boot {
 			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
 				return res;
 
-			status_ = Status::awaitingEntryPoint;
+			status_ = Status::awaitingInterruptVector;
 			return HandshakeResponse::Ok;
 
 		case Status::awaitingInterruptVector:

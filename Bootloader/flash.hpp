@@ -83,12 +83,12 @@ namespace boot {
 
 	struct PhysicalMemoryMap {
 		constexpr static PhysicalBlockSizes physicalBlockSizes = PhysicalBlockSizes::same; //TODO customization point
-		static inline std::uint32_t const availablePages = Flash::availableMemory / Flash::pageSize;
+		static std::uint32_t availablePages() { return Flash::availableMemory / Flash::pageSize; }
 
 		static MemoryBlock block(std::uint32_t const index) {
 
 			if constexpr (physicalBlockSizes == PhysicalBlockSizes::same) {
-				assert(index < availablePages);
+				assert(index < availablePages());
 
 				std::uint32_t const address = Flash::applicationAddress + index * Flash::pageSize;
 				std::uint32_t const length = Flash::pageSize;
@@ -98,7 +98,7 @@ namespace boot {
 			else {
 				constexpr std::array<MemoryBlock, Flash::pageCountTotal> blocks_ {{0,0}};
 				constexpr std::uint32_t firstApplicationBlock = 2; //TODO customization point
-				assert(index + firstApplicationBlock < availablePages);
+				assert(index + firstApplicationBlock < availablePages());
 				
 				return blocks_[firstApplicationBlock];
 			}
@@ -116,7 +116,7 @@ namespace boot {
 			auto& operator++() { ++index_; return *this; }
 
 			bool operator!= (end_sentinel_t) const {
-				return index_ < availablePages;
+				return index_ < availablePages();
 			}
 
 			end_sentinel_t end() { return {}; }

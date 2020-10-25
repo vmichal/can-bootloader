@@ -79,7 +79,7 @@ namespace boot {
 				Bootloader_CommunicationYield_on_receive([](Bootloader_CommunicationYield_t* const data) -> int {
 					assert(data->Target == Bootloader::thisUnit); //TODO maybe allow multiple bootloaders on bus
 
-					bootloader.processYield();
+					canManager.SendHandshake(bootloader.processYield());
 					return 0;
 
 					});
