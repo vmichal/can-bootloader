@@ -15,9 +15,6 @@ namespace boot {
 
 	class CanManager {
 
-
-		static bool hasEmptyMailbox(int periph);
-
 		Bootloader_Handshake_t lastSentHandshake_;
 
 	public:
