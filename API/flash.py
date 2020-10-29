@@ -19,6 +19,7 @@ parser.add_argument('-x', dest='firmware', type=str, help='Path to hex file for 
 parser.add_argument('-t', dest='terminal', type=str, help='Path to second terminal for pretty bootloader listing')
 parser.add_argument('--force', dest='force', action='store_true', help='Terminate ongoing transactions and start a new one')
 parser.add_argument('-q', dest='quiet', action='store_true', help='Do not print to standard output.')
+parser.add_argument('--verbose', dest='verbose', action='store_true', help='Print absolutely everything.')
 
 parser.add_argument('ocarina',  metavar='ocarina', type=str, help='path to ocarina COM port device (/dev/ocarina, /dev/ttyUSB0,...)')
 
@@ -479,7 +480,7 @@ class FlashMaster():
 
 		for field in must_match:
 			if sent._asdict()[field] != message[field].value[0]:
-				print(f'Received unrelated acknowledge!', file=self.output_file)
+				print(f'Received unrelated acknowledge!', file=sys.stderr)
 				return False
 
 		return [message[field].value[0] for field in wanted]
@@ -571,6 +572,9 @@ class FlashMaster():
 		print('Desktop interface to CAN Bootloader', file=self.output_file)
 		print('Written by Vojtech Michal, (c) eForce FEE Prague Formula 2020\n', file=self.output_file)
 
+		if not args.verbose:
+			return
+
 		targets = [elem.name for val, elem in self.BootTargetEnum.enum.items()]
 		if len(targets) == 1:
 			print(f"The only targetable unit is {targets[0]}", file=self.output_file)
@@ -578,19 +582,24 @@ class FlashMaster():
 			print(f"Targetable units are {{{', '.join(targets)}}}", file=self.output_file)
 
 	def parseFirmware(self, firmwarePath):
-		print(f'Parsing hex file {firmwarePath}', file=self.output_file)
+		if args.verbose:
+			print(f'Parsing hex file {firmwarePath}', file=self.output_file)
 		self.firmware = Firmware(firmwarePath)
-		print(f'Input consists of {len(self.firmware.records)} hex records.', file=self.output_file)
+		if args.verbose:
+			print(f'Input consists of {len(self.firmware.records)} hex records.', file=self.output_file)
+
 		print(f'Firmware logical memory map ({self.firmware.length} bytes in total):', file=self.output_file)
 		for block in self.firmware.logical_memory_map:
 			print(f'\t[0x{block.address:08x} - 0x{block.address + len(block.data) - 1:08x}] ... {len(block.data):8} B ({len(block.data)/1024:.2f} KiB)', file=self.output_file)
-		print(f'Recognized entry point address 0x{(self.firmware.entry_point & ~1):08x} ({"Thumb" if self.firmware.entry_point & 1 else "ARM"} mode)', file=self.output_file)
-
+		print(f'Entry point: 0x{(self.firmware.entry_point & ~1):08x} ({"Thumb" if self.firmware.entry_point & 1 else "ARM"} mode)', file=self.output_file)
+		print('', file=self.output_file)
 
 	def report_handshake_response(self, response):
-		print(self.HandshakeResponseEnum.enum[response].name, file=self.output_file)
+		if args.verbose:
+			print(self.HandshakeResponseEnum.enum[response].name, file=self.output_file)
+
 		if response != enumerator_by_name('OK', self.HandshakeResponseEnum):
-			print('Handshake failed. Exiting', file=self.output_file)
+			print(f'Handshake failed with code {self.HandshakeResponseEnum.enum[response].name}. Exiting', file=sys.stderr)
 			#TODO maybe request the bootloader to exit as well
 			sys.exit(3) #kill the program if handshake failed
 
@@ -636,7 +645,8 @@ class FlashMaster():
 
 
 	def flash(self, force = False):
-		print(f"Initiating flash process for {self.targetName} (target ID {self.target})\n", file=self.output_file)
+		if args.verbose:
+			print(f"Initiating flash process for {self.targetName} (target ID {self.target})\n", file=self.output_file)
 		self.ocarinaReadingThread.start()
 
 		print('Searching bootloader aware units present on the bus...', file=self.output_file)
@@ -648,11 +658,12 @@ class FlashMaster():
 		while not is_bootloader_active(self.target) and not is_application_active(self.target):
 			time.sleep(0.1)
 		
-		print("Target's presence on the CAN bus confirmed.", file=self.output_file)
+		if args.verbose:
+			print("Target's presence on the CAN bus confirmed.", file=self.output_file)
 
 		#the target has application running -> request it to reset into bootloader
 		if is_application_active(self.target):
-			print(f'Sending request to {self.targetName} to reset into bootloader ... ', file=self.output_file)
+			print(f'Waiting for {self.targetName} to enter bootloader.', file=self.output_file)
 
 			for i in range(5):
 				if self.request_bootloader_entry(self.target):
@@ -660,7 +671,6 @@ class FlashMaster():
 			else:
 				print('Target unit refused to enter the bootloader. Exiting', file=self.output_file)
 				return
-			print(f'Waiting for {self.targetName} bootloader to respond ...  ', file=self.output_file)
 			#await the bootloader's activation
 			while not is_bootloader_active(self.target): 
 				time.sleep(0.5)
@@ -670,12 +680,14 @@ class FlashMaster():
 			ready_state = enumerator_by_name('Ready', self.StateEnum)
 			#if the bootloader is not ready, there is another transaction
 			if self.listing.active_bootloaders[self.target].state != ready_state: 
-				print('There is an ongoing transaction with targeted bootloader. ', end='', file=self.output_file)
+				if args.verbose:
+					print('There is an ongoing transaction with targeted bootloader. ', end='', file=self.output_file)
 				if not force: #we are not allowed to interfere into that transaction
-					print('Intervention is prevented by default.\nSpecify --force during program invocation to abort ongoing transaction.', file=self.output_file)
+					print('Specify --force during program invocation to abort ongoing transaction.', file=self.output_file)
 					return 
 
-				print('Forcing bootloader to abort current transaction ... ', file=self.output_file)
+				if args.verbose:
+					print('Forcing bootloader to abort current transaction ... ', file=self.output_file)
 				if not self.request_bootloader_exit(self.target, force = True):
 					print('Bootloader refused to abort ongoing transaction.', file=self.output_file)
 					return
@@ -683,24 +695,25 @@ class FlashMaster():
 				while self.listing.active_bootloaders[self.target].state != ready_state:
 					time.sleep(0.5)
 
-			print('Target bootloader is ready.', file=self.output_file)
+			if args.verbose:
+				print('Target bootloader is ready.', file=self.output_file)
 
 		else:
 			assert False
 
-		print('\nTransaction starts\n', file=self.output_file)
-		
-		print('Sending initial transaction magic ... ', end='', file=self.output_file)
+		if args.verbose:
+			print('\nTransaction starts\n', file=self.output_file)
+			print('Sending initial transaction magic ... ', end='', file=self.output_file)
+
 		self.report_handshake_response(self.send_transaction_magic())
 
-		print('Initiating flashing transaction ... ', end = '', file=self.output_file)
+		if args.verbose:
+			print('Initiating flashing transaction ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_command('StartTransactionFlashing'))
 		
-		print('Communication yields...', file=self.output_file)
+		if args.verbose:
+			print('Communication yields...', file=self.output_file)
 		self.yield_communication()
-
-		OK = enumerator_by_name('OK', self.HandshakeResponseEnum)
-		SeqError = enumerator_by_name('HandshakeSequenceError', self.HandshakeResponseEnum)
 
 		#receive initial transaction magic
 		self.receive_transaction_magic()
@@ -717,33 +730,48 @@ class FlashMaster():
 		#receive terminal transaction magic
 		self.receive_transaction_magic()
 
-		print('Awaiting bootloader yield ... ', end= '', file=self.output_file)
+		if args.verbose:
+			print('Awaiting bootloader yield ... ', end= '', file=self.output_file)
 		self.get_next_message(self.CommunicationYield.identifier)
-		print('OK\n\n', file=self.output_file)
+		if args.verbose:
+			print('OK\n\n', file=self.output_file)
 
 		if not self.firmware.identify_influenced_physical_blocks(physical_memory_map):
-			print('Available physcial memory cannot cover all address ranges required by firmware! Exiting', file=self.output_file)
+			print('Available physcial memory cannot cover all address ranges required by firmware! Exiting.', file=self.output_file)
 			return
 
 		##Transmission of logical memory map
 
-		print('Sending initial magic ... ', end='', file=self.output_file)
+		if args.verbose:
+			print('Sending initial magic ... ', end='', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic()) #initial magic
-		print(f'Sending number of logical memory blocks ({len(self.firmware.logical_memory_map)}) ... ', end='', file=self.output_file)
+
+		print(f'Sending number of logical memory blocks ({len(self.firmware.logical_memory_map)}) ... ', end='' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('NumLogicalMemoryBlocks', 'None', len(self.firmware.logical_memory_map)))
-		print(f'Sending individual logical memory blocks ... ', file=self.output_file)
+
+		if args.verbose:
+			print(f'Sending individual logical memory blocks ... ', file=self.output_file)
+
 		for block in self.firmware.logical_memory_map: #send blocks one by one
-			print(f'start ', end = '', file=self.output_file)
+			if args.verbose:
+				print(f'Start ', end = '', file=self.output_file)
 			self.report_handshake_response(self.send_handshake('LogicalBlockStart', 'None', block.address))
-			print(f'length ', end='', file=self.output_file)
+
+			if args.verbose:
+				print(f'length ', end='', file=self.output_file)
 			self.report_handshake_response(self.send_handshake('LogicalBlockLength', 'None', len(block.data)))
-		print('Sending terminal magic ... ', end='', file=self.output_file)
+
+		if args.verbose:
+			print('Sending terminal magic ... ', end='', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic()) #terminal magic
-		print('Sent firmware memory map.\n\n', file=self.output_file)
+
+		if args.verbose:
+			print('Sent firmware memory map.\n\n', file=self.output_file)
 
 		##Physical block erassure
 
-		print(f'Sending {len(self.firmware.influenced_physical_blocks)} page addresses...', file=self.output_file)
+		if args.verbose:
+			print(f'Sending {len(self.firmware.influenced_physical_blocks)} page addresses ... ', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic()) #initial magic
 		self.report_handshake_response(self.send_handshake('NumPhysicalBlocksToErase', 'None', len(self.firmware.influenced_physical_blocks)))
 		for index, page in enumerate(self.firmware.influenced_physical_blocks, 1):
@@ -756,10 +784,13 @@ class FlashMaster():
 
 		##Firmware download
 
-		print('Sending initial magic ... ', end = '', file=self.output_file)
+		if args.verbose:
+			print('Sending initial magic ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic())
-		print(f'Sending firmware size ({self.firmware.length})... ', end = '', file=self.output_file)
+
+		print(f'Sending firmware size ({self.firmware.length})... ', end = '' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('FirmwareSize', 'None', self.firmware.length))
+
 		print('Sending words of firmware...', file=self.output_file)
 		print(f'\tProgress ... {0:05}%', end='', file=self.output_file)
 		checksum = 0
@@ -782,29 +813,40 @@ class FlashMaster():
 		
 		print(f'Firmware checksum = 0x{checksum:08x}', file=self.output_file)
 
-		print('Sending checksum ... ', end = '', file=self.output_file)
+		if args.verbose:
+			print('Sending checksum ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('Checksum', "None", checksum))
-		print('Sending terminal transaction magic ... ', end = '', file=self.output_file)
+
+		if args.verbose:
+			print('Sending terminal transaction magic ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic())
 
 		##Firmware metadata
 
-		print('Sending initial transaction magic ... ', end = '', file=self.output_file)
+		if args.verbose:
+			print('Sending initial transaction magic ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic())
 
-		print('Sending interrupt vector ... ', end = '', file=self.output_file)
+		if args.verbose:
+			print('Sending interrupt vector ... ', end = '', file=self.output_file)
 		#TODO make sure this is really the interrupt vector
 		self.report_handshake_response(self.send_handshake('InterruptVector', "None", self.firmware.logical_memory_map[0].address))
 
-		print('Sending entry point address ... ', end = '', file=self.output_file)
+		if args.verbose:
+			print('Sending entry point address ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('EntryPoint', "None", self.firmware.entry_point))
 
-		print('Sending terminal transaction magic ... ', end = '', file=self.output_file)
+		if args.verbose:
+			print('Sending terminal transaction magic ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic())
 
-		print('Firmware flashed successfully', file=self.output_file)
-		print('Leaving bootloader ... ', end='', file=self.output_file)
-		print('Confirmed' if self.request_bootloader_exit(self.target, force = False) else 'Declined', file=self.output_file)
+		if args.verbose:
+			print('Firmware flashed successfully', file=self.output_file)
+		print('Leaving bootloader. ', end='' if args.verbose else '\n', file=self.output_file)
+
+		result = self.request_bootloader_exit(self.target, force = False)
+		if args.verbose:
+			print('Confirmed' if result else 'Declined', file=self.output_file)
 
 		self.terminate()
 
