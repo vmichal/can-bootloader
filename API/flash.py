@@ -110,6 +110,7 @@ class BootloaderListing:
 		self.aware_applications  = { unit : ApplicationData(None, None) for unit in self.targetable_units }
 
 		self.exit = False
+		self.shall_sleep = False
 		self.receiving_acks = False
 
 		if self.terminal is not None:
@@ -120,6 +121,8 @@ class BootloaderListing:
 
 	def _do_print(self):
 		while not self.exit:
+			while self.shall_sleep:
+				time.sleep(1)
 			assert self.terminal is not None
 			time.sleep(1)
 			clearscreen(self.terminal_name)
@@ -187,6 +190,9 @@ class BootloaderListing:
 	def _do_ping_bootloader_aware_units(self):
 		#cycle through all possible boot targets and ping them
 		while not self.exit:
+			while self.shall_sleep:
+				time.sleep(1)
+
 			targets = list(filter(lambda t: t not in self.active_bootloaders, self.targetable_units)) #target only those units that are not in bootloader
 
 			for unit in itertools.cycle(targets):
@@ -256,6 +262,13 @@ class BootloaderListing:
 		pingThread.join()
 		if self.terminal is not None:
 			printThread.join()
+
+	def pause(self):
+		self.shall_sleep = True
+
+	def resume(self):
+		self.shall_sleep = False
+
 
 def enumerator_by_name(enumerator, enum):
 	try:
@@ -794,6 +807,12 @@ class FlashMaster():
 		print('Sending words of firmware...', file=self.output_file)
 		print(f'\tProgress ... {0:05}%', end='', file=self.output_file)
 		checksum = 0
+		start = time.time()
+		sent_bytes = 0
+		last_print = time.time() - 1
+
+		if args.quiet:
+			self.listing.pause()
 		for block in self.firmware.logical_memory_map:
 			assert len(block.data) % 4 == 0 #all messages will carry whole word
 
@@ -806,12 +825,18 @@ class FlashMaster():
 					print(f'Write returned {self.WriteResultEnum.enum[result].name}', file = sys.stderr)
 
 				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
-				print(f'\r\tProgress ... {100 * offset / len(block.data):5.2f}%', end='', file=self.output_file)
-			print(f'\r\tProgress ... {100:5.2f}%', end='', file=self.output_file)
+				sent_bytes += 4
+				if time.time() - last_print > 1:
+					print(f'\r\tProgress ... {100 * offset / len(block.data):5.2f}% ({sent_bytes/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
+					last_print = time.time()
+			print(f'\r\tProgress ... {100:5.2f}% ({sent_bytes/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
 
 			print(f'\nWritten {len(block.data)} bytes starting from 0x{block.address:08x}', file=self.output_file)
-		
+		print(f'Took {(time.time() - start)*1000:.2f} ms.')
 		print(f'Firmware checksum = 0x{checksum:08x}', file=self.output_file)
+
+		if args.quiet:
+			self.listing.resume()
 
 		if args.verbose:
 			print('Sending checksum ... ', end = '', file=self.output_file)
