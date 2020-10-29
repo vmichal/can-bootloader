@@ -191,6 +191,8 @@ namespace boot {
 
 		WriteStatus checkAddressBeforeWrite(std::uint32_t address);
 
+		std::uint32_t predictedWriteDestination_ = 0;
+
 		//Sets the jumpTable
 		void finishFlashingTransaction() const;
 		FirmwareData summarizeFirmwareData() const;

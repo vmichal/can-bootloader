@@ -47,11 +47,16 @@ namespace boot {
 
 		std::uint32_t const pageAligned = Flash::makePageAligned(address);
 
-		auto const& erased_pages = physicalMemoryBlockEraser_.erased_pages();
-		auto const beg = begin(erased_pages);
-		auto const end = std::next(beg, physicalMemoryBlockEraser_.erased_page_count());
-		if (std::find(beg, end, pageAligned) == end)
-			return WriteStatus::NotInErasedMemory;
+		//see whether this is not the same page as the last one written.
+		//if it is, we can let the write continue.
+		if (pageAligned != predictedWriteDestination_) {
+			auto const& erased_pages = physicalMemoryBlockEraser_.erased_pages();
+			auto const beg = begin(erased_pages);
+			auto const end = std::next(beg, physicalMemoryBlockEraser_.erased_page_count());
+			if (std::find(beg, end, pageAligned) == end)
+				return WriteStatus::NotInErasedMemory;
+			predictedWriteDestination_ = pageAligned; //we have moved to the next flash page -> update predictor
+		}
 
 		return WriteStatus::Ok; //Everything seems ok, try to write
 	}
@@ -67,11 +72,17 @@ namespace boot {
 	}
 
 	WriteStatus Bootloader::write(std::uint32_t address, std::uint32_t word) {
-		std::uint16_t const lower_half = word, upper_half = word >> 16;
-		if (WriteStatus const ret = write(address, lower_half); ret != WriteStatus::Ok)
+		if (!firmwareDownloader_.data_expected())
+			return WriteStatus::NotReady;
+
+		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
-		return write(address + 2, upper_half);
+		std::uint16_t const lower_half = word, upper_half = word >> 16;
+		if (WriteStatus const ret = firmwareDownloader_.write(address, lower_half); ret != WriteStatus::Ok)
+			return ret;
+
+		return firmwareDownloader_.write(address + 2, upper_half);
 	}
 
 	HandshakeResponse PhysicalMemoryBlockEraser::tryErasePage(std::uint32_t address) {
@@ -515,6 +526,7 @@ namespace boot {
 
 			auto const result = physicalMemoryBlockEraser_.receive(reg, command, value);
 			if (physicalMemoryBlockEraser_.done()) {
+				predictedWriteDestination_ = physicalMemoryBlockEraser_.erased_pages().front();
 				status_ = Status::DownloadingFirmware;
 				firmwareDownloader_.startSubtransaction();
 			}

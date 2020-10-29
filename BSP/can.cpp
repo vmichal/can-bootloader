@@ -162,11 +162,7 @@ extern "C" void CAN1_RX0_IRQHandler(void)
 	CanRxMsg RxMessage;
 	CAN_Receive(CAN1, CAN_FIFO0, &RxMessage);
 
-	if (RxMessage.IDE == CAN_Id_Standard) {
-		if (txReceiveCANMessage(bus_connected_to_CAN1, RxMessage.StdId, RxMessage.Data, RxMessage.DLC) < 0) {
-			// ERROR
-		}
-	}
+	txReceiveCANMessage(bus_connected_to_CAN1, RxMessage.StdId, RxMessage.Data, RxMessage.DLC);
 }
 
 extern "C" void CAN2_RX0_IRQHandler(void)
@@ -175,11 +171,7 @@ extern "C" void CAN2_RX0_IRQHandler(void)
 
 	CAN_Receive(CAN2, CAN_FIFO0, &RxMessage);
 
-	if (RxMessage.IDE == CAN_Id_Standard) {
-		if (txReceiveCANMessage(bus_connected_to_CAN2, RxMessage.StdId, RxMessage.Data, RxMessage.DLC) < 0) {
-			// ERROR
-		}
-	}
+	txReceiveCANMessage(bus_connected_to_CAN2, RxMessage.StdId, RxMessage.Data, RxMessage.DLC);
 }
 
 
