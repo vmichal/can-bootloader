@@ -39,10 +39,9 @@ namespace {
 
 namespace boot {
 
-	template<int CAN>
-	bool CanManager::hasEmptyMailbox() {
-		static_assert(CAN == 1 || CAN == 2, "There are not that many CAN buses in the car.");
-		if constexpr (CAN == 1)
+	bool CanManager::hasEmptyMailbox(int const periph) {
+		assert(periph == bus_CAN1 || periph == bus_CAN2);
+		if (periph == bus_CAN1)
 			return ufsel::bit::get(CAN1->TSR, CAN_TSR_TME0, CAN_TSR_TME1, CAN_TSR_TME2);
 		else // CAN == 2
 			return ufsel::bit::get(CAN2->TSR, CAN_TSR_TME0, CAN_TSR_TME1, CAN_TSR_TME2);
@@ -63,7 +62,7 @@ namespace boot {
 		message.Target = Bootloader::thisUnit;
 		message.Confirmed = ok;
 
-		for (; !CanManager::hasEmptyMailbox<1>(););
+		for (; !CanManager::hasEmptyMailbox(Bootloader_ExitReq_status.bus););
 		send(message);
 	}
 
@@ -75,7 +74,7 @@ namespace boot {
 		message.Result = toCan(status);
 
 		//prevent the data form getting lost if all mailboxes are full
-		for (; !CanManager::hasEmptyMailbox<1>(););
+		for (; !CanManager::hasEmptyMailbox(Bootloader_Data_status.bus););
 		send(message);
 	}
 
@@ -86,7 +85,7 @@ namespace boot {
 		message.Value = val;
 
 		//prevent the data form getting lost if all mailboxes are full
-		for (; !CanManager::hasEmptyMailbox<1>(););
+		for (; !CanManager::hasEmptyMailbox(Bootloader_Handshake_status.bus););
 		send(message);
 	}
 
@@ -94,7 +93,7 @@ namespace boot {
 		Bootloader_Handshake_t const msg = handshake::get(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
 
 		//prevent the data form getting lost if all mailboxes are full
-		for (; !CanManager::hasEmptyMailbox<1>();); //TODO check correct bus
+		for (; !CanManager::hasEmptyMailbox(Bootloader_Handshake_status.bus););
 		send(msg);
 	}
 
@@ -103,13 +102,13 @@ namespace boot {
 		msg.Target = Bootloader::thisUnit;
 
 		//prevent the data form getting lost if all mailboxes are full
-		for (; !CanManager::hasEmptyMailbox<1>();); //TODO check correct bus
+		for (; !CanManager::hasEmptyMailbox(Bootloader_CommunicationYield_status.bus););
 		send(msg);
 	}
 
 	void CanManager::SendHandshake(Bootloader_Handshake_t const& msg) {
 
-		for (; !CanManager::hasEmptyMailbox<1>();); //TODO check correct bus
+		for (; !CanManager::hasEmptyMailbox(Bootloader_Handshake_status.bus);); //TODO check correct bus
 		if (send(msg) == 0) //if message sent successfully, copy new message to storage
 			lastSentHandshake_ = msg;
 	}

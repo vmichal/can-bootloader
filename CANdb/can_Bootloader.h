@@ -13,6 +13,14 @@ enum {
     bus_UNDEFINED = 2,
 };
 
+extern CAN_msg_status_t Bootloader_Beacon_status;
+extern CAN_msg_status_t Bootloader_Data_status;
+extern CAN_msg_status_t Bootloader_DataAck_status;
+extern CAN_msg_status_t Bootloader_ExitReq_status;
+extern CAN_msg_status_t Bootloader_Handshake_status;
+extern CAN_msg_status_t Bootloader_HandshakeAck_status;
+extern CAN_msg_status_t Bootloader_CommunicationYield_status;
+
 enum { Bootloader_Beacon_id             = STD_ID(0x622) };
 enum { Bootloader_Beacon_timeout = 1000 };
 enum { Bootloader_Data_id               = STD_ID(0x623) };

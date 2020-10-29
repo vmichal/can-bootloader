@@ -2,20 +2,21 @@
 #include <string.h>
 
 CAN_msg_status_t Bootloader_Beacon_status;
+CAN_msg_status_t Bootloader_Data_status;
+CAN_msg_status_t Bootloader_DataAck_status;
+CAN_msg_status_t Bootloader_ExitReq_status;
+CAN_msg_status_t Bootloader_Handshake_status;
+CAN_msg_status_t Bootloader_HandshakeAck_status;
+CAN_msg_status_t Bootloader_CommunicationYield_status;
+
 Bootloader_Beacon_t Bootloader_Beacon_data;
 int32_t Bootloader_Beacon_last_sent;
-CAN_msg_status_t Bootloader_Data_status;
 Bootloader_Data_t Bootloader_Data_data;
-CAN_msg_status_t Bootloader_DataAck_status;
 Bootloader_DataAck_t Bootloader_DataAck_data;
-CAN_msg_status_t Bootloader_ExitReq_status;
 Bootloader_ExitReq_t Bootloader_ExitReq_data;
-CAN_msg_status_t Bootloader_Handshake_status;
 Bootloader_Handshake_t Bootloader_Handshake_data;
-CAN_msg_status_t Bootloader_HandshakeAck_status;
 Bootloader_HandshakeAck_t Bootloader_HandshakeAck_data;
 int32_t Bootloader_SoftwareBuild_last_sent;
-CAN_msg_status_t Bootloader_CommunicationYield_status;
 Bootloader_CommunicationYield_t Bootloader_CommunicationYield_data;
 
 void candbInit(void) {
