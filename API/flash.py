@@ -199,8 +199,6 @@ class BootloaderListing:
 		if isinstance(ev, ocarina.CANErrorEvent): #there is some error on CAN
 			if ev.eType.value == ocarina.CANERROR.ACKNOWLEDGMENT:
 				self.receiving_acks = False
-			else:
-				print(f'Other error {ev}', file = sys.stderr)
 			return
 
 		elif isinstance(ev, ocarina.HeartbeatEvent) or isinstance(ev, ocarina.ErrorFlagsEvent):
@@ -232,10 +230,10 @@ class BootloaderListing:
 		elif ev.id.value == self.pingResponse.identifier: #some bootloader aware unit responded
 			#extract information from message's bits
 			self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
-			state = "FirmwareRunning" if not self.pingResponse["BootloaderPending"].value[0] else "BLpending"
+			BLpending = self.pingResponse["BootloaderPending"].value[0]
 			target = self.pingResponse["Target"].value[0]
 
-			self.aware_applications[target] = TargetData(state, None, time.time(), None)
+			self.aware_applications[target] = ApplicationData(BLpending, time.time())
 			if target in self.active_bootloaders: #remove the target from list of active bootloaders
 				del self.active_bootloaders[target]
 
@@ -512,8 +510,11 @@ class FlashMaster():
 			if ev.id.value in (self.SoftwareBuild.identifier, self.Beacon.identifier):
 				continue #these messages are not part of protocol - ignore them
 
+			if ev.id.value != expected_id:
+				continue
+
 			if ev.id.value == self.HandshakeAck.identifier:
-				ret = self.receive_generic_response(self.HandshakeAck.identifier, sent, ['Register', 'Value'], ['Response'])
+				return self.receive_generic_response(self.HandshakeAck.identifier, sent, ['Register', 'Value'], ['Response'])
 			elif ev.id.value == self.Handshake.identifier:
 				assert False #shall not be received here
 			elif ev.id.value == self.CommunicationYield.identifier:
@@ -521,14 +522,12 @@ class FlashMaster():
 			elif ev.id.value == self.Data.identifier:
 				assert False #shall not be received yet
 			elif ev.id.value == self.DataAck.identifier:
-				ret = self.receive_generic_response(self.DataAck.identifier, sent, ['Address'], ['Result'])
+				return self.receive_generic_response(self.DataAck.identifier, sent, ['Address'], ['Result'])
 			elif ev.id.value == self.ExitAck.identifier:
-				ret = self.receive_generic_response(self.ExitAck.identifier, sent, ['Target'], ['Confirmed'])
+				return self.receive_generic_response(self.ExitAck.identifier, sent, ['Target'], ['Confirmed'])
 			elif ev.id.value == self.PingResponse.identifier:
-				ret = self.receive_generic_response(self.PingResponse.identifier, sent, ['Target'], ['Bootloader'])
+				return self.receive_generic_response(self.PingResponse.identifier, sent, ['Target'], ['BootloaderPending'])
 
-			if ev.id.value == expected_id:
-				return ret
 
 	def send_generic_message_and_await_response(self, id : int, data : list, responseID : int, await_response = True):
 		message = db.getMsgById(id)
@@ -565,10 +564,10 @@ class FlashMaster():
 
 
 	def request_bootloader_exit(self, target, force):
-		return self.send_generic_message_and_await_response(self.ExitReq.identifier, [target, force], self.ExitAck.identifier)
+		return self.send_generic_message_and_await_response(self.ExitReq.identifier, [target, force], self.ExitAck.identifier)[0]
 
 	def request_bootloader_entry(self, target):
-		return self.send_generic_message_and_await_response(self.Ping.identifier, [target, True], self.PingResponse.identifier)
+		return self.send_generic_message_and_await_response(self.Ping.identifier, [target, True], self.PingResponse.identifier)[0]
 
 	def print_header(self):
 		print('Desktop interface to CAN Bootloader')
@@ -649,11 +648,15 @@ class FlashMaster():
 
 		#the target has application running -> request it to reset into bootloader
 		if is_application_active(self.target):
-			print(f'Sending request to {self.target_name} to reset into bootloader ... ')
-			if not self.request_bootloader_entry(self.target):
+			print(f'Sending request to {self.targetName} to reset into bootloader ... ')
+
+			for i in range(5):
+				if self.request_bootloader_entry(self.target):
+					break
+			else:
 				print('Target unit refused to enter the bootloader. Exiting')
 				return
-			print(f'Waiting for {self.target_name} bootloader to respond ...  ')
+			print(f'Waiting for {self.targetName} bootloader to respond ...  ')
 			#await the bootloader's activation
 			while not is_bootloader_active(self.target): 
 				time.sleep(0.5)
@@ -795,12 +798,9 @@ class FlashMaster():
 		print('Sending terminal transaction magic ... ', end = '')
 		self.report_handshake_response(self.send_transaction_magic())
 
-
-
-
 		print('Firmware flashed successfully')
 		print('Leaving bootloader ... ', end='')
-		self.report_handshake_response(self.request_bootloader_exit(self.target, force = False))
+		print('Confirmed' if self.request_bootloader_exit(self.target, force = False) else 'Declined')
 
 		self.terminate()
 
