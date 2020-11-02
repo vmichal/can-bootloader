@@ -3,29 +3,22 @@
 #include <tx2/ringbuf.h>
 #include "can_Bootloader.h"
 
+#include <stdbool.h>
+
 #ifndef TX_RECV_BUFFER_SIZE
 enum { TX_RECV_BUFFER_SIZE = 256 };
 #endif
 
 static uint8_t recv_buf[TX_RECV_BUFFER_SIZE];
-static ringbuf_t recv_rb;
+static ringbuf_t recv_rb = {.data = recv_buf, .size = TX_RECV_BUFFER_SIZE, .readpos = 0, .writepos = 0};
 
-static volatile int flags;
+static volatile int flags = 0;
 
 extern void candbHandleMessage(int bus, uint32_t timestamp, CAN_ID_t id, const uint8_t* payload, size_t payload_length);
-
+extern void HardFault_Handler();
 static void set_flag(int flag) {
 	// TODO: must be atomic
 	flags |= flag;
-}
-
-void txInit(void) {
-	flags = 0;
-
-	recv_rb.data = recv_buf;
-	recv_rb.size = TX_RECV_BUFFER_SIZE;
-	recv_rb.readpos = 0;
-	recv_rb.writepos = 0;
 }
 
 int txReceiveCANMessage(int bus, CAN_ID_t id, const void* data, size_t length) {
@@ -53,19 +46,23 @@ void txProcess(void) {
 
 		// Read message header & data. The message in the rx buffer may not yet be complete,
 		// in that case we abort and try again next time.
-		if (ringbufTryRead(&recv_rb, (uint8_t*) &hdr, sizeof(hdr), &read_pos) == sizeof(hdr)
-				&& ringbufTryRead(&recv_rb, msg_data, hdr.length, &read_pos) == hdr.length) {
-			recv_rb.readpos = read_pos;
+		bool const header_ok = ringbufTryRead(&recv_rb, (uint8_t*) &hdr, sizeof(hdr), &read_pos) == sizeof(hdr);
+		bool const message_ok = ringbufTryRead(&recv_rb, msg_data, hdr.length, &read_pos) == hdr.length;
 
-			// Call the user filter
-			if (txHandleCANMessage(hdr.timestamp, hdr.bus, hdr.id, msg_data, hdr.length) < 0)
-				continue;
+
+		if (!header_ok || !message_ok)
+			HardFault_Handler(); //well, what else do we have..
+
+		recv_rb.readpos = read_pos;
+
+		// Call the user filter
+		if (txHandleCANMessage(hdr.timestamp, hdr.bus, hdr.id, msg_data, hdr.length) < 0)
+			continue;
 
 #if TX_WITH_CANDB
-			// Call the CANdb dispatcher, if enabled.
-			candbHandleMessage(hdr.timestamp, hdr.bus, hdr.id, msg_data, hdr.length);
+		// Call the CANdb dispatcher, if enabled.
+		candbHandleMessage(hdr.timestamp, hdr.bus, hdr.id, msg_data, hdr.length);
 #endif
-		}
 	}
 }
 

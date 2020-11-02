@@ -102,7 +102,6 @@ namespace boot {
 
 	void main() {
 
-		txInit();
 		bsp::can::enableIRQs(); //Enable reception from CAN
 		setupCommonCanCallbacks();
 

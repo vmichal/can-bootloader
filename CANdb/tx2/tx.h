@@ -30,7 +30,6 @@ enum {
 	TX_BAD_IRQ = (1<<5),
 };
 
-void txInit(void);
 int txReceiveCANMessage(int bus, CAN_ID_t id, const void* data, size_t length);
 void txProcess(void);
 
