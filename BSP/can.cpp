@@ -86,9 +86,9 @@ namespace bsp::can {
 		peripheralInit(*CAN1, APB1_frequency / can1_frequency / quanta_per_bit);
 		peripheralInit(*CAN2, APB1_frequency / can2_frequency / quanta_per_bit);
 
-		//11 bits standard IDs. They share prefix 0x62_, the last nibble is variable
+		//11 bits standard IDs. They share prefix 0x62_, the three bits are variable (range 0x620-0x627)
 		constexpr unsigned sharedPrefix = 0x62 << 4;
-		constexpr unsigned mustMatch = bit::bitmask_of_width(7) << 4;
+		constexpr unsigned mustMatch = bit::bitmask_of_width(8) << 3;
 
 		//All filters must be accessed via CAN1, because
 		//[ref manual f105 24.9.5] In connectivity line devices, the registers from offset 0x200 to 31C are present only in CAN1.
@@ -135,32 +135,8 @@ extern "C" {
 		return SystemTimer::GetUptime().toMilliseconds();
 	}
 
-	//return -1 if we don't care about given message
 	int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length) {
-		//valid bootloader messages have id in range 0x620-0x62F. CAN peripheral filters are set to match these values
-		//but we may want to filter further messages we don't care about.
-		constexpr std::uint32_t startID = 0x620;
-		constexpr char care = 1, dont_care = -1;
-		static constexpr std::array<char, 16> const return_codes{
-			/*0*/ dont_care,
-			/*1*/ dont_care,
-			/*2*/ care, //Beacon
-			/*3*/ care, //Data
-			/*4*/ care, //DataAck
-			/*5*/ care, //ExitReq
-			/*6*/ dont_care,
-			/*7*/ dont_care,
-			/*8*/ dont_care,
-			/*9*/ dont_care,
-			/*A*/ care, //Handshake
-			/*B*/ care, //HandshakeAck
-			/*C*/ dont_care,
-			/*D*/ dont_care,
-			/*E*/ dont_care,
-			/*F*/ care //CommunicationYield
-		};
-
-		return return_codes[id - startID];
+		return 0; //all messages are filtered by hardware
 	}
 
 	int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
