@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 #ifndef TX_RECV_BUFFER_SIZE
-enum { TX_RECV_BUFFER_SIZE = 256 };
+enum { TX_RECV_BUFFER_SIZE = 2048 };
 #endif
 
 static uint8_t recv_buf[TX_RECV_BUFFER_SIZE];
