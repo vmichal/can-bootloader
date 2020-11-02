@@ -18,72 +18,69 @@
 namespace boot {
 
 	CanManager canManager;
-	Bootloader bootloader {canManager};
+	Bootloader bootloader{ canManager };
 
 	namespace {
 
-		namespace {
+		void setupCommonCanCallbacks() {
 
-			void setupCommonCanCallbacks() {
+			Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
+				if (data->Target != Bootloader::thisUnit)
+					return 2;
 
-				Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
-					if (data->Target != Bootloader::thisUnit)
-						return 2;
+				if (!data->Force && bootloader.transactionInProgress()) {
+					canManager.SendExitAck(false);
+					return 1;
+				}
+				canManager.SendExitAck(true);
 
-					if (!data->Force && bootloader.transactionInProgress()) {
-						canManager.SendExitAck(false);
-						return 1;
-					}
-					canManager.SendExitAck(true);
+				Bootloader::resetToApplication();
+				});
+		}
 
-					Bootloader::resetToApplication();
-					});
-			}
+		void setupActiveCanCallbacks() {
 
-			void setupActiveCanCallbacks() {
+			Bootloader_Data_on_receive([](Bootloader_Data_t* data) -> int {
+				std::uint32_t const address = data->Address << 2;
 
-				Bootloader_Data_on_receive([](Bootloader_Data_t* data) -> int {
-					std::uint32_t const address = data->Address << 2;
+				WriteStatus const ret = data->HalfwordAccess
+					? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
+					: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
 
-					WriteStatus const ret = data->HalfwordAccess
-						? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
-						: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
+				canManager.SendDataAck(address, ret);
 
-					canManager.SendDataAck(address, ret);
+				return 0;
+				});
 
-					return 0;
-					});
+			Bootloader_DataAck_on_receive([](Bootloader_DataAck_t* data) -> int {
+				//TODO implement for firmware dumping
+				assert_unreachable();
+				});
 
-				Bootloader_DataAck_on_receive([](Bootloader_DataAck_t* data) -> int {
-					//TODO implement for firmware dumping
-					assert_unreachable();
-					});
+			Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
+				Register const reg = static_cast<Register>(data->Register);
+				auto const response = bootloader.processHandshake(reg, static_cast<Command>(data->Command), data->Value);
 
-				Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
-					Register const reg = static_cast<Register>(data->Register);
-					auto const response = bootloader.processHandshake(reg, static_cast<Command>(data->Command), data->Value);
+				canManager.SendHandshakeAck(reg, response, data->Value);
+				return 0;
+				});
 
-					canManager.SendHandshakeAck(reg, response, data->Value);
-					return 0;
-					});
+			Bootloader_HandshakeAck_on_receive([](Bootloader_HandshakeAck_t* data) -> int {
+				Bootloader_Handshake_t const last = canManager.lastSentHandshake();
+				if (data->Register != last.Register || data->Value != last.Value)
+					return 1;
 
-				Bootloader_HandshakeAck_on_receive([](Bootloader_HandshakeAck_t* data) -> int {
-					Bootloader_Handshake_t const last = canManager.lastSentHandshake();
-					if (data->Register != last.Register || data->Value != last.Value)
-						return 1;
+				bootloader.processHandshakeAck(static_cast<HandshakeResponse>(data->Response));
+				return 0;
+				});
 
-					bootloader.processHandshakeAck(static_cast<HandshakeResponse>(data->Response));
-					return 0;
-					});
+			Bootloader_CommunicationYield_on_receive([](Bootloader_CommunicationYield_t* const data) -> int {
+				assert(data->Target == Bootloader::thisUnit); //TODO maybe allow multiple bootloaders on bus
 
-				Bootloader_CommunicationYield_on_receive([](Bootloader_CommunicationYield_t* const data) -> int {
-					assert(data->Target == Bootloader::thisUnit); //TODO maybe allow multiple bootloaders on bus
+				canManager.SendHandshake(bootloader.processYield());
+				return 0;
 
-					canManager.SendHandshake(bootloader.processYield());
-					return 0;
-
-					});
-			}
+				});
 		}
 
 		//Waits for some time (1 sec) to find out whether there is another BL on the CAN bus
