@@ -337,6 +337,9 @@ namespace boot {
 			case Register::TransactionMagic:
 				if (value != Bootloader::transactionMagic)
 					return HandshakeResponse::InvalidTransactionMagic;
+				//wait for all operations to finish and lock flash
+				while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
+				ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
 				Flash::Lock();
 				status_ = Status::done;
 				return HandshakeResponse::Ok;

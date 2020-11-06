@@ -787,12 +787,14 @@ class FlashMaster():
 			print(f'Sending {len(self.firmware.influenced_physical_blocks)} page addresses ... ', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic()) #initial magic
 		self.report_handshake_response(self.send_handshake('NumPhysicalBlocksToErase', 'None', len(self.firmware.influenced_physical_blocks)))
+		erassureStart = time.time()
 		for index, page in enumerate(self.firmware.influenced_physical_blocks, 1):
 			print(f'\r\tErasing page {index:2}/{len(self.firmware.influenced_physical_blocks):2} @ 0x{page.address:08x} ... ', end = '', file=self.output_file)
 			result = self.send_handshake('PhysicalBlockToErase', "None", page.address)
 			if result != enumerator_by_name('OK', self.HandshakeResponseEnum):
 				print(f"Page {index} erassure returned result {self.HandshakeResponseEnum.enum[result].name}", file = sys.stderr)
 		print('OK', file=self.output_file)
+		print(f'Flash erassure took {(time.time() - erassureStart)*1000:5.2f}ms')
 		self.report_handshake_response(self.send_transaction_magic()) #terminal magic
 
 		##Firmware download
@@ -801,7 +803,7 @@ class FlashMaster():
 			print('Sending initial magic ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic())
 
-		print(f'Sending firmware size ({self.firmware.length})... ', end = '' if args.verbose else '\n', file=self.output_file)
+		print(f'Sending firmware size ({self.firmware.length} B)... ', end = '' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('FirmwareSize', 'None', self.firmware.length))
 
 		print('Sending words of firmware...', file=self.output_file)
@@ -824,7 +826,7 @@ class FlashMaster():
 
 				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
 				sent_bytes += 4
-				if time.time() - last_print > 1:
+				if time.time() - last_print > 0.01:
 					print(f'\r\tProgress ... {100 * offset / len(block.data):5.2f}% ({sent_bytes/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
 					last_print = time.time()
 			print(f'\r\tProgress ... {100:5.2f}% ({sent_bytes/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)

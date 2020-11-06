@@ -24,9 +24,12 @@ namespace boot {
 
 		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_FLAG_EOP, FLASH_FLAG_WRPRTERR, FLASH_FLAG_PGERR);
 
-		auto const res = FLASH_ErasePage(pageAddress);
+		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY)); //wait for previous operation to end
 
-		return res == FLASH_COMPLETE;
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PER);
+		FLASH->AR = pageAddress;
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_STRT);
+		return true;
 	}
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint16_t halfWord) {
