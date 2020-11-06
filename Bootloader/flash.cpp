@@ -69,6 +69,36 @@ namespace boot {
 		assert_unreachable();
 	}
 
+	AddressSpace Flash::addressOrigin_located_in_flash(std::uint32_t const address) {
+		std::uint32_t const available_start = reinterpret_cast<std::uint32_t>(available_flash_start);
+		std::uint32_t const available_end = reinterpret_cast<std::uint32_t>(available_flash_end);
+
+		std::uint32_t const jump_table_start = reinterpret_cast<std::uint32_t>(jumpTable_start);
+		std::uint32_t const jump_table_end = reinterpret_cast<std::uint32_t>(jumpTable_end);
+
+		std::uint32_t const bootloader_start = reinterpret_cast<std::uint32_t>(bootloader_flash_start);
+		std::uint32_t const bootloader_end = reinterpret_cast<std::uint32_t>(bootloader_flash_end);
+
+
+		std::uint32_t const RAM_start = reinterpret_cast<std::uint32_t>(ram_start);
+		std::uint32_t const RAM_end = reinterpret_cast<std::uint32_t>(ram_end);
+
+		if (available_start <= address && address < available_end)
+			return AddressSpace::AvailableFlash;
+
+		if (jump_table_start <= address && address < jump_table_end)
+			return AddressSpace::JumpTable;
+
+		if (bootloader_start <= address && address < bootloader_end)
+			return AddressSpace::BootloaderFlash;
+
+		if (RAM_start <= address && address < RAM_end)
+			return AddressSpace::RAM;
+
+		return AddressSpace::Unknown;
+
+	}
+
 	AddressSpace Flash::addressOrigin(std::uint32_t const address) {
 		std::uint32_t const available_start = reinterpret_cast<std::uint32_t>(available_flash_start);
 		std::uint32_t const available_end = reinterpret_cast<std::uint32_t>(available_flash_end);

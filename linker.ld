@@ -76,19 +76,25 @@ _estack = ORIGIN(RAM) + LENGTH(RAM); /* end of RAM */
 /* Define output sections */
 SECTIONS
 {
+
+  _load_isr_vector = LOADADDR(.isr_vector);
   /* The startup code goes first into BootloaderFlash */
   .isr_vector :
   {
     /*Cortex M3 requires the interrupt vector be aligned to 512B boundary if we wanted to relocate it. */
     . = ALIGN(1 << 9);
+    _sisr_vector = .;
     KEEP(*(.isr_vector)) /* Startup code */
+    _eisr_vector = .;
     . = ALIGN(4);
-  } >BootloaderFlash
+  } > RAM AT> BootloaderFlash
 
+  _load_text = LOADADDR(.text);
   /* The program code and other data goes into BootloaderFlash */
   .text :
   {
     . = ALIGN(4);
+    _stext = .;
     *(.text)           /* .text sections (code) */
     *(.text*)          /* .text* sections (code) */
     *(.glue_7)         /* glue arm to thumb code */
@@ -100,7 +106,7 @@ SECTIONS
 
     . = ALIGN(4);
     _etext = .;        /* define a global symbols at end of code */
-  } >BootloaderFlash
+  } > RAM AT> BootloaderFlash
 
     /* .ctors .dtors are used for c++ constructors/destructors */
     .ctors :
@@ -119,14 +125,21 @@ SECTIONS
     PROVIDE(__dtors_end__ = .);
     } >BootloaderFlash
 
+    .executed_from_flash : {
+     *(.executed_from_flash*)
+    } >BootloaderFlash
+
+  _load_rodata = LOADADDR(.rodata);
   /* Constant data goes into BootloaderFlash */
   .rodata :
   {
     . = ALIGN(4);
+    _srodata = .;
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
+    _erodata = .;
     . = ALIGN(4);
-  } >BootloaderFlash
+  } > RAM AT> BootloaderFlash
 
   .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >BootloaderFlash
   .ARM : {
@@ -157,7 +170,7 @@ SECTIONS
   } >BootloaderFlash
 
   /* used by the startup to initialize data */
-  _sidata = LOADADDR(.data);
+  _load_data = LOADADDR(.data);
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
   .data : 

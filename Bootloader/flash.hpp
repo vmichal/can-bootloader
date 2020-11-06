@@ -79,6 +79,7 @@ namespace boot {
 		}
 
 		static AddressSpace addressOrigin(std::uint32_t address);
+		static AddressSpace addressOrigin_located_in_flash(std::uint32_t address) __attribute__((section(".executed_from_flash")));
 	};
 
 	struct PhysicalMemoryMap {
@@ -193,7 +194,7 @@ namespace boot {
 		std::array<MemoryBlock, (Flash::pageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
 
 		//Returns true iff all magics are valid
-		bool magicValid() const {
+		bool magicValid() const __attribute__((section(".executed_from_flash"))) {
 			return magic1_ == expected_magic1_value
 				&& magic2_ == expected_magic2_value
 				&& magic3_ == expected_magic3_value

@@ -17,6 +17,8 @@
 #include "can.hpp"
 #include "timer.hpp"
 
+#include <cstdint>
+
 extern "C" {
 	//The following is taken from linker.ld:
 	//the LOADADDR is the address FROM which the section shall be loaded.
@@ -24,7 +26,7 @@ extern "C" {
 
 #if 0
 	  /* used by the startup to initialize data */
-	_sidata = LOADADDR(.data);
+	_load_data = LOADADDR(.data);
 
 	/* Initialized data sections goes into RAM, load LMA copy after code */
 	.data :
@@ -41,10 +43,22 @@ extern "C" {
 
 	extern std::uint32_t _sdata[]; //Points to the start of data in RAM
 	extern std::uint32_t _edata[]; //Points past the end of data in RAM
-	extern std::uint32_t _sidata[]; //Points to the start of data in FLASH
+	extern std::uint32_t _load_data[]; //Points to the start of data in FLASH
 
 	extern std::uint32_t _sbss[]; //Points to the beginning of .bss in RAM
 	extern std::uint32_t _ebss[]; //Points past the end of .bss in RAM
+
+	extern std::uint32_t _stext[]; //Points to the beginning of .text in RAM
+	extern std::uint32_t _etext[]; //Points past the end of .text in RAM
+	extern std::uint32_t _load_text[]; //Points to the start of .text in FLASH
+
+	extern std::uint32_t     _sisr_vector[]; //Points to the beginning of .isr_vector in RAM
+	extern std::uint32_t     _eisr_vector[]; //Points past the end of .isr_vector in RAM
+	extern std::uint32_t _load_isr_vector[]; //Points to the start of .isr_vector in FLASH
+
+	extern std::uint32_t     _srodata[]; //Points to the beginning of .rodata in RAM
+	extern std::uint32_t     _erodata[]; //Points past the end of .rodata in RAM
+	extern std::uint32_t _load_rodata[]; //Points to the start of .rodata in FLASH
 
 	void __libc_init_array();
 }
@@ -59,12 +73,7 @@ namespace {
 			*bss_begin = 0;
 	}
 
-	void initialize_data() {
-		//Copy data from flash to their location in RAM
-		std::uint32_t const* loadaddress = reinterpret_cast<std::uint32_t const*>(_sidata);
-		std::uint32_t* begin = reinterpret_cast<std::uint32_t*>(_sdata);
-		std::uint32_t* const end = reinterpret_cast<std::uint32_t*>(_edata);
-
+	void copy_section(std::uint32_t const* loadaddress, std::uint32_t* begin, std::uint32_t* end) {
 		for (; begin != end; ++begin, ++loadaddress)
 			*begin = *loadaddress;
 	}
@@ -73,6 +82,7 @@ namespace {
 
 	/* Checks the backup domain, jump table in flash, firmware integrity etc.
 	to decide whether the application or the bootloader shall be entered.*/
+	boot::EntryReason determineApplicationAvailability()  __attribute__((section(".executed_from_flash")));
 	boot::EntryReason determineApplicationAvailability() {
 
 		if (!boot::jumpTable.magicValid())
@@ -81,17 +91,17 @@ namespace {
 		if (!bit::all_cleared(boot::jumpTable.interruptVector_, isrVectorAlignmentMask))
 			return boot::EntryReason::UnalignedInterruptVector; //The interrupt table is not properly aligned to the 512 B boundary
 
-		if (boot::Flash::addressOrigin(boot::jumpTable.interruptVector_) != boot::AddressSpace::AvailableFlash)
+		if (boot::Flash::addressOrigin_located_in_flash(boot::jumpTable.interruptVector_) != boot::AddressSpace::AvailableFlash)
 			return boot::EntryReason::InvalidInterruptVector;
 
 		//Application entry point is saved as the second word of the interrupt table. Initial stack pointer is the first word
 		std::uint32_t const* const interruptVector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
 
-		if (boot::Flash::addressOrigin(interruptVector[1]) != boot::AddressSpace::AvailableFlash)
+		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[1]) != boot::AddressSpace::AvailableFlash)
 			return boot::EntryReason::InvalidEntryPoint;
 
 		//Application initial stack pointer is saved as the first word of the interrupt table
-		if (boot::Flash::addressOrigin(interruptVector[0]) == boot::AddressSpace::AvailableFlash)
+		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[0]) == boot::AddressSpace::AvailableFlash)
 			return boot::EntryReason::InvalidTopOfStack;
 
 		switch (boot::BackupDomain::bootControlRegister) {
@@ -133,6 +143,8 @@ namespace {
 	}
 }
 
+	extern "C" void Reset_Handler() __attribute__((section(".executed_from_flash")));
+
 	//Decides whether the CPU shall enter the application firmware or start listening for communication in bootloader mode
 	extern "C" void Reset_Handler() {
 		//Beware that absolutely nothing has been enabled by now.
@@ -150,17 +162,24 @@ namespace {
 			SCB->VTOR = boot::jumpTable.interruptVector_; //Set the address of application's interrupt vector
 
 			std::uint32_t const* const isr_vector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
-			__set_MSP(isr_vector[0]);
+
+			__asm("msr msp, %0" : : "r" (isr_vector[0]));
 
 			reinterpret_cast<void(*)()>(isr_vector[1])(); //Jump to the main application
 
 			//can't be reached since we have overwritten our stack pointer
 		}
 
-		//Reached only if we have to enter the bootloader. We shall can initialize the system now
+		//Reached only if we have to enter the bootloader. We shall initialize the system now
 
+		//Copy Bootloader code, interrupt vector and read only data to RAM. Setup system control block to use isr vector in RAM.
+		//From there, initialization shall proceed as if code was running normally from flash -> init data and bss
+		copy_section(_load_text, _stext, _etext);
+		copy_section(_load_isr_vector, _sisr_vector, _eisr_vector);
+		SCB->VTOR = reinterpret_cast<std::uint32_t>(_sisr_vector);
+		copy_section(_load_rodata, _srodata, _erodata);
 		clear_bss();
-		initialize_data();
+		copy_section(_load_data, _sdata, _edata);
 		configure_system_clock();
 		__libc_init_array(); //Branch to static constructors
 
