@@ -47,9 +47,12 @@ namespace boot {
 					? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
 					: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
 
-				canManager.SendDataAck(address, ret);
+				if (ret == WriteStatus::Ok)
+					return 0;
 
-				return 0;
+				//TODO kill the transaction for now
+				canManager.SendHandshake(handshake::abort);
+				return 1;
 				});
 
 			Bootloader_DataAck_on_receive([](Bootloader_DataAck_t* data) -> int {

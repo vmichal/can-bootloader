@@ -38,7 +38,7 @@ namespace boot {
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //enable flash programming
 		ufsel::bit::access_register<std::uint16_t>(address) = halfWord; //initiate programming
 
-		//assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
+		assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
 
 		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
 	}

@@ -559,7 +559,7 @@ class FlashMaster():
 		return self.send_generic_message_and_await_response(self.Handshake.identifier, [r, c, value], self.HandshakeAck.identifier)[0]
 
 	def send_data(self, address, word):
-		return self.send_generic_message_and_await_response(self.Data.identifier, [address, False, word], self.DataAck.identifier)[0]
+		return self.send_generic_message_and_await_response(self.Data.identifier, [address, False, word], None, False)
 
 	def send_handshake_ack(self, reg, response, value):
 		return self.send_generic_message_and_await_response(self.HandshakeAck.identifier, [reg, response, value], None, False)
@@ -820,9 +820,7 @@ class FlashMaster():
 				absolute_address = block.address + offset
 				data = block.data[offset : offset + 4]
 				data_as_word = sum(byte << index*8 for index, byte in enumerate(data))
-				result = self.send_data(absolute_address, data_as_word)
-				if result != enumerator_by_name('Ok', self.WriteResultEnum):
-					print(f'Write returned {self.WriteResultEnum.enum[result].name}', file = sys.stderr)
+				self.send_data(absolute_address, data_as_word)
 
 				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
 				sent_bytes += 4
