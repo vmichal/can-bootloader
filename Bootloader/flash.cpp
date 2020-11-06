@@ -21,52 +21,43 @@ namespace boot {
 	std::uint32_t const Flash::applicationAddress = reinterpret_cast<std::uint32_t>(&available_flash_start);
 
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
-		__disable_irq();
-		FLASH->SR = FLASH_FLAG_EOP | FLASH_FLAG_WRPRTERR | FLASH_FLAG_PGERR;
+
+		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_FLAG_EOP, FLASH_FLAG_WRPRTERR, FLASH_FLAG_PGERR);
 
 		auto const res = FLASH_ErasePage(pageAddress);
-		__enable_irq();
 
 		return res == FLASH_COMPLETE;
 	}
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint16_t halfWord) {
 
-		__disable_irq();
-		FLASH->SR = FLASH_SR_EOP | FLASH_FLAG_PGERR;
+		auto const cachedResult = FLASH->SR;
+		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_FLAG_EOP, FLASH_FLAG_PGERR);
 
-		FLASH_Status const ret = FLASH_ProgramHalfWord(address, halfWord);
+		for (; ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY);); //wait for previous operation to end
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //enable flash programming
+		ufsel::bit::access_register<std::uint16_t>(address) = halfWord; //initiate programming
 
-		__enable_irq();
+		//assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
 
-		switch (ret) {
-		case FLASH_BUSY:  return WriteStatus::Timeout;
-		case FLASH_ERROR_PG: return WriteStatus::AlreadyWritten;
-		case FLASH_COMPLETE: return WriteStatus::Ok;
-		case FLASH_TIMEOUT: return WriteStatus::Timeout;
-		case FLASH_ERROR_WRP: break;
-		}
-
-		assert_unreachable();
+		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
 	}
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint32_t word) {
 
-		__disable_irq();
-		FLASH->SR = FLASH_SR_EOP | FLASH_FLAG_PGERR;
+		auto const cachedResult = FLASH->SR;
+		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_FLAG_EOP, FLASH_FLAG_PGERR);
 
-		FLASH_Status const ret = FLASH_ProgramWord(address, word); //TODO probably return this result
+		for (; ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY);); //wait for previous operation to end
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //enable flash programming
+		ufsel::bit::access_register<std::uint16_t>(address) = word; //program lower half
 
-		__enable_irq();
+		for (; ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY);); //wait for first operation to end
+		ufsel::bit::access_register<std::uint16_t>(address + 2) = word >> 16; //program upper half
 
-		switch (ret) {
-		case FLASH_BUSY: case FLASH_TIMEOUT: return WriteStatus::Timeout;
-		case FLASH_ERROR_PG: return WriteStatus::AlreadyWritten;
-		case FLASH_COMPLETE: return WriteStatus::Ok;
-		case FLASH_ERROR_WRP: break;
-		}
+		assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
 
-		assert_unreachable();
+		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
 	}
 
 	AddressSpace Flash::addressOrigin_located_in_flash(std::uint32_t const address) {
