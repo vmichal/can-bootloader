@@ -73,10 +73,11 @@ namespace {
 			*bss_begin = 0;
 	}
 
-	void copy_section(std::uint32_t const* loadaddress, std::uint32_t* begin, std::uint32_t* end) {
+	void do_load_section(std::uint32_t const* loadaddress, std::uint32_t* begin, std::uint32_t* end) {
 		for (; begin != end; ++begin, ++loadaddress)
 			*begin = *loadaddress;
 	}
+
 
 	using namespace ufsel;
 
@@ -143,6 +144,11 @@ namespace {
 	}
 }
 
+#define VMA(section) _s ## section
+#define LMA(section) _load_ ## section
+#define END(section) _e ## section
+#define load_section(section) do_load_section(LMA(section), VMA(section), END(section));
+
 	extern "C" void Reset_Handler() __attribute__((section(".executed_from_flash")));
 
 	//Decides whether the CPU shall enter the application firmware or start listening for communication in bootloader mode
@@ -173,13 +179,14 @@ namespace {
 		//Reached only if we have to enter the bootloader. We shall initialize the system now
 
 		//Copy Bootloader code, interrupt vector and read only data to RAM. Setup system control block to use isr vector in RAM.
-		//From there, initialization shall proceed as if code was running normally from flash -> init data and bss
-		copy_section(_load_text, _stext, _etext);
-		copy_section(_load_isr_vector, _sisr_vector, _eisr_vector);
+		load_section(text);
+		load_section(isr_vector);
+		load_section(rodata);
 		SCB->VTOR = reinterpret_cast<std::uint32_t>(_sisr_vector);
-		copy_section(_load_rodata, _srodata, _erodata);
+
+		//From there, initialization shall proceed as if code was running normally from flash -> init data and bss
 		clear_bss();
-		copy_section(_load_data, _sdata, _edata);
+		load_section(data);
 		configure_system_clock();
 		__libc_init_array(); //Branch to static constructors
 
