@@ -105,7 +105,8 @@ namespace boot {
 		bsp::can::enableIRQs(); //Enable reception from CAN
 		setupCommonCanCallbacks();
 
-		if (findOtherBootloaders())
+		//If the BL activation has been requested, we can assume that there is no other boi on the bus
+		if (Bootloader::entryReason() != EntryReason::Requested && findOtherBootloaders())
 			bootloader.enterPassiveMode();
 		else
 			setupActiveCanCallbacks();

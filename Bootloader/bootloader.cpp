@@ -87,7 +87,7 @@ namespace boot {
 
 	HandshakeResponse PhysicalMemoryBlockEraser::tryErasePage(std::uint32_t address) {
 
-		if (!ufsel::bit::all_cleared(address, ufsel::bit::bitmask_of_width(11))) //pages are 2KiB wide
+		if (!ufsel::bit::all_cleared(address, Flash::pageAlignmentMask))
 			return HandshakeResponse::PageAddressNotAligned;
 
 		AddressSpace const space = Flash::addressOrigin(address);

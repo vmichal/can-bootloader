@@ -669,7 +669,7 @@ class FlashMaster():
 
 		#wait for the target unit to show up
 		while not is_bootloader_active(self.target) and not is_application_active(self.target):
-			time.sleep(0.1)
+			time.sleep(0.01)
 		
 		if args.verbose:
 			print("Target's presence on the CAN bus confirmed.", file=self.output_file)
@@ -686,7 +686,7 @@ class FlashMaster():
 				return
 			#await the bootloader's activation
 			while not is_bootloader_active(self.target): 
-				time.sleep(0.5)
+				time.sleep(0.01)
 
 		elif is_bootloader_active(self.target):
 			print('Target is already in bootloader.', file=self.output_file)

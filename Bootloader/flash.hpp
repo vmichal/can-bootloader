@@ -51,9 +51,13 @@ namespace boot {
 
 	struct Flash {
 
+		//Customization points:
 		static constexpr std::size_t pageCountTotal = 128; //taken from the reference manual
-		static constexpr std::uint32_t pageSize = 1 << 11; //taken from the reference manual
-		static constexpr std::uint32_t pageAlignmentMask = pageSize - 1;
+		static constexpr std::size_t pageAlignmentClearedBits = 11; //taken from the reference manual
+
+
+		static constexpr std::uint32_t pageSize = 1 << pageAlignmentClearedBits;
+		static constexpr std::uint32_t pageAlignmentMask = ufsel::bit::bitmask_of_width(pageAlignmentClearedBits);
 
 		static std::size_t const availableMemory;
 		static std::uint32_t const jumpTableAddress;
