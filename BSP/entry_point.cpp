@@ -183,7 +183,7 @@ namespace {
 		load_section(text);
 		load_section(isr_vector);
 		load_section(rodata);
-		SCB->VTOR = reinterpret_cast<std::uint32_t>(_sisr_vector);
+		SCB->VTOR = reinterpret_cast<std::uint32_t>(VMA(isr_vector));
 
 		//From there, initialization shall proceed as if code was running normally from flash -> init data and bss
 		clear_bss();
