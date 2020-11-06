@@ -86,6 +86,17 @@ namespace {
 	boot::EntryReason determineApplicationAvailability()  __attribute__((section(".executed_from_flash")));
 	boot::EntryReason determineApplicationAvailability() {
 
+		switch (boot::BackupDomain::bootControlRegister) {
+		case boot::BackupDomain::bootloader_magic:
+			return boot::EntryReason::Requested; //return to enter the bootloader
+
+		case boot::BackupDomain::reset_value:
+		case boot::BackupDomain::application_magic:
+			break; //these two options must still be validated
+		default: //the backup domain contains unknown value
+			return boot::EntryReason::BackupRegisterCorrupted;
+		}
+
 		if (!boot::jumpTable.magicValid())
 			return boot::EntryReason::InvalidMagic; //Magics do not match. Enter the bootloader
 
@@ -105,17 +116,7 @@ namespace {
 		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[0]) == boot::AddressSpace::AvailableFlash)
 			return boot::EntryReason::InvalidTopOfStack;
 
-		switch (boot::BackupDomain::bootControlRegister) {
-		case boot::BackupDomain::reset_value: //enter the application after power reset
-		case boot::BackupDomain::application_magic:
-			return boot::EntryReason::DontEnter;
-
-		case boot::BackupDomain::bootloader_magic:
-			return boot::EntryReason::Requested; //return to enter the bootloader
-		}
-
-		//the backup domain contains unknown value
-		return boot::EntryReason::BackupRegisterCorrupted;
+		return boot::EntryReason::DontEnter;
 	}
 
 	//Initializes system clock to max frequencies: 72MHz SYSCLK, AHB, APB2; 36MHz APB1

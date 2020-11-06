@@ -22,19 +22,35 @@ namespace boot {
 
 	namespace {
 
+		void flushCAN(int bus) {
+			//make sure all can messages have been transmitted
+			if (bus == bus_CAN1)
+				while (!ufsel::bit::all_set(CAN1->TSR, CAN_TSR_TME));
+			else
+				while (!ufsel::bit::all_set(CAN2->TSR, CAN_TSR_TME));
+		}
+
 		void setupCommonCanCallbacks() {
 
 			Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
 				if (data->Target != Bootloader::thisUnit)
 					return 2;
 
-				if (!data->Force && bootloader.transactionInProgress()) {
+				if (data->Force) { //We want to restart the bootloader
+					canManager.SendExitAck(true);
+					flushCAN(Bootloader_ExitReq_status.bus);
+
+					Bootloader::resetTo(BackupDomain::bootloader_magic);
+				}
+
+				if (bootloader.transactionInProgress()) {
 					canManager.SendExitAck(false);
 					return 1;
 				}
 				canManager.SendExitAck(true);
+				flushCAN(Bootloader_ExitReq_status.bus);
 
-				Bootloader::resetToApplication();
+				Bootloader::resetTo(BackupDomain::application_magic);
 				});
 		}
 

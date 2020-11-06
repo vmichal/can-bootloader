@@ -706,7 +706,7 @@ class FlashMaster():
 					return
 				#wait for the bootloader to become ready
 				while self.listing.active_bootloaders[self.target].state != ready_state:
-					time.sleep(0.5)
+					time.sleep(0.1)
 
 			if args.verbose:
 				print('Target bootloader is ready.', file=self.output_file)

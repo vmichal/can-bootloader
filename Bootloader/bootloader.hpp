@@ -215,7 +215,7 @@ namespace boot {
 		bool isPassive() const { return status_ == Status::OtherBootloaderDetected; }
 
 		[[noreturn]]
-		static void resetToApplication();
+		static void resetTo(std::uint16_t code);
 
 		WriteStatus write(std::uint32_t address, std::uint16_t half_word);
 		WriteStatus write(std::uint32_t address, std::uint32_t word);
