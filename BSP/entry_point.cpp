@@ -64,21 +64,6 @@ extern "C" {
 }
 
 namespace {
-	void clear_bss() {
-		//Clear the bss section
-		std::uint32_t* bss_begin = reinterpret_cast<std::uint32_t*>(_sbss);
-		std::uint32_t* const bss_end = reinterpret_cast<std::uint32_t*>(_ebss);
-
-		for (; bss_begin != bss_end; ++bss_begin)
-			*bss_begin = 0;
-	}
-
-	void do_load_section(std::uint32_t const* loadaddress, std::uint32_t* begin, std::uint32_t* end) {
-		for (; begin != end; ++begin, ++loadaddress)
-			*begin = *loadaddress;
-	}
-
-
 	using namespace ufsel;
 
 	/* Checks the backup domain, jump table in flash, firmware integrity etc.
@@ -148,7 +133,7 @@ namespace {
 #define VMA(section) _s ## section
 #define LMA(section) _load_ ## section
 #define END(section) _e ## section
-#define load_section(section) do_load_section(LMA(section), VMA(section), END(section));
+#define load_section(section) std::copy(VMA(section), END(section), LMA(section));
 
 	extern "C" void Reset_Handler() __attribute__((section(".executed_from_flash")));
 
@@ -186,8 +171,9 @@ namespace {
 		SCB->VTOR = reinterpret_cast<std::uint32_t>(VMA(isr_vector));
 
 		//From there, initialization shall proceed as if code was running normally from flash -> init data and bss
-		clear_bss();
+		std::fill(VMA(bss), END(bss), 0); //clear the .bss
 		load_section(data);
+
 		configure_system_clock();
 		__libc_init_array(); //Branch to static constructors
 
