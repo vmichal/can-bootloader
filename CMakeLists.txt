@@ -98,3 +98,10 @@ add_custom_command(
         COMMAND ${CMAKE_SIZE} $<TARGET_FILE:${PROJECT_NAME}.elf>
         )
 
+add_custom_command(
+      POST_BUILD
+      TARGET ${PROJECT_NAME}.elf
+      WORKING_DIRECTORY ..
+      COMMAND ./disassemble.sh
+)
+

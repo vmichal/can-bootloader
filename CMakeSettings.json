@@ -1,5 +1,4 @@
 ﻿{
-	// See https://go.microsoft.com//fwlink//?linkid=834763 for more information about this file.
 	"configurations": [
 		{
 			"name": "Linux-Debug",
@@ -10,7 +9,7 @@
 			"cmakeCommandArgs": "",
 			"buildCommandArgs": "",
 			"ctestCommandArgs": "",
-			"cmakeToolchain": "/mnt/c/Users/vomi/source/repos/bootloader/toolchain.cmake",
+			"cmakeToolchain": "toolchain.cmake",
 			"inheritEnvironments": [ "linux_x64" ],
 			"remoteMachineName": "1773855479;Vojta (username=vomi, port=22, authentication=Password)",
 			"remoteCMakeListsRoot": "/mnt/c/Users/vomi/source/repos/bootloader/",
