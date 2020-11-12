@@ -70,7 +70,7 @@
 */
     .section .text.Default_Handler,"ax",%progbits
 Default_Handler:
-Infinite_Loop:
+  bkpt 35
   bl HardFault_Handler
   .size Default_Handler, .-Default_Handler
 /******************************************************************************
