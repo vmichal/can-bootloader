@@ -75,8 +75,9 @@ int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data) {
     buffer[0] = (data->Target & 0x0F) | ((data->State & 0x0F) << 4);
     buffer[1] = (data->EntryReason & 0x0F) | ((data->FlashSize & 0x0F) << 4);
     buffer[2] = (data->FlashSize >> 4);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer))
-        && txSendCANMessage(bus_CAN2, Bootloader_Beacon_id, buffer, sizeof(buffer));
+    int const rc1 = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer));
+    int const rc2 = txSendCANMessage(bus_CAN2, Bootloader_Beacon_id, buffer, sizeof(buffer));
+    int const rc = rc1 && rc2;
 
     if (rc == 0) {
         Bootloader_Beacon_last_sent = txGetTimeMillis();
@@ -90,8 +91,9 @@ int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_St
     buffer[0] = (Target & 0x0F) | ((State & 0x0F) << 4);
     buffer[1] = (EntryReason & 0x0F) | ((FlashSize & 0x0F) << 4);
     buffer[2] = (FlashSize >> 4);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer))
-        && txSendCANMessage(bus_CAN2, Bootloader_Beacon_id, buffer, sizeof(buffer));
+    int rc1 = txSendCANMessage(bus_CAN1, Bootloader_Beacon_id, buffer, sizeof(buffer));
+    int rc2 = txSendCANMessage(bus_CAN2, Bootloader_Beacon_id, buffer, sizeof(buffer));
+    int const rc = rc1 && rc2;
 
     if (rc == 0) {
         Bootloader_Beacon_last_sent = txGetTimeMillis();
@@ -399,8 +401,9 @@ int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data) {
     buffer[2] = (data->CommitSHA >> 16);
     buffer[3] = (data->CommitSHA >> 24);
     buffer[4] = (data->DirtyRepo ? 1 : 0) | ((data->Target & 0x0F) << 4);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer))
-        && txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc1 = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc2 = txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int const rc = rc1 && rc2;
 
     if (rc == 0) {
         Bootloader_SoftwareBuild_last_sent = txGetTimeMillis();
@@ -416,8 +419,9 @@ int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo, enum Bo
     buffer[2] = (CommitSHA >> 16);
     buffer[3] = (CommitSHA >> 24);
     buffer[4] = (DirtyRepo ? 1 : 0) | ((Target & 0x0F) << 4);
-    int rc = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer))
-        && txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc1 = txSendCANMessage(bus_CAN1, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int rc2 = txSendCANMessage(bus_CAN2, Bootloader_SoftwareBuild_id, buffer, sizeof(buffer));
+    int const rc = rc1 && rc2;
 
     if (rc == 0) {
         Bootloader_SoftwareBuild_last_sent = txGetTimeMillis();
