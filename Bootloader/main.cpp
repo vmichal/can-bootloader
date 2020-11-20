@@ -23,6 +23,8 @@ namespace boot {
 	namespace {
 
 		void flushCAN(int bus) {
+			assert(bus == bus_CAN1 || bus == bus_CAN2);
+
 			//make sure all can messages have been transmitted
 			if (bus == bus_CAN1)
 				while (!ufsel::bit::all_set(CAN1->TSR, CAN_TSR_TME));
