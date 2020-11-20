@@ -6,7 +6,6 @@
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
 
-#include <Bootloader/main.hpp>
 #include <Bootloader/flash.hpp>
 #include <Bootloader/bootloader.hpp>
 #include <ufsel/bit_operations.hpp>
@@ -61,6 +60,10 @@ extern "C" {
 	extern std::uint32_t _load_rodata[]; //Points to the start of .rodata in FLASH
 
 	void __libc_init_array();
+}
+
+namespace boot {
+	void main();
 }
 
 namespace {

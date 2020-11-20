@@ -3,7 +3,6 @@
 
 #include "canmanager.hpp"
 #include "options.hpp"
-#include "main.hpp"
 #include "bootloader.hpp"
 
 #include <BSP/timer.hpp>

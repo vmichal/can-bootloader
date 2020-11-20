@@ -6,7 +6,6 @@
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
 
-#include "main.hpp"
 #include "bootloader.hpp"
 #include "canmanager.hpp"
 #include "tx2/tx.h"
