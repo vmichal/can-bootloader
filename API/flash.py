@@ -336,14 +336,16 @@ class Firmware():
 	def identify_influenced_physical_blocks(self, physical_memory_map):
 		#self.logical_memory_map is certainly in increasing order
 		physical_memory_map.sort(key= lambda b: b.address)
-
 		self.influenced_physical_blocks = set()
 
 		logical_index = 0
 		address,remaining_bytes = self.logical_memory_map[0]
 		remaining_bytes = len(remaining_bytes)
 
-		for physical in physical_memory_map:
+		physical_offset = 0
+
+		while True:
+			physical = physical_memory_map[physical_offset]
 
 			if physical.address + len(physical.data) <= address:
 				continue #this physical block ends even berofe the logical starts
@@ -353,21 +355,25 @@ class Firmware():
 
 			#as this point surely holds... physical.address <= logical.address and logical.address < physical.end
 			self.influenced_physical_blocks.add(physical)
-			if address + remaining_bytes <= physical.address + len(physical.data):
-				return True # we have covered logical block
 
 			overlap_size = physical.address + len(physical.data) - address
+
+
 			remaining_bytes -= overlap_size
 			address += overlap_size
 
-			if remaining_bytes == 0:
+			if remaining_bytes <= 0:
 				logical_index += 1
 				if logical_index == len(self.logical_memory_map):
 					return True #we have covered all logical blocks
 
 				address, remaining_bytes = self.logical_memory_map[logical_index]
 				remaining_bytes = len(remaining_bytes)
+			else:
+				physical_offset += 1
 
+				if physical_offset == len(physical_memory_map):
+					return True #we have covered all logical blocks
 
 		return False
 
