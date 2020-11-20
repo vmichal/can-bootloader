@@ -129,4 +129,12 @@ namespace boot {
 		Flash::ErasePage(Flash::jumpTableAddress);
 	}
 
+	bool ApplicationJumpTable::magicValid() const {
+		return magic1_ == expected_magic1_value
+			&& magic2_ == expected_magic2_value
+			&& magic3_ == expected_magic3_value
+			&& magic4_ == expected_magic4_value
+			&& magic5_ == expected_magic5_value;
+	}
+
 }

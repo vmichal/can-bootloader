@@ -128,58 +128,64 @@ namespace {
 		//Configure and start system milisecond clock
 		SystemTimer::Initialize();
 	}
+
+	void do_load_section(std::uint32_t const* load_address, std::uint32_t const* begin, std::uint32_t const* const end) __attribute__((section(".executed_from_flash")));
+	void do_load_section(std::uint32_t const* load_address, std::uint32_t * begin, std::uint32_t const* const end) {
+		for (; begin != end; ++load_address, ++begin)
+			*begin = *load_address;
+	}
 }
 
 #define VMA(section) _s ## section
 #define LMA(section) _load_ ## section
 #define END(section) _e ## section
-#define load_section(section) std::copy(VMA(section), END(section), LMA(section));
+#define load_section(section) do_load_section(LMA(section), VMA(section), END(section));
 
-	extern "C" void Reset_Handler() __attribute__((section(".executed_from_flash")));
+extern "C" void Reset_Handler() __attribute__((section(".executed_from_flash")));
 
-	//Decides whether the CPU shall enter the application firmware or start listening for communication in bootloader mode
-	extern "C" void Reset_Handler() {
-		//Beware that absolutely nothing has been enabled by now.
-		// .data and .bss have not been touched yet.
-		//No static constructors have been called yet either.
-		//This is the first instruction executed after system reset
+//Decides whether the CPU shall enter the application firmware or start listening for communication in bootloader mode
+extern "C" void Reset_Handler() {
+	//Beware that absolutely nothing has been enabled by now.
+	// .data and .bss have not been touched yet.
+	//No static constructors have been called yet either.
+	//This is the first instruction executed after system reset
 
-		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
+	bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
 
-		boot::EntryReason const reason = determineApplicationAvailability();
-		//Disable clock to backup registers (to make the application feel as if no bootloader was present)
-		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
+	boot::EntryReason const reason = determineApplicationAvailability();
+	//Disable clock to backup registers (to make the application feel as if no bootloader was present)
+	bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
 
-		if (reason == boot::EntryReason::DontEnter) {
-			SCB->VTOR = boot::jumpTable.interruptVector_; //Set the address of application's interrupt vector
+	if (reason == boot::EntryReason::DontEnter) {
+		SCB->VTOR = boot::jumpTable.interruptVector_; //Set the address of application's interrupt vector
 
-			std::uint32_t const* const isr_vector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
+		std::uint32_t const* const isr_vector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
 
-			__asm("msr msp, %0" : : "r" (isr_vector[0]));
+		__asm("msr msp, %0" : : "r" (isr_vector[0]));
 
-			reinterpret_cast<void(*)()>(isr_vector[1])(); //Jump to the main application
+		reinterpret_cast<void(*)()>(isr_vector[1])(); //Jump to the main application
 
-			//can't be reached since we have overwritten our stack pointer
-		}
-
-		//Reached only if we have to enter the bootloader. We shall initialize the system now
-
-		//Copy Bootloader code, interrupt vector and read only data to RAM. Setup system control block to use isr vector in RAM.
-		load_section(text);
-		load_section(isr_vector);
-		load_section(rodata);
-		SCB->VTOR = reinterpret_cast<std::uint32_t>(VMA(isr_vector));
-
-		//From there, initialization shall proceed as if code was running normally from flash -> init data and bss
-		std::fill(VMA(bss), END(bss), 0); //clear the .bss
-		load_section(data);
-
-		configure_system_clock();
-		__libc_init_array(); //Branch to static constructors
-
-		boot::Bootloader::setEntryReason(reason);
-		bsp::gpio::Initialize();
-		bsp::can::Initialize();
-
-		boot::main();
+		//can't be reached since we have overwritten our stack pointer
 	}
+
+	//Reached only if we have to enter the bootloader. We shall initialize the system now
+
+	//Copy Bootloader code, interrupt vector and read only data to RAM. Setup system control block to use isr vector in RAM.
+	load_section(text);
+	load_section(isr_vector);
+	load_section(rodata);
+	SCB->VTOR = reinterpret_cast<std::uint32_t>(VMA(isr_vector));
+
+	//From there, initialization shall proceed as if code was running normally from flash -> init data and bss
+	std::fill(VMA(bss), END(bss), 0); //clear the .bss
+	load_section(data);
+
+	configure_system_clock();
+	__libc_init_array(); //Branch to static constructors
+
+	boot::Bootloader::setEntryReason(reason);
+	bsp::gpio::Initialize();
+	bsp::can::Initialize();
+
+	boot::main();
+}

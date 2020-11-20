@@ -201,13 +201,7 @@ namespace boot {
 		std::array<MemoryBlock, (Flash::pageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
 
 		//Returns true iff all magics are valid
-		bool magicValid() const __attribute__((section(".executed_from_flash"))) {
-			return magic1_ == expected_magic1_value
-				&& magic2_ == expected_magic2_value
-				&& magic3_ == expected_magic3_value
-				&& magic4_ == expected_magic4_value
-				&& magic5_ == expected_magic5_value;
-		}
+		bool magicValid() const __attribute__((section(".executed_from_flash")));
 
 		//Clear the memory location with jump table
 		void invalidate();
