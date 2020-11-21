@@ -34,7 +34,7 @@ namespace boot {
 		void setupCommonCanCallbacks() {
 
 			Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
-				if (data->Target != Bootloader::thisUnit)
+				if (data->Target != customization::thisUnit)
 					return 2;
 
 				if (data->Force) { //We want to restart the bootloader
@@ -95,7 +95,7 @@ namespace boot {
 				});
 
 			Bootloader_CommunicationYield_on_receive([](Bootloader_CommunicationYield_t* const data) -> int {
-				assert(data->Target == Bootloader::thisUnit); //TODO maybe allow multiple bootloaders on bus
+				assert(data->Target == customization::thisUnit); //TODO maybe allow multiple bootloaders on bus
 
 				canManager.SendHandshake(bootloader.processYield());
 				return 0;

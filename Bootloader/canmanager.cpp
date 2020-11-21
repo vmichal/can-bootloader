@@ -43,14 +43,14 @@ namespace boot {
 		Bootloader_SoftwareBuild_t msg;
 		msg.DirtyRepo = ufsel::git::has_dirty_working_tree();
 		msg.CommitSHA = ufsel::git::commit_hash();
-		msg.Target = Bootloader::thisUnit;
+		msg.Target = customization::thisUnit;
 
 		send(msg);
 	}
 
 	void CanManager::SendExitAck(bool ok) const {
 		Bootloader_ExitAck_t message;
-		message.Target = Bootloader::thisUnit;
+		message.Target = customization::thisUnit;
 		message.Confirmed = ok;
 
 		for (;send(message););
@@ -83,7 +83,7 @@ namespace boot {
 
 	void CanManager::yieldCommunication() const {
 		Bootloader_CommunicationYield_t msg;
-		msg.Target = Bootloader::thisUnit;
+		msg.Target = customization::thisUnit;
 
 		for (;send(msg););
 	}
@@ -102,7 +102,7 @@ namespace boot {
 	void CanManager::SendBeacon(Status const BLstate, EntryReason const entryReason) const {
 		Bootloader_Beacon_t message;
 		message.State = static_cast<Bootloader_State>(BLstate);
-		message.Target = Bootloader::thisUnit;
+		message.Target = customization::thisUnit;
 		message.FlashSize = Flash::availableMemory / 1024;
 		message.EntryReason = static_cast<Bootloader_EntryReason>(entryReason);
 

@@ -13,12 +13,16 @@
 #include <ufsel/bit_operations.hpp>
 #include <library/units.hpp>
 #include <algorithm>
+#include <CANdb/can_Bootloader.h>
 
 namespace boot {
 
 	struct MemoryBlock {
 		std::uint32_t address, length;
 
+		constexpr bool operator==(MemoryBlock const& rhs) const {
+			return rhs.address == address && rhs.length == length;
+		}
 	};
 
 	enum class PhysicalBlockSizes {
@@ -94,6 +98,9 @@ namespace boot {
 		//Hence the application can not start at lower address as the start of sixth block
 		//TODO this must be checked once in a while, whether it is correct...
 		constexpr std::uint32_t firstBlockAvailableToApplication = 6;
+
+		//Bootloader target identification
+		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
 	}
 
 

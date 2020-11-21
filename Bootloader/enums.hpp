@@ -32,6 +32,9 @@ namespace boot {
 		None = Bootloader_Command_None,
 		StartTransactionFlashing = Bootloader_Command_StartTransactionFlashing,
 		AbortTransaction = Bootloader_Command_AbortTransaction,
+		StallSubtransaction = Bootloader_Command_StallSubtransaction,
+		ResumeSubtransaction = Bootloader_Command_ResumeSubtransaction,
+		RestartFromAddress = Bootloader_Command_RestartFromAddress
 	};
 
 	enum class HandshakeResponse {
