@@ -369,7 +369,7 @@ namespace boot {
 		blockOffset_ += 2;
 		if (blockOffset_ == receiver_.logicalMemoryBlocks()[current_block_index_].length) {
 			blockOffset_ = 0;
-			if (++current_block_index_ == receiver_.logicalMemoryBlockCount()) 
+			if (++current_block_index_ == receiver_.logicalMemoryBlockCount())
 				status_ = Status::noMoreDataExpected;
 		}
 

@@ -346,6 +346,12 @@ class Firmware():
 		#total size of the firmware in bytes
 		self.length = sum(len(block.data) for block in self.logical_memory_map)
 
+	def calculate_checksum(self):
+		to_half = lambda data: sum(byte << (8*index) for index, byte in enumerate(data))
+		sum_block = lambda block: sum(map(to_half, zip(block.data[0::2], block.data[1::2])))
+
+		assert all(len(block)%2 == 0 for block in self.logical_memory_map)
+		return sum(map(sum_block, self.logical_memory_map))
 
 	def identify_influenced_physical_blocks(self, physical_memory_map):
 		#self.logical_memory_map is certainly in increasing order
@@ -491,6 +497,7 @@ class FlashMaster():
 		self.busBitrate = None
 		self.stallRequested = False
 		self.currentDataOffset = None
+		self.dataTransmissionFinished = False
 
 		self.listing = BootloaderListing(oc, db, other_terminal if not quiet else '/dev/null')
 		self.ocarinaReadingThread = threading.Thread(target = FlashMaster.eventReadingThread, args=(self,), daemon = True)
@@ -512,9 +519,15 @@ class FlashMaster():
 				elif self.busBitrate != ev.bitrate.kbits:
 					print(f'Bus bitrate has changed from {self.busBitrate} to {ev.bitrate.kbits} KiBps!', file = sys.stderr)
 
+			elif isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.DataAck.identifier:
+				self.db.parseData(ev.id.value, ev.data, ev.timestamp)
+				#data acknowledge informs us that the bootloader is satisfied with all received data
+				assert self.DataAck['Result']
+				if self.DataAck['Result'].value[0] == enumerator_by_name('Ok', self.WriteResultEnum):
+					self.dataTransmissionFinished = True
+
 			elif isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.Handshake.identifier: #test for important handshake messages...
 				self.db.parseData(ev.id.value, ev.data, ev.timestamp)
-
 				#sanity check that the command field is cleared iff the register field is other than command
 				if self.Handshake['Register'].value[0] != enumerator_by_name('Command', self.RegisterEnum):
 					assert self.Handshake['Command'].value[0] == enumerator_by_name('None', self.CommandEnum)
@@ -530,9 +543,9 @@ class FlashMaster():
 				
 				elif self.Handshake['Command'].value[0] == enumerator_by_name('RestartFromAddress', self.CommandEnum):
 					self.stallRequested = True
-					print(f'\nTransmission restarts from address {self.Handshake["Value"].value[0]:08x}', file=self.output_file)
+					print(f'\nTransmission restarts from address {int(self.Handshake["Value"].value[0]):08x}', file=self.output_file)
 					time.sleep(0.001)
-					self.currentDataOffset = self.Handshake['Value'].value[0] - self.firmware.base_address
+					self.currentDataOffset = int(self.Handshake['Value'].value[0]) - self.firmware.base_address
 					self.stallRequested = False
 
 				elif self.Handshake['Command'].value[0] == enumerator_by_name('AbortTransaction', self.CommandEnum):
@@ -885,7 +898,6 @@ class FlashMaster():
 
 		print('Sending words of firmware...', file=self.output_file)
 		print(f'\tProgress ... {0:05}%', end='', file=self.output_file)
-		checksum = 0
 		start = time.time()
 		last_print = time.time() - 1
 
@@ -894,7 +906,11 @@ class FlashMaster():
 
 		self.currentDataOffset = 0
 
-		while True:
+		while not self.dataTransmissionFinished:
+			if self.currentDataOffset == len(self.firmware.flattened_map):
+				time.sleep(0.1)
+				continue
+
 			while self.stallRequested:
 				time.sleep(0.001)
 
@@ -905,9 +921,8 @@ class FlashMaster():
 			self.send_data(absolute_address, data_as_word)
 
 			self.currentDataOffset += 4
-			if self.currentDataOffset == len(self.firmware.flattened_map):
-				break
-			if self.firmware.flattened_map[self.currentDataOffset] is None: #we have hit an empty space between two logical memory blocks
+
+			if self.currentDataOffset != len(self.firmware.flattened_map) and self.firmware.flattened_map[self.currentDataOffset] is None: #we have hit an empty space between two logical memory blocks
 				previous_block = list(filter(lambda block: block.address + len(block.data) == self.currentDataOffset + self.firmware.base_address, self.firmware.logical_memory_map))
 				assert len(previous_block) == 1# only a single block may have neded here
 				next_block = self.firmware.logical_memory_map[self.firmware.logical_memory_map.index(previous_block)]
@@ -916,14 +931,17 @@ class FlashMaster():
 
 				self.currentDataOffset = new_data_offset
 
-			checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
 			if time.time() - last_print > 0.01:
 				print(f'\r\tProgress ... {100 * self.currentDataOffset / len(self.firmware.flattened_map):5.2f}% ({self.currentDataOffset/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
 				last_print = time.time()
+
 		print(f'\r\tProgress ... {100:5.2f}% ({len(self.firmware.flattened_map)/1024/(time.time()-start):2.2f} KiBps)', file=self.output_file)
 
 		print(f'Took {(time.time() - start)*1000:.2f} ms.')
-		if args.quiet:
+
+		checksum = self.firmware.calculate_checksum()
+
+		if args.verbose:
 			print(f'Firmware checksum = 0x{checksum:08x}', file=self.output_file)
 
 		if args.quiet:

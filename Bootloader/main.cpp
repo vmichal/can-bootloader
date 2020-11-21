@@ -67,7 +67,9 @@ namespace boot {
 				if (ret == WriteStatus::Ok)
 					return 0;
 				else if (ret == WriteStatus::DiscontinuousWriteAccess) {
-					canManager.SendHandshake(handshake::stall);
+					auto const expectedWriteLocation = bootloader.expectedWriteLocation();
+					assert(expectedWriteLocation.has_value());
+					canManager.SendHandshake(handshake::get(Register::Command, Command::RestartFromAddress, *expectedWriteLocation));
 					return 1;
 				}
 

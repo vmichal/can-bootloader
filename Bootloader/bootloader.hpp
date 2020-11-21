@@ -215,6 +215,12 @@ namespace boot {
 	public:
 		constexpr static std::uint32_t transactionMagic = magic_[0] | magic_[1] << 8 | magic_[2] << 16 | magic_[3] << 24;
 
+		[[nodiscard]]
+		std::optional<std::uint32_t> expectedWriteLocation() const {
+			if (!firmwareDownloader_.data_expected())
+				return std::nullopt;
+			return firmwareDownloader_.expectedWriteLocation();
+		}
 
 		[[nodiscard]]
 		Status status() const { return status_; }
@@ -230,10 +236,16 @@ namespace boot {
 		static void resetTo(std::uint16_t code);
 
 		WriteStatus write(std::uint32_t address, std::uint16_t half_word) {
-			return firmwareDownloader_.write(address, half_word);
+			auto const ret = firmwareDownloader_.write(address, half_word);
+			if (firmwareDownloader_.expectedSize() == firmwareDownloader_.actualSize())
+				can_.SendDataAck(address, boot::WriteStatus::Ok);
+			return ret;
 		}
 		WriteStatus write(std::uint32_t address, std::uint32_t word) {
-			return firmwareDownloader_.write(address, word);
+			auto const ret = firmwareDownloader_.write(address, word);
+			if (firmwareDownloader_.expectedSize() == firmwareDownloader_.actualSize())
+				can_.SendDataAck(address, boot::WriteStatus::Ok);
+			return ret;
 		}
 
 
