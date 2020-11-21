@@ -35,6 +35,14 @@ enum { Bootloader_SoftwareBuild_id      = STD_ID(0x62D) };
 enum Bootloader_BootTarget {
     /* Accumulator management System */
     Bootloader_BootTarget_AMS = 0,
+    /* Dashboard */
+    Bootloader_BootTarget_DSH = 1,
+    /* Accumulator Charger */
+    Bootloader_BootTarget_CHG = 2,
+    /* Pedal Box */
+    Bootloader_BootTarget_PDL = 3,
+    /* Fuse Box */
+    Bootloader_BootTarget_FSB = 4,
 };
 
 enum Bootloader_Command {
@@ -44,6 +52,12 @@ enum Bootloader_Command {
     Bootloader_Command_StartTransactionFlashing = 1,
     /* Something failed horribly. Kill the process */
     Bootloader_Command_AbortTransaction = 2,
+    /* Temporarily stop the transmission (e.g. the target device is overrun) */
+    Bootloader_Command_StallSubtransaction = 3,
+    /* Resume previously paused subtransaction */
+    Bootloader_Command_ResumeSubtransaction = 4,
+    /* Some data packets have been lost. Return to specified address and start again */
+    Bootloader_Command_RestartFromAddress = 5,
 };
 
 enum Bootloader_EntryReason {
@@ -189,17 +203,17 @@ enum Bootloader_WriteResult {
  * Sent periodically by an active bootloader to announce its presence.
  */
 typedef struct Bootloader_Beacon_t {
-	/* Identifies which unit has active bootloader */
-	enum Bootloader_BootTarget	Target;
+    /* Identifies which unit has active bootloader */
+    enum Bootloader_BootTarget	Target;
 
-	/* Current state of the bootloader */
-	enum Bootloader_State	State;
+    /* Current state of the bootloader */
+    enum Bootloader_State	State;
 
-	/* Why is the bootloader active? */
-	enum Bootloader_EntryReason	EntryReason;
+    /* Why is the bootloader active? */
+    enum Bootloader_EntryReason	EntryReason;
 
-	/* Available flash size in kibibytes. */
-	uint16_t	FlashSize;
+    /* Available flash size in kibibytes. */
+    uint16_t	FlashSize;
 } Bootloader_Beacon_t;
 
 #define Bootloader_Beacon_FlashSize_OFFSET	((float)0)
@@ -211,7 +225,7 @@ typedef struct Bootloader_Beacon_t {
  * Stream of data to be flashed into the MCU.
  */
 typedef struct Bootloader_Data_t {
-	/* Word (4B) aligned address where the data shall be written */
+    /* Word (4B) aligned address where the data shall be written */
 	uint32_t	Address;
 
 	/* If set to true, only the lower 16 bits of Word will be flashed. */
@@ -270,14 +284,14 @@ typedef struct Bootloader_ExitAck_t {
  * Configuration message exchanged between the flashing master and the bootloader. Has corresponding acknowledge.
  */
 typedef struct Bootloader_Handshake_t {
-	/* Which register is currently configured */
-	enum Bootloader_Register	Register;
+    /* Which register is currently configured */
+    enum Bootloader_Register	Register;
 
-	/* Command to be carried out by the bootloader */
-	enum Bootloader_Command	Command;
+    /* Command to be carried out by the bootloader */
+    enum Bootloader_Command	Command;
 
-	/* Value for selected register */
-	uint32_t	Value;
+    /* Value for selected register */
+    uint32_t	Value;
 } Bootloader_Handshake_t;
 
 
@@ -286,14 +300,14 @@ typedef struct Bootloader_Handshake_t {
  * //TODO wastes bandwidth - remove reserved fields ASAP
  */
 typedef struct Bootloader_HandshakeAck_t {
-	/* Last written register */
-	enum Bootloader_Register	Register;
+    /* Last written register */
+    enum Bootloader_Register	Register;
 
-	/* Error code indicating the result of last operation */
-	enum Bootloader_HandshakeResponse	Response;
+    /* Error code indicating the result of last operation */
+    enum Bootloader_HandshakeResponse	Response;
 
-	/* Last written value */
-	uint32_t	Value;
+    /* Last written value */
+    uint32_t	Value;
 } Bootloader_HandshakeAck_t;
 
 
@@ -317,8 +331,8 @@ typedef struct Bootloader_SoftwareBuild_t {
  * Sent between subtransactions.
  */
 typedef struct Bootloader_CommunicationYield_t {
-	/* Identifies targeted unit. */
-	enum Bootloader_BootTarget	Target;
+    /* Identifies targeted unit. */
+    enum Bootloader_BootTarget	Target;
 } Bootloader_CommunicationYield_t;
 
 
