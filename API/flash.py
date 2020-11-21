@@ -332,6 +332,16 @@ class Firmware():
 
 		#Memory map is list of MemoryBlocks (start address + list of bytes)
 		self.logical_memory_map, self.entry_point = self.process_hex_records(self.records)
+		self.base_address = self.logical_memory_map[0].address
+		self.end = self.logical_memory_map[-1].address + len(self.logical_memory_map[-1].data)
+
+
+		self.flattened_map = [None] * (self.end - self.base_address)
+		print(f'The flattened firmware map is {len(self.flattened_map)} B long.')
+		for block in self.logical_memory_map:
+			print(block.address, len(block.data))
+			offset = block.address - self.base_address
+			self.flattened_map[offset: offset+ len(block.data)] = block.data
 		
 		#total size of the firmware in bytes
 		self.length = sum(len(block.data) for block in self.logical_memory_map)
@@ -479,6 +489,8 @@ class FlashMaster():
 		self.isBusMaster = True
 
 		self.busBitrate = None
+		self.stallRequested = False
+		self.currentDataOffset = None
 
 		self.listing = BootloaderListing(oc, db, other_terminal if not quiet else '/dev/null')
 		self.ocarinaReadingThread = threading.Thread(target = FlashMaster.eventReadingThread, args=(self,), daemon = True)
@@ -854,29 +866,40 @@ class FlashMaster():
 		print(f'\tProgress ... {0:05}%', end='', file=self.output_file)
 		checksum = 0
 		start = time.time()
-		sent_bytes = 0
 		last_print = time.time() - 1
 
 		if args.quiet:
 			self.listing.pause()
 
-		for block in self.firmware.logical_memory_map:
-			assert len(block.data) % 4 == 0 #all messages will carry whole word
+		self.currentDataOffset = 0
 
-			for offset in range(0, len(block.data), 4):
-				absolute_address = block.address + offset
-				data = block.data[offset : offset + 4]
-				data_as_word = sum(byte << index*8 for index, byte in enumerate(data))
-				self.send_data(absolute_address, data_as_word)
+		while True:
+			while self.stallRequested:
+				time.sleep(0.001)
 
-				checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
-				sent_bytes += 4
-				if time.time() - last_print > 0.01:
-					print(f'\r\tProgress ... {100 * offset / len(block.data):5.2f}% ({sent_bytes/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
-					last_print = time.time()
-			print(f'\r\tProgress ... {100:5.2f}% ({sent_bytes/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
+			absolute_address = self.currentDataOffset + self.firmware.base_address
+			data = self.firmware.flattened_map[self.currentDataOffset: self.currentDataOffset + 4]
+			assert all(byte is not None for byte in data) #all messages will carry whole word
+			data_as_word = sum(byte << index*8 for index, byte in enumerate(data))
+			self.send_data(absolute_address, data_as_word)
 
-			print(f'\nWritten {len(block.data)} bytes starting from 0x{block.address:08x}', file=self.output_file)
+			self.currentDataOffset += 4
+			if self.currentDataOffset == len(self.firmware.flattened_map):
+				break
+			if self.firmware.flattened_map[self.currentDataOffset] is None: #we have hit an empty space between two logical memory blocks
+				previous_block = list(filter(lambda block: block.address + len(block.data) == self.currentDataOffset + self.firmware.base_address, self.firmware.logical_memory_map))
+				assert len(previous_block) == 1# only a single block may have neded here
+				next_block = self.firmware.logical_memory_map[self.firmware.logical_memory_map.index(previous_block)]
+				new_data_offset = next_block.address - self.firmware.base_address
+				assert all(byte is None for byte in self.firmware.flattened_map[self.currentDataOffset : new_data_offset])
+				self.currentDataOffset = new_data_offset
+			checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
+			if time.time() - last_print > 0.01:
+				print(f'\r\tProgress ... {100 * self.currentDataOffset / len(self.firmware.flattened_map):5.2f}% ({self.currentDataOffset/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
+				last_print = time.time()
+		print(f'\r\tProgress ... {100:5.2f}% ({len(self.firmware.flattened_map)/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
+
+		print(f'\nWritten {len(block.data)} bytes starting from 0x{block.address:08x}', file=self.output_file)
 		print(f'Took {(time.time() - start)*1000:.2f} ms.')
 		if args.quiet:
 			print(f'Firmware checksum = 0x{checksum:08x}', file=self.output_file)
