@@ -29,7 +29,7 @@ namespace boot {
 
 	}
 
-	WriteStatus Bootloader::checkAddressBeforeWrite(std::uint32_t const address) {
+	WriteStatus FirmwareDownloader::checkAddressBeforeWrite(std::uint32_t const address) {
 
 		switch (Flash::addressOrigin(address)) {
 
@@ -45,44 +45,41 @@ namespace boot {
 
 		assert(Flash::isAvailableAddress(address));
 
-		std::uint32_t const pageAligned = Flash::makePageAligned(address);
+		if (expectedWriteLocation() != address)
+			return WriteStatus::DiscontinuousWriteAccess;
 
 		//see whether this is not the same page as the last one written.
 		//if it is, we can let the write continue.
-		if (pageAligned != predictedWriteDestination_) {
-			auto const& erased_pages = physicalMemoryBlockEraser_.erased_pages();
-			auto const beg = begin(erased_pages);
-			auto const end = std::next(beg, physicalMemoryBlockEraser_.erased_page_count());
-			if (std::find(beg, end, pageAligned) == end)
-				return WriteStatus::NotInErasedMemory;
-			predictedWriteDestination_ = pageAligned; //we have moved to the next flash page -> update predictor
-		}
+		auto const beg = begin(eraser_.erased_pages());
+		auto const end = std::next(beg, eraser_.erased_page_count());
+		if (std::find(beg, end, Flash::getEnclosingBlock(address)) == end)
+			return WriteStatus::NotInErasedMemory;
 
 		return WriteStatus::Ok; //Everything seems ok, try to write
 	}
 
-	WriteStatus Bootloader::write(std::uint32_t address, std::uint16_t half_word) {
-		if (!firmwareDownloader_.data_expected())
+	WriteStatus FirmwareDownloader::write(std::uint32_t address, std::uint16_t half_word) {
+		if (!data_expected())
 			return WriteStatus::NotReady;
 
 		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
-		return firmwareDownloader_.write(address, half_word);
+		return do_write(address, half_word);
 	}
 
-	WriteStatus Bootloader::write(std::uint32_t address, std::uint32_t word) {
-		if (!firmwareDownloader_.data_expected())
+	WriteStatus FirmwareDownloader::write(std::uint32_t address, std::uint32_t word) {
+		if (!data_expected())
 			return WriteStatus::NotReady;
 
 		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
 			return ret;
 
 		std::uint16_t const lower_half = word, upper_half = word >> 16;
-		if (WriteStatus const ret = firmwareDownloader_.write(address, lower_half); ret != WriteStatus::Ok)
+		if (WriteStatus const ret = do_write(address, lower_half); ret != WriteStatus::Ok)
 			return ret;
 
-		return firmwareDownloader_.write(address + 2, upper_half);
+		return do_write(address + 2, upper_half);
 	}
 
 	HandshakeResponse PhysicalMemoryBlockEraser::tryErasePage(std::uint32_t address) {
@@ -102,14 +99,15 @@ namespace boot {
 			return HandshakeResponse::AddressNotInFlash;
 		}
 
+		MemoryBlock const enclosingBlock = Flash::getEnclosingBlock(address);
 
 		auto const beg = begin(erased_pages_);
 		auto const end = std::next(beg, erased_pages_count_);
-		if (std::find(beg, end, address) != end)
+		if (std::find(beg, end, enclosingBlock) != end)
 			return HandshakeResponse::PageAlreadyErased;
 
 		Flash::ErasePage(address);
-		erased_pages_[erased_pages_count_++] = address;
+		erased_pages_[erased_pages_count_++] = enclosingBlock;
 
 		return HandshakeResponse::Ok;
 	}
@@ -364,9 +362,17 @@ namespace boot {
 		assert_unreachable();
 	}
 
-	WriteStatus FirmwareDownloader::write(std::uint32_t address, std::uint16_t half_word) {
+	WriteStatus FirmwareDownloader::do_write(std::uint32_t address, std::uint16_t half_word) {
 		checksum_ += half_word;
 		written_bytes_ += InformationSize::fromBytes(sizeof(half_word));
+
+		blockOffset_ += 2;
+		if (blockOffset_ == receiver_.logicalMemoryBlocks()[current_block_index_].length) {
+			blockOffset_ = 0;
+			if (++current_block_index_ == receiver_.logicalMemoryBlockCount()) 
+				status_ = Status::noMoreDataExpected;
+		}
+
 		return Flash::Write(address, half_word);
 	}
 
@@ -394,6 +400,8 @@ namespace boot {
 			return HandshakeResponse::Ok;
 
 		case Status::receivingData:
+			assert_unreachable();
+		case Status::noMoreDataExpected:
 			if (reg != Register::Checksum)
 				return HandshakeResponse::HandshakeSequenceError;
 
@@ -536,7 +544,6 @@ namespace boot {
 
 			auto const result = physicalMemoryBlockEraser_.receive(reg, command, value);
 			if (physicalMemoryBlockEraser_.done()) {
-				predictedWriteDestination_ = physicalMemoryBlockEraser_.erased_pages().front();
 				status_ = Status::DownloadingFirmware;
 				firmwareDownloader_.startSubtransaction();
 			}

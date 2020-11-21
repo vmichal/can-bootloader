@@ -104,7 +104,7 @@ namespace boot {
 		};
 
 		Status status_ = Status::uninitialized;
-		std::array<std::uint32_t, customization::physicalBlockCount> erased_pages_;
+		std::array<MemoryBlock, customization::physicalBlockCount> erased_pages_;
 		std::uint32_t erased_pages_count_ = 0, expectedPageCount_ = 0;
 
 	public:
@@ -123,6 +123,7 @@ namespace boot {
 			pending,
 			waitingForFirmwareSize,
 			receivingData,
+			noMoreDataExpected,
 			receivedChecksum,
 			done,
 			error
@@ -132,15 +133,31 @@ namespace boot {
 		InformationSize firmware_size_ = 0_B, written_bytes_ = 0_B;
 		std::uint32_t checksum_ = 0;
 
+		FirmwareMemoryMapReceiver const& receiver_;
+		PhysicalMemoryBlockEraser const& eraser_;
+		std::size_t current_block_index_ = 0;
+		std::uint32_t blockOffset_ = 0;
+
+		WriteStatus do_write(std::uint32_t address, std::uint16_t half_word);
 	public:
+		WriteStatus checkAddressBeforeWrite(std::uint32_t address);
+		WriteStatus write(std::uint32_t address, std::uint16_t half_word);
+		WriteStatus write(std::uint32_t address, std::uint32_t word);
+
 		bool done() const { return status_ == Status::done; }
 		bool data_expected() const { return status_ == Status::receivingData; }
 		void startSubtransaction() { status_ = Status::pending; }
 		HandshakeResponse receive(Register, Command, std::uint32_t);
-		WriteStatus write(std::uint32_t address, std::uint16_t half_word);
 
 		InformationSize expectedSize() const { return firmware_size_; }
 		InformationSize actualSize() const { return written_bytes_; }
+
+		std::uint32_t expectedWriteLocation() const { 
+			return receiver_.logicalMemoryBlocks()[current_block_index_].address + blockOffset_;
+		}
+
+		FirmwareDownloader(FirmwareMemoryMapReceiver const&receiver, PhysicalMemoryBlockEraser const& eraser)
+			: receiver_{receiver}, eraser_{eraser} {}
 	};
 
 	class MetadataReceiver {
@@ -181,7 +198,7 @@ namespace boot {
 		PhysicalMemoryMapTransmitter physicalMemoryMapTransmitter_;
 		FirmwareMemoryMapReceiver firmwareMemoryMapReceiver_;
 		PhysicalMemoryBlockEraser physicalMemoryBlockEraser_;
-		FirmwareDownloader firmwareDownloader_;
+		FirmwareDownloader firmwareDownloader_{firmwareMemoryMapReceiver_, physicalMemoryBlockEraser_};
 		MetadataReceiver metadataReceiver_;
 
 		Status status_ = Status::Ready;
@@ -189,9 +206,6 @@ namespace boot {
 		CanManager& can_;
 		static inline EntryReason entryReason_ = EntryReason::DontEnter;
 
-		WriteStatus checkAddressBeforeWrite(std::uint32_t address);
-
-		std::uint32_t predictedWriteDestination_ = 0;
 
 		//Sets the jumpTable
 		void finishFlashingTransaction() const;
@@ -202,8 +216,6 @@ namespace boot {
 		constexpr static std::uint32_t transactionMagic = magic_[0] | magic_[1] << 8 | magic_[2] << 16 | magic_[3] << 24;
 
 
-		//TODO make this a customization point
-		constexpr static Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
 		[[nodiscard]]
 		Status status() const { return status_; }
 		[[nodiscard]]
@@ -217,8 +229,12 @@ namespace boot {
 		[[noreturn]]
 		static void resetTo(std::uint16_t code);
 
-		WriteStatus write(std::uint32_t address, std::uint16_t half_word);
-		WriteStatus write(std::uint32_t address, std::uint32_t word);
+		WriteStatus write(std::uint32_t address, std::uint16_t half_word) {
+			return firmwareDownloader_.write(address, half_word);
+		}
+		WriteStatus write(std::uint32_t address, std::uint32_t word) {
+			return firmwareDownloader_.write(address, word);
+		}
 
 
 		HandshakeResponse processHandshake(Register reg, Command command, std::uint32_t value);
@@ -251,6 +267,8 @@ namespace boot {
 
 		constexpr Bootloader_Handshake_t transactionMagic = get(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
 		constexpr Bootloader_Handshake_t abort = get(Register::Command, Command::AbortTransaction, 0);
+		constexpr Bootloader_Handshake_t stall = get(Register::Command, Command::StallSubtransaction, 0);
+		constexpr Bootloader_Handshake_t resume = get(Register::Command, Command::ResumeSubtransaction, 0);
 	}
 }
 

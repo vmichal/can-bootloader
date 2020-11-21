@@ -66,6 +66,10 @@ namespace boot {
 
 				if (ret == WriteStatus::Ok)
 					return 0;
+				else if (ret == WriteStatus::DiscontinuousWriteAccess) {
+					canManager.SendHandshake(handshake::stall);
+					return 1;
+				}
 
 				//TODO kill the transaction for now
 				canManager.SendHandshake(handshake::abort);

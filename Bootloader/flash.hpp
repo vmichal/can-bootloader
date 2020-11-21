@@ -37,8 +37,8 @@ namespace boot {
 		MemoryProtected,
 		NotInFlash,
 		AlreadyWritten,
-		Timeout,
-		NotReady
+		NotReady,
+		DiscontinuousWriteAccess
 	};
 
 	struct Flash {
@@ -59,32 +59,26 @@ namespace boot {
 		static bool isAvailableAddress(std::uint32_t address) {
 			return addressOrigin(address) == AddressSpace::AvailableFlash;
 		}
-
-		static bool isPageAligned(std::uint32_t address) {
+		
+		constexpr static MemoryBlock getEnclosingBlock(std::uint32_t address) {
 			if constexpr (pagesHaveSameSize()) {
 				constexpr std::uint32_t block_size = customization::physicalBlockSize.toBytes();
-				return ufsel::bit::all_cleared(address, block_size - 1);
-			}
-			else {
-				for (auto const block : physicalMemoryBlocks)
-					if (address == block.address)
-						return true;
-				return false;
-			}
-		}
-
-		static std::uint32_t makePageAligned(std::uint32_t address) {
-			if constexpr (pagesHaveSameSize()) {
-				constexpr std::uint32_t block_size = customization::physicalBlockSize.toBytes();
-				return ufsel::bit::clear(address, block_size - 1);
+				constexpr std::uint32_t base_address = customization::flashMemoryBaseAddress;
+				return physicalMemoryBlocks[(address - base_address)/block_size];
 			}
 			else {
 				for (auto const block : physicalMemoryBlocks)
 					if (block.address <= address && address < end(block))
-						return block.address;
-				return -1;
+						return block;
 			}
+		}
 
+		constexpr static std::uint32_t makePageAligned(std::uint32_t address) {
+			return getEnclosingBlock(address).address;
+		}
+
+		constexpr static bool isPageAligned(std::uint32_t address) {
+			return makePageAligned(address) == address;
 		}
 
 		static AddressSpace addressOrigin(std::uint32_t address);

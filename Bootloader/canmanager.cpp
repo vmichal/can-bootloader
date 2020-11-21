@@ -27,7 +27,7 @@ namespace {
 		case boot::WriteStatus::Ok:
 			return Bootloader_WriteResult_Ok;
 
-		case boot::WriteStatus::Timeout:
+		case boot::WriteStatus::DiscontinuousWriteAccess:
 		case boot::WriteStatus::NotReady:
 			return Bootloader_WriteResult_Timeout;
 		}
