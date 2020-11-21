@@ -512,10 +512,31 @@ class FlashMaster():
 				elif self.busBitrate != ev.bitrate.kbits:
 					print(f'Bus bitrate has changed from {self.busBitrate} to {ev.bitrate.kbits} KiBps!', file = sys.stderr)
 
-			if isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.Handshake.identifier: #test for abortion...
+			elif isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.Handshake.identifier: #test for important handshake messages...
 				self.db.parseData(ev.id.value, ev.data, ev.timestamp)
-				if self.Handshake['Command'].value[0] == enumerator_by_name('AbortTransaction', self.CommandEnum):
-					print('Bootloader aborted transaction!', file=self.output_file)
+
+				#sanity check that the command field is cleared iff the register field is other than command
+				if self.Handshake['Register'].value[0] != enumerator_by_name('Command', self.RegisterEnum):
+					assert self.Handshake['Command'].value[0] == enumerator_by_name('None', self.CommandEnum)
+
+				assert self.Handshake['Command']
+				if self.Handshake['Command'].value[0] == enumerator_by_name('StallSubtransaction', self.CommandEnum):
+					print('\nSubtransaction stalled', file=self.output_file)
+					self.stallRequested = True
+
+				elif self.Handshake['Command'].value[0] == enumerator_by_name('ResumeSubtransaction', self.CommandEnum):
+					print('\nSubtransaction resumed', file=self.output_file)
+					self.stallRequested = False
+				
+				elif self.Handshake['Command'].value[0] == enumerator_by_name('RestartFromAddress', self.CommandEnum):
+					self.stallRequested = True
+					print(f'\nTransmission restarts from address {self.Handshake["Value"].value[0]:08x}', file=self.output_file)
+					time.sleep(0.001)
+					self.currentDataOffset = self.Handshake['Value'].value[0] - self.firmware.base_address
+					self.stallRequested = False
+
+				elif self.Handshake['Command'].value[0] == enumerator_by_name('AbortTransaction', self.CommandEnum):
+					print('\nBootloader aborted transaction!', file=self.output_file)
 					sys.exit(1) #todo this deserves a bit nicer handling
 
 	def receive_generic_response(self, id, sent : tuple, must_match : list, wanted : list):
@@ -892,14 +913,15 @@ class FlashMaster():
 				next_block = self.firmware.logical_memory_map[self.firmware.logical_memory_map.index(previous_block)]
 				new_data_offset = next_block.address - self.firmware.base_address
 				assert all(byte is None for byte in self.firmware.flattened_map[self.currentDataOffset : new_data_offset])
+
 				self.currentDataOffset = new_data_offset
+
 			checksum += (data_as_word >> 16) + (data_as_word & 0xffff)
 			if time.time() - last_print > 0.01:
 				print(f'\r\tProgress ... {100 * self.currentDataOffset / len(self.firmware.flattened_map):5.2f}% ({self.currentDataOffset/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
 				last_print = time.time()
-		print(f'\r\tProgress ... {100:5.2f}% ({len(self.firmware.flattened_map)/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
+		print(f'\r\tProgress ... {100:5.2f}% ({len(self.firmware.flattened_map)/1024/(time.time()-start):2.2f} KiBps)', file=self.output_file)
 
-		print(f'\nWritten {len(block.data)} bytes starting from 0x{block.address:08x}', file=self.output_file)
 		print(f'Took {(time.time() - start)*1000:.2f} ms.')
 		if args.quiet:
 			print(f'Firmware checksum = 0x{checksum:08x}', file=self.output_file)
