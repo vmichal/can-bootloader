@@ -15,13 +15,13 @@ namespace bsp::gpio {
 	using namespace pins;
 
 	namespace {
-		void InitializePins(GPIOSpeed_TypeDef speed, GPIOMode_TypeDef const mode, std::initializer_list<Pin> const seq) {
+		void InitializePins(std::initializer_list<Pin> const seq) {
 
-			GPIO_InitTypeDef init{ .GPIO_Pin = 0, .GPIO_Speed = speed, .GPIO_Mode = mode };
+			for (Pin const&p : seq) {
 
-			for (Pin p : seq) {
-				init.GPIO_Pin = p.pin;
-				GPIO_Init(p.gpio(), &init);
+				std::uint32_t volatile & CRH = p.gpio()->CRH;
+				CRH = CRH & ~ (ufsel::bit::bitmask_of_width(4) << ((p.pin - 8)*4));
+				CRH = CRH | (static_cast<std::uint32_t>(p.mode_) << ((p.pin - 8)*4));
 			}
 		}
 
@@ -39,14 +39,7 @@ namespace bsp::gpio {
 		//from the STM32f105 reference manual
 
 
-		auto const inputs_floating = { CAN1_RX, CAN2_RX };
-		auto const alternate_pushpull = { CAN1_TX, CAN2_TX};
-
-		/* INPUTS floating */
-		InitializePins(GPIO_Speed_2MHz, GPIO_Mode_IN_FLOATING, inputs_floating);
-
-		/* OUTPUTS WITH AF */
-		InitializePins(GPIO_Speed_10MHz, GPIO_Mode_AF_PP, alternate_pushpull);
+		InitializePins({ CAN1_RX, CAN2_RX, CAN1_TX, CAN2_TX });
 	}
 }
 
