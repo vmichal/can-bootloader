@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+memory_map_print_elems_per_line = 5
+
 import os
 import struct
 import argparse
@@ -28,6 +30,7 @@ args = parser.parse_args()
 #usage:
 # python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f list /dev/ttyS4
 # python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f flash -u AMS -x build/AMS.hex /dev/ttyS4
+#python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f flash -x $repos/ams-sw/ams/build/dv01/AMS.hex -u AMS -t /dev/tty7 --force --verbose /dev/ttyS4
 from pycandb.candb import CanDB
 import ocarina_sw.api.ocarina as ocarina
 import time
@@ -348,6 +351,7 @@ class Firmware():
 			physical = physical_memory_map[physical_offset]
 
 			if physical.address + len(physical.data) <= address:
+				physical_offset += 1
 				continue #this physical block ends even berofe the logical starts
 
 			if address < physical.address:
@@ -736,15 +740,31 @@ class FlashMaster():
 
 		#receive initial transaction magic
 		self.receive_transaction_magic()
-
+		if args.verbose:
+			print('Bootloader sent initial magic.', file=self.output_file)
 		#receive the number of physical memory blocks
 		physical_memory_map = [0] * int(self.receive_handshake('NumPhysicalMemoryBlocks'))
+		
+		if args.verbose:
+			print(f'Available memory consists of {len(physical_memory_map)} blocks. ', file=self.output_file)
 
 		for i in range(len(physical_memory_map)): #receiving blocks
 			start = int(self.receive_handshake('PhysicalBlockStart'))
 			length = int(self.receive_handshake('PhysicalBlockLength'))
 
 			physical_memory_map[i] = MemoryBlock(start, 'x' * length)
+
+		smallest = min(map(lambda block: len(block.data), physical_memory_map))
+		biggest = max(map(lambda block: len(block.data), physical_memory_map))
+
+		if smallest == biggest: #all blocks have the same size
+			memory_map_str = f"{len(physical_memory_map)} blocks {len(physical_memory_map[0].data)} bytes long from {hex(physical_memory_map[0].address)}."
+		else: #the blocks are not equally long
+			memory_map_str = ''
+			for index in range(0, len(physical_memory_map), memory_map_print_elems_per_line):
+				memory_map_str += f'\n\t{index:3}:'
+				memory_map_str +=''.join(map(lambda block: f" [{hex(block.address)}-{hex(block.address + len(block.data)-1)}]", physical_memory_map[index:index+memory_map_print_elems_per_line]))
+		print(f'Available memory map: {memory_map_str}')
 
 		#receive terminal transaction magic
 		self.receive_transaction_magic()
@@ -758,6 +778,8 @@ class FlashMaster():
 		if not self.firmware.identify_influenced_physical_blocks(physical_memory_map):
 			print('Available physcial memory cannot cover all address ranges required by firmware! Exiting.', file=self.output_file)
 			return
+		if args.verbose:
+			print('Firmware fits into available physical memory.')
 
 		##Transmission of logical memory map
 
