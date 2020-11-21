@@ -754,10 +754,10 @@ class FlashMaster():
 
 			physical_memory_map[i] = MemoryBlock(start, 'x' * length)
 
-		smallest = min(map(lambda block: len(block.data), physical_memory_map))
-		biggest = max(map(lambda block: len(block.data), physical_memory_map))
+		block_smallest = min(map(lambda block: len(block.data), physical_memory_map))
+		block_biggest = max(map(lambda block: len(block.data), physical_memory_map))
 
-		if smallest == biggest: #all blocks have the same size
+		if block_smallest == block_biggest: #all blocks have the same size
 			memory_map_str = f"{len(physical_memory_map)} blocks {len(physical_memory_map[0].data)} bytes long from {hex(physical_memory_map[0].address)}."
 		else: #the blocks are not equally long
 			memory_map_str = ''
@@ -787,7 +787,8 @@ class FlashMaster():
 			print('Sending initial magic ... ', end='', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic()) #initial magic
 
-		print(f'Sending number of logical memory blocks ({len(self.firmware.logical_memory_map)}) ... ', end='' if args.verbose else '\n', file=self.output_file)
+		if args.verbose:
+			print(f'Sending number of logical memory blocks ({len(self.firmware.logical_memory_map)}) ... ', end='' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('NumLogicalMemoryBlocks', 'None', len(self.firmware.logical_memory_map)))
 
 		if args.verbose:
@@ -831,7 +832,9 @@ class FlashMaster():
 			print('Sending initial magic ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic())
 
-		print(f'Sending firmware size ({self.firmware.length} B)... ', end = '' if args.verbose else '\n', file=self.output_file)
+
+		if args.verbose:
+			print(f'Sending firmware size ({self.firmware.length} B)', end = '... ' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('FirmwareSize', 'None', self.firmware.length))
 
 		print('Sending words of firmware...', file=self.output_file)
@@ -861,7 +864,8 @@ class FlashMaster():
 
 			print(f'\nWritten {len(block.data)} bytes starting from 0x{block.address:08x}', file=self.output_file)
 		print(f'Took {(time.time() - start)*1000:.2f} ms.')
-		print(f'Firmware checksum = 0x{checksum:08x}', file=self.output_file)
+		if args.quiet:
+			print(f'Firmware checksum = 0x{checksum:08x}', file=self.output_file)
 
 		if args.quiet:
 			self.listing.resume()
@@ -895,11 +899,10 @@ class FlashMaster():
 
 		if args.verbose:
 			print('Firmware flashed successfully', file=self.output_file)
-		print('Leaving bootloader. ', end='' if args.verbose else '\n', file=self.output_file)
+		print('Leaving bootloader... ', end='', file=self.output_file)
 
 		result = self.request_bootloader_exit(self.target, force = False)
-		if args.verbose:
-			print('Confirmed' if result else 'Declined', file=self.output_file)
+		print('Confirmed' if result else 'Declined', file=self.output_file)
 
 		self.terminate()
 
