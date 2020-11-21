@@ -11,6 +11,7 @@
 
 #include <ufsel/bit.hpp>
 #include <library/assert.hpp>
+#include "options.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -19,16 +20,7 @@
 
 namespace boot {
 
-	enum class PhysicalBlockSizes {
-		same,
-		different
-	};
-
-	struct MemoryBlock {
-		std::uint32_t address, length;
-
-		constexpr std::uint32_t end() const { return address + length; }
-	};
+	constexpr std::uint32_t end(MemoryBlock const & block) { return block.address + block.length; }
 
 
 	enum class AddressSpace {
@@ -51,13 +43,7 @@ namespace boot {
 
 	struct Flash {
 
-		//Customization points:
-		static constexpr std::size_t pageCountTotal = 128; //taken from the reference manual
-		static constexpr std::size_t pageAlignmentClearedBits = 11; //taken from the reference manual
-
-
-		static constexpr std::uint32_t pageSize = 1 << pageAlignmentClearedBits;
-		static constexpr std::uint32_t pageAlignmentMask = ufsel::bit::bitmask_of_width(pageAlignmentClearedBits);
+		constexpr static bool pagesHaveSameSize() { return customization::physicalBlockSizePolicy == PhysicalBlockSizes::same; };
 
 		static std::size_t const availableMemory;
 		static std::uint32_t const jumpTableAddress;
@@ -75,11 +61,30 @@ namespace boot {
 		}
 
 		static bool isPageAligned(std::uint32_t address) {
-			return ufsel::bit::all_cleared(address, pageAlignmentMask);
+			if constexpr (pagesHaveSameSize()) {
+				constexpr std::uint32_t block_size = customization::physicalBlockSize.toBytes();
+				return ufsel::bit::all_cleared(address, block_size - 1);
+			}
+			else {
+				for (auto const block : physicalMemoryBlocks)
+					if (address == block.address)
+						return true;
+				return false;
+			}
 		}
 
 		static std::uint32_t makePageAligned(std::uint32_t address) {
-			return ufsel::bit::clear(address, pageAlignmentMask);
+			if constexpr (pagesHaveSameSize()) {
+				constexpr std::uint32_t block_size = customization::physicalBlockSize.toBytes();
+				return ufsel::bit::clear(address, block_size - 1);
+			}
+			else {
+				for (auto const block : physicalMemoryBlocks)
+					if (block.address <= address && address < end(block))
+						return block.address;
+				return -1;
+			}
+
 		}
 
 		static AddressSpace addressOrigin(std::uint32_t address);
@@ -87,56 +92,20 @@ namespace boot {
 	};
 
 	struct PhysicalMemoryMap {
-		constexpr static PhysicalBlockSizes physicalBlockSizes = PhysicalBlockSizes::same; //TODO customization point
-		static std::uint32_t availablePages() { return Flash::availableMemory / Flash::pageSize; }
+
+		constexpr static unsigned availablePages() {return customization::physicalBlockCount - customization::firstBlockAvailableToApplication;}
 
 		static MemoryBlock block(std::uint32_t const index) {
-
-			if constexpr (physicalBlockSizes == PhysicalBlockSizes::same) {
-				assert(index < availablePages());
-
-				std::uint32_t const address = Flash::applicationAddress + index * Flash::pageSize;
-				std::uint32_t const length = Flash::pageSize;
-
-				return {address, length};
-			}
-			else {
-				constexpr std::array<MemoryBlock, Flash::pageCountTotal> blocks_ {{0,0}};
-				constexpr std::uint32_t firstApplicationBlock = 2; //TODO customization point
-				assert(index + firstApplicationBlock < availablePages());
-				
-				return blocks_[firstApplicationBlock];
-			}
-		}
-
-		struct iterator {
-			struct end_sentinel_t {};
-
-			std::uint32_t index_;
-
-			MemoryBlock operator*() const {
-				return block(index_);
-			}
-
-			auto& operator++() { ++index_; return *this; }
-
-			bool operator!= (end_sentinel_t) const {
-				return index_ < availablePages();
-			}
-
-			end_sentinel_t end() { return {}; }
-			iterator& begin() { return *this; }
-		};
-
-		static iterator iterate() {
-			return {};
+			assert(index < customization::physicalBlockCount);
+			return physicalMemoryBlocks[index];
 		}
 
 		static bool canCover(MemoryBlock logical) {
 
-			for (MemoryBlock const& physical : iterate()) {
+			for (std::uint32_t i = customization::firstBlockAvailableToApplication; i <customization::physicalBlockCount; ++i) {
+				MemoryBlock const physical = physicalMemoryBlocks[i];
 
-				if (physical.end() <= logical.address)
+				if (end(physical) <= logical.address)
 					continue; //Ignore all physical blocks that end before the logical block even starts
 
 
@@ -150,7 +119,7 @@ namespace boot {
 				//option 2 - 3 will certainly cover the memory range from start of logical block to physical block end
 				//assume there is shared address range:
 				//the physical block starts at lower address and spans at least part of the logical block
-				std::uint32_t const covered_bytes = physical.end() - logical.address;
+				std::uint32_t const covered_bytes = end(physical) - logical.address;
 				if (covered_bytes >= logical.length)
 					return true; //Remaining uncovered ranges of logical block have been depleted. We can cover it
 
@@ -198,7 +167,7 @@ namespace boot {
 		std::uint32_t magic4_;
 		std::uint32_t logical_memory_block_count_;
 		std::uint32_t magic5_;
-		std::array<MemoryBlock, (Flash::pageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
+		std::array<MemoryBlock, (smallestPageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
 
 		//Returns true iff all magics are valid
 		bool magicValid() const __attribute__((section(".executed_from_flash")));
@@ -207,7 +176,7 @@ namespace boot {
 		void invalidate();
 	};
 
-	static_assert(sizeof(ApplicationJumpTable) <= Flash::pageSize, "The application jump table must fit within one page of flash.");
+	static_assert(sizeof(ApplicationJumpTable) <= smallestPageSize, "The application jump table must fit within one page of flash.");
 
 	inline ApplicationJumpTable jumpTable __attribute__((section("jumpTableSection")));
 }

@@ -88,7 +88,7 @@ namespace {
 		if (!boot::jumpTable.magicValid())
 			return boot::EntryReason::InvalidMagic; //Magics do not match. Enter the bootloader
 
-		if (!bit::all_cleared(boot::jumpTable.interruptVector_, isrVectorAlignmentMask))
+		if (!bit::all_cleared(boot::jumpTable.interruptVector_, boot::isrVectorAlignmentMask))
 			return boot::EntryReason::UnalignedInterruptVector; //The interrupt table is not properly aligned to the 512 B boundary
 
 		if (boot::Flash::addressOrigin_located_in_flash(boot::jumpTable.interruptVector_) != boot::AddressSpace::AvailableFlash)

@@ -87,7 +87,7 @@ namespace boot {
 
 	HandshakeResponse PhysicalMemoryBlockEraser::tryErasePage(std::uint32_t address) {
 
-		if (!ufsel::bit::all_cleared(address, Flash::pageAlignmentMask))
+		if (!Flash::isPageAligned(address))
 			return HandshakeResponse::PageAddressNotAligned;
 
 		AddressSpace const space = Flash::addressOrigin(address);
@@ -182,17 +182,24 @@ namespace boot {
 			status_ = Status::sendingBlockAddress;
 			return handshake::get(Register::NumPhysicalMemoryBlocks, Command::None, PhysicalMemoryMap::availablePages());
 
-		case Status::sendingBlockAddress:
+		case Status::sendingBlockAddress: {
+
 			if (PhysicalMemoryMap::availablePages() == blocks_sent_) { //we have sent all available blocks
 				status_ = Status::shouldYield;
 				return handshake::transactionMagic;
 			}
 			status_ = Status::sendingBlockLength;
-			return handshake::get(Register::PhysicalBlockStart, Command::None, PhysicalMemoryMap::block(blocks_sent_).address);
+			auto const currentBlock = PhysicalMemoryMap::block(customization::firstBlockAvailableToApplication + blocks_sent_);
+			return handshake::get(Register::PhysicalBlockStart, Command::None, currentBlock.address);
 
-		case Status::sendingBlockLength:
+		}
+		case Status::sendingBlockLength: {
+
 			status_ = Status::sendingBlockAddress;
-			return handshake::get(Register::PhysicalBlockLength, Command::None, PhysicalMemoryMap::block(blocks_sent_++).length);
+			auto const currentBlock = PhysicalMemoryMap::block(customization::firstBlockAvailableToApplication + blocks_sent_);
+			++blocks_sent_;
+			return handshake::get(Register::PhysicalBlockLength, Command::None, currentBlock.length);
+		}
 		case Status::shouldYield:
 		case Status::done:
 			status_ = Status::error;
@@ -242,7 +249,7 @@ namespace boot {
 					if (value < previous.address)
 						return HandshakeResponse::LogicalBlockAddressesNotIncreasing;
 
-					if (value < previous.end())
+					if (value < end(previous))
 						return HandshakeResponse::LogicalBlocksOverlapping;
 				}
 

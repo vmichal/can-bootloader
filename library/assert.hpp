@@ -7,7 +7,7 @@
 extern "C" [[noreturn]] void HardFault_Handler();
 
 inline bool assert_fun(const bool condition, const char* const where, const char* const func, int line) {
-	if constexpr (enableAssert) {
+	if constexpr (boot::enableAssert) {
 		if (!condition) {
 			__asm("BKPT");
 			HardFault_Handler();
@@ -20,7 +20,7 @@ inline bool assert_fun(const bool condition, const char* const where, const char
 
 [[noreturn]]
 inline void assert_unreachable_fun(const char * const where, const char * const func, int line) {
-	if constexpr (enableAssert) {
+	if constexpr (boot::enableAssert) {
 		__asm("BKPT");
 	}
 	HardFault_Handler();

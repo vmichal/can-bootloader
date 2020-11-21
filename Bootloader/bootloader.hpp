@@ -104,7 +104,7 @@ namespace boot {
 		};
 
 		Status status_ = Status::uninitialized;
-		std::array<std::uint32_t, Flash::pageCountTotal> erased_pages_;
+		std::array<std::uint32_t, customization::physicalBlockCount> erased_pages_;
 		std::uint32_t erased_pages_count_ = 0, expectedPageCount_ = 0;
 
 	public:
