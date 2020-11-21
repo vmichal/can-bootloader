@@ -14,19 +14,6 @@ namespace bsp::gpio {
 
 	using namespace pins;
 
-	namespace {
-		void InitializePins(std::initializer_list<Pin> const seq) {
-
-			for (Pin const&p : seq) {
-
-				std::uint32_t volatile & CRH = p.gpio()->CRH;
-				CRH = CRH & ~ (ufsel::bit::bitmask_of_width(4) << ((p.pin - 8)*4));
-				CRH = CRH | (static_cast<std::uint32_t>(p.mode_) << ((p.pin - 8)*4));
-			}
-		}
-
-	}
-
 	void Initialize(void)
 	{
 
@@ -37,9 +24,16 @@ namespace bsp::gpio {
 
 		//Most of the following pin configurations are based on section 9.1.11 GPIO configurations for device peripherals
 		//from the STM32f105 reference manual
+		constexpr unsigned configBits = 4;
 
+		for (Pin const& p : { CAN1_RX, CAN2_RX, CAN1_TX, CAN2_TX }) {
 
-		InitializePins({ CAN1_RX, CAN2_RX, CAN1_TX, CAN2_TX });
+			auto const shift = (p.pin % 8) * configBits;
+			auto const mask = ufsel::bit::bitmask_of_width(configBits);
+			auto volatile &reg  = p.pin < 8 ? p.gpio()->CRL : p.gpio()->CRH;
+
+			ufsel::bit::modify(std::ref(reg), mask, static_cast<std::uint32_t>(p.mode_), shift);
+		}
 	}
 }
 
