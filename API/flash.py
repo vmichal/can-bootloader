@@ -193,12 +193,13 @@ class BootloaderListing:
 	def _do_ping_bootloader_aware_units(self):
 		#cycle through all possible boot targets and ping them
 		while not self.exit:
+			oc.query_config() # poll the ocarina's bitrate 
 			while self.shall_sleep:
 				time.sleep(1)
 
 			targets = list(filter(lambda t: t not in self.active_bootloaders, self.targetable_units)) #target only those units that are not in bootloader
 
-			for unit in itertools.cycle(targets):
+			for unit in targets:
 				buffer = [0] * 1
 				self.ping.assemble([unit, False], buffer)
 	
@@ -212,7 +213,7 @@ class BootloaderListing:
 				self.receiving_acks = False
 			return
 
-		elif isinstance(ev, ocarina.HeartbeatEvent) or isinstance(ev, ocarina.ErrorFlagsEvent):
+		elif isinstance(ev, ocarina.HeartbeatEvent) or isinstance(ev, ocarina.ErrorFlagsEvent) or isinstance(ev, ocarina.ConfigEvent):
 			return#ignore HeartbeatEvent
 	
 		elif not isinstance(ev, ocarina.CanMsgEvent): #ignore other events
@@ -477,6 +478,7 @@ class FlashMaster():
 		self.exit = False
 		self.isBusMaster = True
 
+		self.busBitrate = None
 
 		self.listing = BootloaderListing(oc, db, other_terminal if not quiet else '/dev/null')
 		self.ocarinaReadingThread = threading.Thread(target = FlashMaster.eventReadingThread, args=(self,), daemon = True)
@@ -491,6 +493,12 @@ class FlashMaster():
 			assert ev is not None
 			self.listing.process_event(ev)
 			self.message_queue.put(ev)
+
+			if isinstance(ev, ocarina.ConfigEvent):
+				if self.busBitrate is None:
+					self.busBitrate = ev.bitrate.kbits
+				elif self.busBitrate != ev.bitrate.kbits:
+					print(f'Bus bitrate has changed from {self.busBitrate} to {ev.bitrate.kbits} KiBps!', file = sys.stderr)
 
 			if isinstance(ev, ocarina.CanMsgEvent) and ev.id.value == self.Handshake.identifier: #test for abortion...
 				self.db.parseData(ev.id.value, ev.data, ev.timestamp)
@@ -828,6 +836,11 @@ class FlashMaster():
 
 		##Firmware download
 
+		while self.busBitrate is None:
+			print('Cannot determine bus bitrate', file= sys.stderr)
+			time.sleep(0.5)
+		print(f'Bus bitrate {self.busBitrate} kbps')
+
 		if args.verbose:
 			print('Sending initial magic ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic())
@@ -846,6 +859,7 @@ class FlashMaster():
 
 		if args.quiet:
 			self.listing.pause()
+
 		for block in self.firmware.logical_memory_map:
 			assert len(block.data) % 4 == 0 #all messages will carry whole word
 
