@@ -102,6 +102,6 @@ add_custom_command(
       POST_BUILD
       TARGET ${PROJECT_NAME}.elf
       WORKING_DIRECTORY ..
-      COMMAND ./disassemble.sh
+      COMMAND bash ./disassemble.sh
 )
 

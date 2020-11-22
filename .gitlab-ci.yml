@@ -13,3 +13,4 @@ build:
     paths:
       - build/*.elf
       - build/*.hex
+      - build/disasm
