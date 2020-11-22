@@ -337,9 +337,7 @@ class Firmware():
 
 
 		self.flattened_map = [None] * (self.end - self.base_address)
-		print(f'The flattened firmware map is {len(self.flattened_map)} B long.')
 		for block in self.logical_memory_map:
-			print(block.address, len(block.data))
 			offset = block.address - self.base_address
 			self.flattened_map[offset: offset+ len(block.data)] = block.data
 		
@@ -498,6 +496,7 @@ class FlashMaster():
 		self.stallRequested = False
 		self.currentDataOffset = None
 		self.dataTransmissionFinished = False
+		self.resentBytesCount = 0
 
 		self.listing = BootloaderListing(oc, db, other_terminal if not quiet else '/dev/null')
 		self.ocarinaReadingThread = threading.Thread(target = FlashMaster.eventReadingThread, args=(self,), daemon = True)
@@ -543,9 +542,10 @@ class FlashMaster():
 				
 				elif self.Handshake['Command'].value[0] == enumerator_by_name('RestartFromAddress', self.CommandEnum):
 					self.stallRequested = True
-					print(f'\nTransmission restarts from address {int(self.Handshake["Value"].value[0]):08x}', file=self.output_file)
 					time.sleep(0.001)
-					self.currentDataOffset = int(self.Handshake['Value'].value[0]) - self.firmware.base_address
+					new_address = int(self.Handshake['Value'].value[0]) - self.firmware.base_address
+					self.resentBytesCount += self.currentDataOffset - new_address
+					self.currentDataOffset = new_address
 					self.stallRequested = False
 
 				elif self.Handshake['Command'].value[0] == enumerator_by_name('AbortTransaction', self.CommandEnum):
@@ -665,9 +665,10 @@ class FlashMaster():
 		if args.verbose:
 			print(f'Input consists of {len(self.firmware.records)} hex records.', file=self.output_file)
 
-		print(f'Firmware logical memory map ({self.firmware.length} bytes in total):', file=self.output_file)
+		print(f'Firmware logical memory map ({self.firmware.length} B in total, {len(self.firmware.flattened_map)} B flattened):', file=self.output_file)
 		for block in self.firmware.logical_memory_map:
 			print(f'\t[0x{block.address:08x} - 0x{block.address + len(block.data) - 1:08x}] ... {len(block.data):8} B ({len(block.data)/1024:.2f} KiB)', file=self.output_file)
+
 		print(f'Entry point: 0x{(self.firmware.entry_point & ~1):08x} ({"Thumb" if self.firmware.entry_point & 1 else "ARM"} mode)', file=self.output_file)
 		print('', file=self.output_file)
 
@@ -877,7 +878,7 @@ class FlashMaster():
 			if result != enumerator_by_name('OK', self.HandshakeResponseEnum):
 				print(f"Page {index} erassure returned result {self.HandshakeResponseEnum.enum[result].name}", file = sys.stderr)
 		print('OK', file=self.output_file)
-		print(f'Flash erassure took {(time.time() - erassureStart)*1000:5.2f}ms')
+		print(f'Flash erassure took {(time.time() - erassureStart)*1000:5.2f} ms')
 		self.report_handshake_response(self.send_transaction_magic()) #terminal magic
 
 		##Firmware download
@@ -896,14 +897,15 @@ class FlashMaster():
 			print(f'Sending firmware size ({self.firmware.length} B)', end = '... ' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('FirmwareSize', 'None', self.firmware.length))
 
-		print('Sending words of firmware...', file=self.output_file)
+		print(f'Sending {self.firmware.length} words of firmware...', file=self.output_file)
 		print(f'\tProgress ... {0:05}%', end='', file=self.output_file)
 		start = time.time()
-		last_print = time.time() - 1
+		last_print = time.time()
 
 		if args.quiet:
 			self.listing.pause()
 
+		totalSentBytes = 0
 		self.currentDataOffset = 0
 
 		while not self.dataTransmissionFinished:
@@ -914,12 +916,14 @@ class FlashMaster():
 			while self.stallRequested:
 				time.sleep(0.001)
 
+
 			absolute_address = self.currentDataOffset + self.firmware.base_address
 			data = self.firmware.flattened_map[self.currentDataOffset: self.currentDataOffset + 4]
 			assert all(byte is not None for byte in data) #all messages will carry whole word
 			data_as_word = sum(byte << index*8 for index, byte in enumerate(data))
 			self.send_data(absolute_address, data_as_word)
 
+			totalSentBytes += 4
 			self.currentDataOffset += 4
 
 			if self.currentDataOffset != len(self.firmware.flattened_map) and self.firmware.flattened_map[self.currentDataOffset] is None: #we have hit an empty space between two logical memory blocks
@@ -932,12 +936,14 @@ class FlashMaster():
 				self.currentDataOffset = new_data_offset
 
 			if time.time() - last_print > 0.01:
-				print(f'\r\tProgress ... {100 * self.currentDataOffset / len(self.firmware.flattened_map):5.2f}% ({self.currentDataOffset/1024/(time.time()-start):2.2f} KiBps)', end='', file=self.output_file)
+				print(f'\r\tProgress ... {100 * self.currentDataOffset / len(self.firmware.flattened_map):6.2f}% (avg {self.currentDataOffset/1024/(time.time()-start):5.2f} KiBps, efficiency {100*self.currentDataOffset/totalSentBytes:6.2f}%)', end='', file=self.output_file)
 				last_print = time.time()
+			if self.currentDataOffset/totalSentBytes < 0.9: #introduce a delay
+				time.sleep(0.00023)
 
-		print(f'\r\tProgress ... {100:5.2f}% ({len(self.firmware.flattened_map)/1024/(time.time()-start):2.2f} KiBps)', file=self.output_file)
-
-		print(f'Took {(time.time() - start)*1000:.2f} ms.')
+		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*self.currentDataOffset/totalSentBytes:3.3f}%)           ', file=self.output_file)
+		print(f'Took {(time.time() - start)*1000:.2f} ms')
+		assert totalSentBytes == self.firmware.length + self.resentBytesCount
 
 		checksum = self.firmware.calculate_checksum()
 
