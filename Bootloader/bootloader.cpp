@@ -50,9 +50,7 @@ namespace boot {
 
 		//see whether this is not the same page as the last one written.
 		//if it is, we can let the write continue.
-		auto const beg = begin(eraser_.erased_pages());
-		auto const end = std::next(beg, eraser_.erased_page_count());
-		if (std::find(beg, end, Flash::getEnclosingBlock(address)) == end)
+		if (std::find(begin(erasedBlocks_), end(erasedBlocks_), Flash::getEnclosingBlock(address)) == end(erasedBlocks_))
 			return WriteStatus::NotInErasedMemory;
 
 		return WriteStatus::Ok; //Everything seems ok, try to write
@@ -101,9 +99,7 @@ namespace boot {
 
 		MemoryBlock const enclosingBlock = Flash::getEnclosingBlock(address);
 
-		auto const beg = begin(erased_pages_);
-		auto const end = std::next(beg, erased_pages_count_);
-		if (std::find(beg, end, enclosingBlock) != end)
+		if (std::find(begin(erased_pages()), end(erased_pages()), enclosingBlock) != end(erased_pages()))
 			return HandshakeResponse::PageAlreadyErased;
 
 		Flash::ErasePage(address);
@@ -119,7 +115,6 @@ namespace boot {
 		firmware.writtenBytes_ = firmwareDownloader_.actualSize();
 		firmware.entryPoint_ = metadataReceiver_.entry_point();
 		firmware.interruptVector_ = metadataReceiver_.isr_vector();
-		firmware.logical_memory_block_count_ = firmwareMemoryMapReceiver_.logicalMemoryBlockCount();
 		firmware.logical_memory_blocks_ = firmwareMemoryMapReceiver_.logicalMemoryBlocks();
 
 		return firmware;
@@ -150,9 +145,10 @@ namespace boot {
 		Flash::Unlock();
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware.interruptVector_);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.firmwareSize_), firmware.writtenBytes_.toBytes());
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_block_count_), firmware.logical_memory_block_count_);
+		std::uint32_t logicalMemoryBlockCount = size(firmware.logical_memory_blocks_);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_block_count_), logicalMemoryBlockCount);
 
-		for (std::uint32_t i = 0; i < firmware.logical_memory_block_count_; ++i) {
+		for (std::uint32_t i = 0; i < logicalMemoryBlockCount; ++i) {
 			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_blocks_[i].address), firmware.logical_memory_blocks_[i].address);
 			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_blocks_[i].length), firmware.logical_memory_blocks_[i].length);
 		}
@@ -367,9 +363,9 @@ namespace boot {
 		written_bytes_ += InformationSize::fromBytes(sizeof(half_word));
 
 		blockOffset_ += 2;
-		if (blockOffset_ == receiver_.logicalMemoryBlocks()[current_block_index_].length) {
+		if (blockOffset_ == firmwareBlocks_[current_block_index_].length) {
 			blockOffset_ = 0;
-			if (++current_block_index_ == receiver_.logicalMemoryBlockCount())
+			if (++current_block_index_ == size(firmwareBlocks_))
 				status_ = Status::noMoreDataExpected;
 		}
 
@@ -545,7 +541,7 @@ namespace boot {
 			auto const result = physicalMemoryBlockEraser_.receive(reg, command, value);
 			if (physicalMemoryBlockEraser_.done()) {
 				status_ = Status::DownloadingFirmware;
-				firmwareDownloader_.startSubtransaction();
+				firmwareDownloader_.startSubtransaction(physicalMemoryBlockEraser_.erased_pages(), firmwareMemoryMapReceiver_.logicalMemoryBlocks());
 			}
 			return result;
 
