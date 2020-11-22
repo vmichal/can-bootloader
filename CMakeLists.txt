@@ -14,55 +14,11 @@ set(SRC
         BSP/gpio.cpp
         BSP/timer.cpp
         stm32f10x_conf.h
+
         Drivers/Cmsis/core_cm3.h
         Drivers/Cmsis/core_cm3.c
         Drivers/Cmsis/stm32f10x.h
-        Drivers/StdPeriph/Inc/misc.h
-        Drivers/StdPeriph/Inc/stm32f10x_adc.h
-        Drivers/StdPeriph/Inc/stm32f10x_bkp.h
-        Drivers/StdPeriph/Inc/stm32f10x_can.h
-        Drivers/StdPeriph/Inc/stm32f10x_cec.h
-        Drivers/StdPeriph/Inc/stm32f10x_crc.h
-        Drivers/StdPeriph/Inc/stm32f10x_dac.h
-        Drivers/StdPeriph/Inc/stm32f10x_dbgmcu.h
-        Drivers/StdPeriph/Inc/stm32f10x_dma.h
-        Drivers/StdPeriph/Inc/stm32f10x_exti.h
-        Drivers/StdPeriph/Inc/stm32f10x_flash.h
-        Drivers/StdPeriph/Inc/stm32f10x_fsmc.h
-        Drivers/StdPeriph/Inc/stm32f10x_gpio.h
-        Drivers/StdPeriph/Inc/stm32f10x_i2c.h
-        Drivers/StdPeriph/Inc/stm32f10x_iwdg.h
-        Drivers/StdPeriph/Inc/stm32f10x_pwr.h
-        Drivers/StdPeriph/Inc/stm32f10x_rcc.h
-        Drivers/StdPeriph/Inc/stm32f10x_rtc.h
-        Drivers/StdPeriph/Inc/stm32f10x_sdio.h
-        Drivers/StdPeriph/Inc/stm32f10x_spi.h
-        Drivers/StdPeriph/Inc/stm32f10x_tim.h
-        Drivers/StdPeriph/Inc/stm32f10x_usart.h
-        Drivers/StdPeriph/Inc/stm32f10x_wwdg.h
-        Drivers/StdPeriph/Src/misc.c
-        Drivers/StdPeriph/Src/stm32f10x_adc.c
-        Drivers/StdPeriph/Src/stm32f10x_bkp.c
-        Drivers/StdPeriph/Src/stm32f10x_can.c
-        Drivers/StdPeriph/Src/stm32f10x_cec.c
-        Drivers/StdPeriph/Src/stm32f10x_crc.c
-        Drivers/StdPeriph/Src/stm32f10x_dac.c
-        Drivers/StdPeriph/Src/stm32f10x_dbgmcu.c
-        Drivers/StdPeriph/Src/stm32f10x_dma.c
-        Drivers/StdPeriph/Src/stm32f10x_exti.c
-        Drivers/StdPeriph/Src/stm32f10x_flash.c
-        Drivers/StdPeriph/Src/stm32f10x_fsmc.c
-        Drivers/StdPeriph/Src/stm32f10x_gpio.c
-        Drivers/StdPeriph/Src/stm32f10x_i2c.c
-        Drivers/StdPeriph/Src/stm32f10x_iwdg.c
-        Drivers/StdPeriph/Src/stm32f10x_pwr.c
-        Drivers/StdPeriph/Src/stm32f10x_rcc.c
-        Drivers/StdPeriph/Src/stm32f10x_rtc.c
-        Drivers/StdPeriph/Src/stm32f10x_sdio.c
-        Drivers/StdPeriph/Src/stm32f10x_spi.c
-        Drivers/StdPeriph/Src/stm32f10x_tim.c
-        Drivers/StdPeriph/Src/stm32f10x_usart.c
-        Drivers/StdPeriph/Src/stm32f10x_wwdg.c
+        
         CANdb/tx2_can.c
         CANdb/tx2_ringbuf.c
         CANdb/can_Bootloader.c

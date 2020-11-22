@@ -49,8 +49,11 @@ namespace boot {
 		static std::uint32_t const jumpTableAddress;
 		static std::uint32_t const applicationAddress;
 
-		static void Lock() { FLASH_Lock(); }
-		static void Unlock() { FLASH_Unlock(); }
+		static void Lock() { ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_LOCK); }
+		static void Unlock() {
+			FLASH->KEYR = 0x45670123;
+			FLASH->KEYR = 0xcdef89ab;
+		}
 
 		static bool ErasePage(std::uint32_t pageAddress);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);
