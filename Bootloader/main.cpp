@@ -21,14 +21,18 @@ namespace boot {
 
 	namespace {
 
-		void flushCAN(int bus) {
+		void flushCAN(int bus, Duration timeout = 0_ms) {
 			assert(bus == bus_CAN1 || bus == bus_CAN2);
 
+			if (timeout == 0_ms)
+				timeout = 3600_s; //an hour may be enough as "no timeout" :shrug:
+
 			//make sure all can messages have been transmitted
+			Timestamp const start = Timestamp::Now();
 			if (bus == bus_CAN1)
-				while (!ufsel::bit::all_set(CAN1->TSR, CAN_TSR_TME));
+				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN1->TSR, CAN_TSR_TME));
 			else
-				while (!ufsel::bit::all_set(CAN2->TSR, CAN_TSR_TME));
+				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN2->TSR, CAN_TSR_TME));
 		}
 
 		void setupCommonCanCallbacks() {
@@ -39,7 +43,7 @@ namespace boot {
 
 				if (data->Force) { //We want to restart the bootloader
 					canManager.SendExitAck(true);
-					flushCAN(Bootloader_ExitReq_status.bus);
+					flushCAN(Bootloader_ExitReq_status.bus, 500_ms);
 
 					Bootloader::resetTo(BackupDomain::bootloader_magic);
 				}
@@ -49,7 +53,7 @@ namespace boot {
 					return 1;
 				}
 				canManager.SendExitAck(true);
-				flushCAN(Bootloader_ExitReq_status.bus);
+				flushCAN(Bootloader_ExitReq_status.bus, 500_ms);
 
 				Bootloader::resetTo(BackupDomain::application_magic);
 				});
