@@ -29,6 +29,8 @@ namespace boot {
 		void SendTransactionMagic() const;
 		void yieldCommunication() const;
 
+		void RestartDataFrom(std::uint32_t address);
+
 		Bootloader_Handshake_t const& lastSentHandshake() const { return lastSentHandshake_;}
 	};
 

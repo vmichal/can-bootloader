@@ -109,4 +109,8 @@ namespace boot {
 		send(message);
 	}
 
+	void CanManager::RestartDataFrom(std::uint32_t address) {
+		return SendHandshake(handshake::get(Register::Command, Command::RestartFromAddress, address));
+	}
+
 }

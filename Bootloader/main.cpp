@@ -6,6 +6,8 @@
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
 
+#include <optional>
+
 #include "bootloader.hpp"
 #include "canmanager.hpp"
 #include "tx2/tx.h"
@@ -18,6 +20,7 @@ namespace boot {
 
 	CanManager canManager;
 	Bootloader bootloader{ canManager };
+	std::optional<Timestamp> lastReceivedData;
 
 	namespace {
 
@@ -64,6 +67,7 @@ namespace boot {
 			Bootloader_Data_on_receive([](Bootloader_Data_t* data) -> int {
 				std::uint32_t const address = data->Address << 2;
 
+				lastReceivedData = Timestamp::Now();
 				WriteStatus const ret = data->HalfwordAccess
 					? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
 					: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
@@ -73,7 +77,7 @@ namespace boot {
 				else if (ret == WriteStatus::DiscontinuousWriteAccess) {
 					auto const expectedWriteLocation = bootloader.expectedWriteLocation();
 					assert(expectedWriteLocation.has_value());
-					canManager.SendHandshake(handshake::get(Register::Command, Command::RestartFromAddress, *expectedWriteLocation));
+					canManager.RestartDataFrom(*expectedWriteLocation);
 					return 1;
 				}
 
@@ -155,6 +159,12 @@ namespace boot {
 				canManager.SendBeacon(bootloader.status(), bootloader.entryReason());
 
 			txProcess();
+
+			if (bootloader.status() == Status::DownloadingFirmware && lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s)) {
+				auto const expectedAddress = bootloader.expectedWriteLocation();
+				assert(expectedAddress.has_value());
+				canManager.RestartDataFrom(*expectedAddress);
+			}
 		}
 
 	}
