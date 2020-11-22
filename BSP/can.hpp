@@ -5,7 +5,7 @@
 #define __CAN_H
 
 
-#include "stm32f10x.h"
+#include <Bootloader/options.hpp>
 #include <library/units.hpp>
 
 constexpr Frequency can1_frequency = 500'000_Hz;

@@ -1,6 +1,5 @@
 
 
-#include "stm32f10x.h"
 #include "gpio.hpp"
 
 #include <initializer_list>
@@ -14,9 +13,9 @@ namespace bsp::gpio {
 
 	using namespace pins;
 
+#ifdef STM32F1
 	void Initialize(void)
 	{
-
 		//Enable clock to GPIOA, GPIOB
 		ufsel::bit::set(std::ref(RCC->APB2ENR),
 			RCC_APB2ENR_IOPAEN,
@@ -35,6 +34,30 @@ namespace bsp::gpio {
 			ufsel::bit::modify(std::ref(reg), mask, static_cast<std::uint32_t>(p.mode_), shift);
 		}
 	}
+#else
+#ifdef STM32F4
+
+	void Initialize(void)
+	{
+		//Enable clock to GPIOA, GPIOB
+		ufsel::bit::set(std::ref(RCC->APB2ENR),
+			RCC_AHB1ENR_GPIOAEN,
+			RCC_AHB1ENR_GPIOBEN);
+
+		constexpr unsigned configBits = 4;
+
+		for (Pin const& p : { CAN1_RX, CAN2_RX, CAN1_TX, CAN2_TX }) {
+			auto volatile & gpio = *p.gpio();
+			bool const rx = p.mode_ == PinMode::input_floating;
+
+			ufsel::bit::modify(std::ref(gpio.OSPEEDR), ufsel::bit::bitmask_of_width(2), rx ? 0 : 0b01, p.pin * 2);
+			//alternate function pins
+			ufsel::bit::modify(std::ref(gpio.MODER), ufsel::bit::bitmask_of_width(2), 0b10, p.pin * 2);
+			ufsel::bit::modify(std::ref(gpio.AFR[p.pin >= 8]), ufsel::bit::bitmask_of_width(4), 9, p.pin * 4);
+		}
+	}
+#endif
+#endif
 }
 
 

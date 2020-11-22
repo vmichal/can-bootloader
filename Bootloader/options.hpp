@@ -14,6 +14,21 @@
 #include <library/units.hpp>
 #include <algorithm>
 #include <CANdb/can_Bootloader.h>
+#include <bit>
+
+#define POS_FROM_MASK(x) std::countr_zero(x)
+#ifdef STM32F105xC
+#include "stm32f10x.h"
+#define BIT_MASK(name) name ## _Msk
+#include "core_cm3.h"
+#else
+#ifdef STM32F4 //TODO make this more correct
+#define BIT_MASK(name) name ## _Msk
+
+#include "stm32f4xx.h"
+#include "core_cm4.h"
+#endif
+#endif
 
 namespace boot {
 
@@ -74,16 +89,48 @@ namespace boot {
 		}
 	};
 
-
 	namespace customization {
 
 		//The ISR vector is required to be 512B aligned, this holds for all Cortex M3s I have seen, but you are free to adjust based on your needs.
 		constexpr int isrVectorAlignmentBits = 9;
+		//Start of flash memory. Must be kept in sync with the linker script
+		constexpr std::uint32_t flashMemoryBaseAddress = 0x0800'0000;
+
+#ifdef STM32F4 
+		//The number of physical blocks available on the target chip 
+		constexpr std::uint32_t physicalBlockCount = 12;
+
+		//Used only iff the flash memory consists of blocks of the same size
+		constexpr InformationSize physicalBlockSize = 0_B;
+
+		//Controls, whether the flash memory consists of blocks of the same size (f1xx flash pages) or different sizes (f4xx sectors)
+		constexpr PhysicalBlockSizes physicalBlockSizePolicy = PhysicalBlockSizes::different;
+
+		//In case of AMS/DSH, the bootloader occupies 10K of flash and the application jump table occupies two more.
+		//Hence the application can not start at lower address as the start of sixth block
+		//TODO this must be checked once in a while, whether it is correct...
+		constexpr std::uint32_t firstBlockAvailableToApplication = 2;
+
+		//Fill this array with memory blocks iff the memory blocks have unequal sizes
+		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal {
+			MemoryBlock{0x0800'0000, ( 16_KiB).toBytes()},
+			MemoryBlock{0x0800'4000, ( 16_KiB).toBytes()},
+			MemoryBlock{0x0800'8000, ( 16_KiB).toBytes()},
+			MemoryBlock{0x0800'C000, ( 16_KiB).toBytes()},
+			MemoryBlock{0x0801'0000, ( 64_KiB).toBytes()},
+			MemoryBlock{0x0802'0000, (128_KiB).toBytes()},
+			MemoryBlock{0x0804'0000, (128_KiB).toBytes()},
+			MemoryBlock{0x0806'0000, (128_KiB).toBytes()},
+			MemoryBlock{0x0808'0000, (128_KiB).toBytes()},
+			MemoryBlock{0x080A'0000, (128_KiB).toBytes()},
+			MemoryBlock{0x080C'0000, (128_KiB).toBytes()},
+			MemoryBlock{0x080E'0000, (128_KiB).toBytes()}
+		};
+#else
+#ifdef STM32F1
 
 		//The number of physical blocks available on the target chip 
 		constexpr std::uint32_t physicalBlockCount = 128;
-		//Start of flash memory. Must be kept in sync with the linker script
-		constexpr std::uint32_t flashMemoryBaseAddress = 0x0800'0000;
 
 		//Used only iff the flash memory consists of blocks of the same size
 		constexpr InformationSize physicalBlockSize = 2048_B;
@@ -91,19 +138,20 @@ namespace boot {
 		//Controls, whether the flash memory consists of blocks of the same size (f1xx flash pages) or different sizes (f4xx sectors)
 		constexpr PhysicalBlockSizes physicalBlockSizePolicy = PhysicalBlockSizes::same;
 
-		//Fill this array with memory blocks iff the memory blocks have unequal sizes
-		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal {};
-
 		//In case of AMS/DSH, the bootloader occupies 10K of flash and the application jump table occupies two more.
 		//Hence the application can not start at lower address as the start of sixth block
 		//TODO this must be checked once in a while, whether it is correct...
 		constexpr std::uint32_t firstBlockAvailableToApplication = 6;
 
+		//Fill this array with memory blocks iff the memory blocks have unequal sizes
+		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{ };
+#endif
+#endif
+
+
 		//Bootloader target identification
 		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
 	}
-
-
 
 	auto constexpr getMemoryBlocks() {
 		if constexpr (customization::physicalBlockSizePolicy == PhysicalBlockSizes::same)
@@ -112,7 +160,11 @@ namespace boot {
 			return customization::blocksWhenSizesAreUnequal;
 	}
 	constexpr auto physicalMemoryBlocks = getMemoryBlocks();
+#ifdef STM32F1
 	static_assert(physicalMemoryBlocks.size() == 128); //sanity check that this template magic works
+#else
+	static_assert(physicalMemoryBlocks.size() == 12); //sanity check that this template magic works
+#endif
 
 	constexpr bool enableAssert = true;
 
@@ -123,3 +175,6 @@ namespace boot {
 	constexpr std::uint32_t smallestPageSize = (*std::min_element(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(),[](auto const &a, auto const &b) {return a.length < b.length;} )).length;
 
 }
+
+
+

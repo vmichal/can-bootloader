@@ -8,15 +8,15 @@
 
 #include <Bootloader/flash.hpp>
 #include <Bootloader/bootloader.hpp>
+#include <Bootloader/options.hpp>
 #include <ufsel/bit_operations.hpp>
-
-#include "stm32f10x.h"
 
 #include "gpio.hpp"
 #include "can.hpp"
 #include "timer.hpp"
 
 #include <cstdint>
+#include <bit>
 
 extern "C" {
 	//The following is taken from linker.ld:
@@ -107,6 +107,7 @@ namespace {
 		return boot::EntryReason::DontEnter;
 	}
 
+#ifdef STM32F1
 	//Initializes system clock to max frequencies: 72MHz SYSCLK, AHB, APB2; 36MHz APB1
 	void configure_system_clock() {
 
@@ -131,6 +132,47 @@ namespace {
 		//Configure and start system milisecond clock
 		SystemTimer::Initialize();
 	}
+#else
+#ifdef STM32F4
+	void configure_system_clock() {
+		using namespace ufsel;
+
+		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Start and wait for HSE stabilization
+		while (bit::all_cleared(RCC->CR, RCC_CR_HSERDY));
+
+		constexpr int PLLM = 12; //There is 12Mhz HSE, reduced to 1MHz input to the PLL
+		constexpr int PLLN = 400; //PLL multiplies frequency to 400MHz
+
+		RCC->PLLCFGR = bit::set(
+			7 << POS_FROM_MASK(RCC_PLLCFGR_PLLR), //Probably irrelevant, not used
+			15 << POS_FROM_MASK(RCC_PLLCFGR_PLLQ), //Probably irrelevant, not used
+			RCC_PLLCFGR_PLLSRC, //HSE used as source
+			//Divide PLL output (400MHz) by 4 in order not to exceed 100MHz on AHB
+			0b01 << POS_FROM_MASK(RCC_PLLCFGR_PLLP),
+			PLLN << POS_FROM_MASK(RCC_PLLCFGR_PLLN),
+			PLLM << POS_FROM_MASK(RCC_PLLCFGR_PLLM));
+
+		//Section 3.4.1 of reference manual - conversion table from CPU speed and voltage range to flash latency
+		constexpr auto desired_latency = FLASH_ACR_LATENCY_3WS; //Voltage range 2.7-3.6 && 90 < HCLK <= 100 --> 3 wait states
+		bit::modify(std::ref(FLASH->ACR), FLASH_ACR_LATENCY, desired_latency);
+		bit::set(std::ref(FLASH->ACR), FLASH_ACR_PRFTEN);
+		while (bit::get(FLASH->ACR, FLASH_ACR_LATENCY) != desired_latency); //Wait for ack
+
+		RCC->CFGR = bit::set(
+			RCC_CFGR_PPRE2_DIV1, //APB2 has full speed of AHB (not divided clock)
+			RCC_CFGR_PPRE1_DIV2, //APB1 is restricted to at most 50MHz
+			RCC_CFGR_HPRE_DIV1);
+
+		bit::set(std::ref(RCC->CR), RCC_CR_PLLON); //Start and wait for PLL stabilization
+		while (bit::all_cleared(RCC->CR, RCC_CR_PLLRDY));
+
+		bit::set(std::ref(RCC->CFGR), RCC_CFGR_SW_PLL); //Switch system clock to PLL and await acknowledge
+		while (bit::sliceable_reference{ RCC->CFGR } [bit::slice{ 3,2 }] != RCC_CFGR_SWS_PLL);
+
+		bit::clear(std::ref(RCC->CR), RCC_CR_HSION); //Kill power to HSI
+	}
+#endif
+#endif
 
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
@@ -156,11 +198,31 @@ extern "C" void Reset_Handler() {
 	//No static constructors have been called yet either.
 	//This is the first instruction executed after system reset
 
+#ifdef STM32F1
 	bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
+#else
+#ifdef STM32F4
+	bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
+	bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable backup domain protection
+	bit::set(std::ref(RCC->BDCR), 0b10 << POS_FROM_MASK(RCC_BDCR_RTCSEL)); //select LSI as RTC clock
+	bit::set(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
+#endif
+#endif
 
 	boot::EntryReason const reason = determineApplicationAvailability();
+
+#ifdef STM32F1
 	//Disable clock to backup registers (to make the application feel as if no bootloader was present)
 	bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
+#else
+#ifdef STM32F4
+	//Disable clock to backup registers (to make the application feel as if no bootloader was present)
+	bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
+	bit::clear(std::ref(PWR->CR), PWR_CR_DBP); //Disable backup domain protection
+	bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCSEL); //select LSI as RTC clock
+	bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
+#endif
+#endif
 
 	if (reason == boot::EntryReason::DontEnter) {
 		SCB->VTOR = boot::jumpTable.interruptVector_; //Set the address of application's interrupt vector

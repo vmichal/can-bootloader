@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stm32f10x.h>
 #include <cstdint>
+#include <Bootloader/options.hpp>
 
 
 enum class PinMode { //These two mode are sufficient to control CAN peripheral.
