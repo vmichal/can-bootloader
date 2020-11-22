@@ -132,11 +132,14 @@ namespace {
 		SystemTimer::Initialize();
 	}
 
-	void do_load_section(std::uint32_t const* load_address, std::uint32_t const* begin, std::uint32_t const* const end) __attribute__((section(".executed_from_flash")));
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+	void do_load_section(std::uint32_t const* load_address, std::uint32_t * begin, std::uint32_t const* const end) __attribute__((section(".executed_from_flash")));
 	void do_load_section(std::uint32_t const* load_address, std::uint32_t * begin, std::uint32_t const* const end) {
 		for (; begin != end; ++load_address, ++begin)
 			*begin = *load_address;
 	}
+#pragma GCC pop_options
 }
 
 #define VMA(section) _s ## section

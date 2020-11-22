@@ -14,7 +14,7 @@ SET(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/linker.ld)
 SET(OPTIMIZATION_LEVEL "s")
 
 set (CMAKE_C_STANDARD 11)
-set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_STANDARD 20)
 
 #TODO make things like MCU configurable
 SET(DEVICE_FLAGS "-mcpu=cortex-m3 -mthumb -mfloat-abi=soft")
