@@ -6,7 +6,6 @@
 #include "bootloader.hpp"
 
 #include <BSP/timer.hpp>
-#include <library/utility.hpp>
 #include <library/assert.hpp>
 #include <ufsel/sw_build.hpp>
 #include <ufsel/bit.hpp>
