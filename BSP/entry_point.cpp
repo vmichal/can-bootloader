@@ -167,7 +167,7 @@ namespace {
 		while (bit::all_cleared(RCC->CR, RCC_CR_PLLRDY));
 
 		bit::set(std::ref(RCC->CFGR), RCC_CFGR_SW_PLL); //Switch system clock to PLL and await acknowledge
-		while (bit::sliceable_reference{ RCC->CFGR } [bit::slice{ 3,2 }] != RCC_CFGR_SWS_PLL);
+		while (bit::sliceable_reference{ RCC->CFGR } [bit::slice{ 3,2 }].unshifted()!=RCC_CFGR_SWS_PLL);
 
 		bit::clear(std::ref(RCC->CR), RCC_CR_HSION); //Kill power to HSI
 	}
