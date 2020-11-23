@@ -16,8 +16,6 @@
 #include <cstddef>
 #include <cstdint>
 
-
-
 namespace boot {
 
 	constexpr std::uint32_t end(MemoryBlock const & block) { return block.address + block.length; }

@@ -22,7 +22,7 @@ SET(OPTIMIZATIONS_FLAGS "-g3 -O${OPTIMIZATION_LEVEL} -finline-functions-called-o
 
 SET(DEFINES "-DSTM32F4 -DSTM32F412xG -DTX_WITH_CANDB=1 -DHSE_VALUE=8000000 -D__weak='__attribute__((weak))' -D__packed='__attribute__((__packed__))'")
 
-SET(VALIDATION_FLAGS "-Wno-volatile -Werror=switch -Werror=return-type -Werror=stringop-overflow -Werror=parentheses  -Wall -Wextra -Wundef -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wnull-dereference -Wcast-align -Wvla -Wmissing-format-attribute -Wuninitialized -Winit-self -Wdouble-promotion -Wstrict-aliasing -Wno-unused-local-typedefs -Wno-unused-function -Wno-unused-parameter -fno-unwind-tables -Wno-volatile")
+SET(VALIDATION_FLAGS "-Werror=switch -Werror=return-type -Werror=stringop-overflow -Werror=parentheses  -Wall -Wextra -Wundef -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wnull-dereference -Wcast-align -Wvla -Wmissing-format-attribute -Wuninitialized -Winit-self -Wdouble-promotion -Wstrict-aliasing -Wno-unused-local-typedefs -Wno-unused-function -Wno-unused-parameter -fno-unwind-tables")
 
 SET(CONFIG_FILES "-DUFSEL_CONFIGURATION_FILE=\"<ufsel-configuration.hpp>\"")
 
@@ -30,7 +30,7 @@ SET(CONFIG_FILES "-DUFSEL_CONFIGURATION_FILE=\"<ufsel-configuration.hpp>\"")
 
 SET(COMMON_FLAGS "${DEVICE_FLAGS} ${OPTIMIZATIONS_FLAGS} ${DEFINES} ${VALIDATION_FLAGS} ${CONFIG_FILES}")
 
-SET(CMAKE_CXX_FLAGS_INIT "${COMMON_FLAGS} -fno-exceptions -fno-rtti -fno-threadsafe-statics -fno-use-cxa-atexit")
+SET(CMAKE_CXX_FLAGS_INIT "${COMMON_FLAGS} -fno-exceptions -fno-rtti -fno-threadsafe-statics -fno-use-cxa-atexit -Wno-volatile")
 
 SET(CMAKE_C_FLAGS_INIT "${COMMON_FLAGS} -Werror=implicit-function-declaration -Werror=int-conversion -Werror=incompatible-pointer-types")   
 

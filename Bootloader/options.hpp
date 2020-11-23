@@ -15,9 +15,10 @@
 #include <algorithm>
 #include <CANdb/can_Bootloader.h>
 #include <bit>
+#include <array>
 
 #define POS_FROM_MASK(x) std::countr_zero(x)
-#ifdef STM32F105xC
+#ifdef STM32F1
 #include "stm32f10x.h"
 #define BIT_MASK(name) name ## _Msk
 #include "core_cm3.h"
@@ -89,6 +90,9 @@ namespace boot {
 		}
 	};
 
+	template<std::size_t N, std::size_t BlockSize, std::size_t BaseAddress>
+	constexpr std::size_t size(EquidistantMemoryGenerator<N, BlockSize, BaseAddress> const&gen) { return gen.size(); }
+
 	namespace customization {
 
 		//The ISR vector is required to be 512B aligned, this holds for all Cortex M3s I have seen, but you are free to adjust based on your needs.
@@ -145,6 +149,8 @@ namespace boot {
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
 		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{ };
+#else
+#error "This MCU is not supported"
 #endif
 #endif
 
