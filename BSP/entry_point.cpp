@@ -40,24 +40,24 @@ extern "C" {
 	} > RAM AT > BootloaderFlash
 #endif
 
-	extern std::uint32_t _sdata[]; //Points to the start of data in RAM
-	extern std::uint32_t _edata[]; //Points past the end of data in RAM
-	extern std::uint32_t _load_data[]; //Points to the start of data in FLASH
+	extern std::uint32_t           _sdata[]; //Points to the start of data in RAM
+	extern std::uint32_t           _edata[]; //Points past the end of data in RAM
+	extern std::uint32_t const _load_data[]; //Points to the start of data in FLASH
 
 	extern std::uint32_t _sbss[]; //Points to the beginning of .bss in RAM
 	extern std::uint32_t _ebss[]; //Points past the end of .bss in RAM
 
-	extern std::uint32_t _stext[]; //Points to the beginning of .text in RAM
-	extern std::uint32_t _etext[]; //Points past the end of .text in RAM
-	extern std::uint32_t _load_text[]; //Points to the start of .text in FLASH
+	extern std::uint32_t           _stext[]; //Points to the beginning of .text in RAM
+	extern std::uint32_t           _etext[]; //Points past the end of .text in RAM
+	extern std::uint32_t const _load_text[]; //Points to the start of .text in FLASH
 
-	extern std::uint32_t     _sisr_vector[]; //Points to the beginning of .isr_vector in RAM
-	extern std::uint32_t     _eisr_vector[]; //Points past the end of .isr_vector in RAM
-	extern std::uint32_t _load_isr_vector[]; //Points to the start of .isr_vector in FLASH
+	extern std::uint32_t           _sisr_vector[]; //Points to the beginning of .isr_vector in RAM
+	extern std::uint32_t           _eisr_vector[]; //Points past the end of .isr_vector in RAM
+	extern std::uint32_t const _load_isr_vector[]; //Points to the start of .isr_vector in FLASH
 
-	extern std::uint32_t     _srodata[]; //Points to the beginning of .rodata in RAM
-	extern std::uint32_t     _erodata[]; //Points past the end of .rodata in RAM
-	extern std::uint32_t _load_rodata[]; //Points to the start of .rodata in FLASH
+	extern std::uint32_t           _srodata[]; //Points to the beginning of .rodata in RAM
+	extern std::uint32_t           _erodata[]; //Points past the end of .rodata in RAM
+	extern std::uint32_t const _load_rodata[]; //Points to the start of .rodata in FLASH
 
 	void __libc_init_array();
 }
