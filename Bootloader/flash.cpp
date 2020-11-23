@@ -42,8 +42,8 @@ namespace boot {
 		//configure write paralelism based on voltage range, use 32bit paralellism (0b10)
 		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
 
-		unsigned const sectorIndex = Flash::makePageAligned(pageAddress);
-		//TODO erase sector 11
+		unsigned const sectorIndex = Flash::getEnclosingBlockIndex(pageAddress);
+
 		assert(ufsel::bit::all_cleared(FLASH->CR, FLASH_CR_MER, FLASH_CR_PG));
 		FLASH->CR |= FLASH_CR_SER; //Choose sector erase.
 		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(4), sectorIndex, POS_FROM_MASK(FLASH_CR_SNB));
