@@ -133,7 +133,6 @@ namespace boot {
 
 	void main() {
 
-		bsp::can::enableIRQs(); //Enable reception from CAN
 		setupCommonCanCallbacks();
 
 		//If the BL activation has been requested, we can assume that there is no other boi on the bus
@@ -156,14 +155,24 @@ namespace boot {
 				canManager.SendSoftwareBuild();
 
 			if (need_to_send<Bootloader_Beacon_t>())
-				canManager.SendBeacon(bootloader.status(), bootloader.entryReason());
+				canManager.SendBeacon(bootloader.stalled() ? Status::ComunicationStalled: bootloader.status(), bootloader.entryReason());
 
 			txProcess();
 
-			if (bootloader.status() == Status::DownloadingFirmware && lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s)) {
+			if (bootloader.status() == Status::DownloadingFirmware && lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s) && !bootloader.stalled()) {
 				auto const expectedAddress = bootloader.expectedWriteLocation();
 				assert(expectedAddress.has_value());
 				canManager.RestartDataFrom(*expectedAddress);
+			}
+
+			if (txBufferGettingFull() && !bootloader.stalled()) {
+				canManager.SendHandshake(handshake::stall);
+				bootloader.stalled() = true;
+			}
+
+			if (bootloader.stalled() && txBufferGettingEmpty()) {
+				canManager.SendHandshake(handshake::resume);
+				bootloader.stalled() = false;
 			}
 		}
 

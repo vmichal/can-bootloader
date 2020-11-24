@@ -186,6 +186,8 @@ enum Bootloader_State {
     Bootloader_State_Error = 7,
     /* There is another bootloader present on the bus! */
     Bootloader_State_OtherBootloaderDetected = 8,
+    /* Bootloader is overwhelmed and has suspended the communication. */
+    Bootloader_State_CommunicationStalled = 9,
 };
 
 enum Bootloader_WriteResult {

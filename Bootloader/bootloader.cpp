@@ -9,7 +9,6 @@
 
 #include "bootloader.hpp"
 #include "flash.hpp"
-#include "stm32f10x.h"
 
 #include <library/assert.hpp>
 #include <library/timer.hpp>
@@ -340,7 +339,13 @@ namespace boot {
 					return HandshakeResponse::InvalidTransactionMagic;
 				//wait for all operations to finish and lock flash
 				while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
+#ifdef STM32F1
 				ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
+#else
+#ifdef STM32F4
+				ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_SER);
+#endif
+#endif
 				Flash::Lock();
 				status_ = Status::done;
 				return HandshakeResponse::Ok;
@@ -565,6 +570,7 @@ namespace boot {
 			return result;
 		}
 		case Status::Error:
+		case Status::ComunicationStalled:
 			return HandshakeResponse::BootloaderInError;
 		case Status::OtherBootloaderDetected:
 			assert_unreachable();
@@ -596,14 +602,24 @@ namespace boot {
 
 
 	[[noreturn]] void Bootloader::resetTo(std::uint16_t const code) {
-		ufsel::bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain
-		ufsel::bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable write protection of Backup domain
+		using namespace ufsel;
+#ifdef STM32F1
+		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
+		bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable write protection of Backup domain
+#else
+#ifdef STM32F4
+		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
+		bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable backup domain protection
+		bit::set(std::ref(RCC->BDCR), 0b10 << POS_FROM_MASK(RCC_BDCR_RTCSEL)); //select LSI as RTC clock
+		bit::set(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
+#endif
+#endif
 
 		assert(code == BackupDomain::application_magic || code == BackupDomain::bootloader_magic);
 		BackupDomain::bootControlRegister = code;
 
 		SCB->AIRCR = (0x5fA << SCB_AIRCR_VECTKEYSTAT_Pos) | //magic value required for write to succeed
-			SCB_AIRCR_SYSRESETREQ; //Start the system reset
+			BIT_MASK(SCB_AIRCR_SYSRESETREQ); //Start the system reset
 
 		for (;;); //wait for reset
 	}

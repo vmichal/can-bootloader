@@ -175,6 +175,7 @@ constexpr Power operator""_W(unsigned long long power)          { return Power::
 constexpr Power operator""_kW(unsigned long long power)         { return Power::fromKilowatts(power); }
 
 constexpr Frequency operator""_Hz(unsigned long long freq)      { return Frequency::fromHertz(freq); }
+constexpr Frequency operator""_MHz(unsigned long long freq)      { return Frequency::fromHertz(1'000'000*freq); }
 
 constexpr Duration operator""_ms (unsigned long long dur)     { return Duration::fromMilliseconds(dur); }
 constexpr Duration operator""_s  (unsigned long long dur)     { return Duration::fromSeconds(dur); }

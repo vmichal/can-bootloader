@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.14)
 project(Bootloader CXX C ASM)
 
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/QueryRepositoryState.cmake")
@@ -15,9 +15,11 @@ set(SRC
         BSP/timer.cpp
         stm32f10x_conf.h
 
-        Drivers/Cmsis/core_cm3.h
-        Drivers/Cmsis/core_cm3.c
-        Drivers/Cmsis/stm32f10x.h
+        Drivers/core_cm3.h
+        Drivers/core_cm4.h
+        Drivers/core_cm3.c
+        Drivers/stm32f10x.h
+        Drivers/stm32f4xx.h
         
         CANdb/tx2_can.c
         CANdb/tx2_ringbuf.c
@@ -29,8 +31,7 @@ set(SRC
 add_executable(${PROJECT_NAME}.elf ${SRC} ${CAN_SRC})
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
-        Drivers/Cmsis
-        Drivers/StdPeriph/Inc
+        Drivers/
         CANdb
         .
         ufsel/include

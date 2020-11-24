@@ -15,9 +15,7 @@ namespace bsp::can {
 
 	void enableIRQs() {
 
-		//Enbale the Fifo1 Message Pending Iterrupt for both peripherals
-		ufsel::bit::set(std::ref(CAN1->IER), CAN_IER_FMPIE0);
-		ufsel::bit::set(std::ref(CAN2->IER), CAN_IER_FMPIE0);
+
 	}
 
 	namespace {
@@ -67,6 +65,9 @@ namespace bsp::can {
 				(prescaler - 1)
 			);
 
+			//Enable the Fifo1 Message Pending Iterrupt for this peripheral
+			ufsel::bit::set(std::ref(can.IER), CAN_IER_FMPIE0);
+
 			//request to enter normal mode
 			bit::clear(std::ref(can.MCR), CAN_MCR_INRQ);
 		}
@@ -81,7 +82,7 @@ namespace bsp::can {
 		peripheralRequestInitialization(*CAN1);
 		peripheralRequestInitialization(*CAN2);
 
-		constexpr Frequency APB1_frequency = 36'000'000_Hz;
+		constexpr Frequency APB1_frequency = 12'000'000_Hz;
 		constexpr int quanta_per_bit = 6;
 
 		//Initialize peripherals

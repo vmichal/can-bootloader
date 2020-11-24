@@ -16,8 +16,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "stm32f10x.h"
-
 namespace boot {
 
 	constexpr std::uint32_t end(MemoryBlock const & block) { return block.address + block.length; }
@@ -62,17 +60,29 @@ namespace boot {
 		static bool isAvailableAddress(std::uint32_t address) {
 			return addressOrigin(address) == AddressSpace::AvailableFlash;
 		}
-		
-		constexpr static MemoryBlock getEnclosingBlock(std::uint32_t address) {
+
+		constexpr static int getEnclosingBlockIndex(std::uint32_t address) {
 			if constexpr (pagesHaveSameSize()) {
 				constexpr std::uint32_t block_size = customization::physicalBlockSize.toBytes();
 				constexpr std::uint32_t base_address = customization::flashMemoryBaseAddress;
-				return physicalMemoryBlocks[(address - base_address)/block_size];
+				return (address - base_address) / block_size;
 			}
 			else {
-				for (auto const block : physicalMemoryBlocks)
+				for (std::size_t i = 0; i < size(physicalMemoryBlocks); ++i) {
+					MemoryBlock const& block = physicalMemoryBlocks[i];
 					if (block.address <= address && address < end(block))
-						return block;
+						return i;
+				}
+				return -1;
+			}
+		}
+		
+		constexpr static MemoryBlock getEnclosingBlock(std::uint32_t address) {
+			if constexpr (pagesHaveSameSize()) {
+				return physicalMemoryBlocks[getEnclosingBlockIndex(address)];
+			}
+			else {
+				return physicalMemoryBlocks[getEnclosingBlockIndex(address)];
 			}
 		}
 

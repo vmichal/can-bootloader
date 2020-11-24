@@ -7,6 +7,7 @@
 
 #ifndef TX_RECV_BUFFER_SIZE
 enum { TX_RECV_BUFFER_SIZE = 2048 };
+enum { MAX_MESSAGES_IN_A_ROW = TX_RECV_BUFFER_SIZE / 8 / (8+8) };
 #endif
 
 static uint8_t recv_buf[TX_RECV_BUFFER_SIZE];
@@ -36,12 +37,21 @@ int txReceiveCANMessage(int bus, CAN_ID_t id, const void* data, size_t length) {
 	return required_size;
 }
 
+bool txBufferGettingFull() {
+	return !ringbufCanWrite(&recv_rb, TX_RECV_BUFFER_SIZE / 2);
+}
+bool txBufferGettingEmpty() {
+	return ringbufCanWrite(&recv_rb, 3*TX_RECV_BUFFER_SIZE / 4);
+}
+
 void txProcess(void) {
 	struct CAN_msg_header hdr;
 	uint8_t msg_data[CAN_MESSAGE_SIZE];
 
-	// As long as there is pending data in the rx buffer
-	while (recv_rb.readpos != recv_rb.writepos) {
+	// As long as there is pending data in the rx buffer, but do not allow more than some specified number
+	for (int i = 0;i < MAX_MESSAGES_IN_A_ROW;++i) {
+		if (recv_rb.readpos == recv_rb.writepos)
+			return;
 		size_t read_pos = recv_rb.readpos;
 
 		// Read message header & data. The message in the rx buffer may not yet be complete,

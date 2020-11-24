@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,6 +33,9 @@ enum {
 
 int txReceiveCANMessage(int bus, CAN_ID_t id, const void* data, size_t length);
 void txProcess(void);
+bool txBufferGettingFull();
+bool txBufferGettingEmpty();
+
 
 /* implemented by library user */
 uint32_t txGetTimeMillis(void);
