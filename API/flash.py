@@ -947,8 +947,9 @@ class FlashMaster():
 			if self.currentDataOffset/totalSentBytes < 0.9: #introduce a delay if the BL has problems catching up
 				time.sleep(0.00023)
 		self.dataTransmissionInProgress = False
+		self.dataEfficiency = self.currentDataOffset/totalSentBytes
 
-		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*self.currentDataOffset/totalSentBytes:3.3f}%, {1000*self.totalTimeStalled:5.2f} ms stalled))           ', file=self.output_file)
+		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*self.dataEfficiency:3.3f}%, {1000*self.totalTimeStalled:5.2f} ms stalled))           ', file=self.output_file)
 		duration = (time.time() - start)
 		print(f'Took {duration*1000:.2f} ms, stalled {100*self.totalTimeStalled/duration:4.2f}% of time.')
 		assert totalSentBytes == self.firmware.length + self.resentBytesCount
@@ -995,8 +996,13 @@ class FlashMaster():
 		result = self.request_bootloader_exit(self.target, force = False)
 		print('Confirmed' if result else 'Declined', file=self.output_file)
 
+		print('\n')
 		if self.totalTimeStalled:
-			print('NOTE: BL clock may be too slow. Try to increase it to avoid stalls')
+			print('NOTE: Stalls occured during the transaction, which may indicate that BL clock is too slow.')
+			print('Increasing BL clock frequency is suggested.')
+		if self.dataEfficiency < 1:
+			print(f'NOTE: Data transmission has been only {self.dataEfficiency*100:5.2f}% efficient due to low bus baudrate or high communication traffic.')
+			print('Suggested selecting a different bus with higher possible throughput.')
 		self.terminate()
 
 	def terminate(self):
