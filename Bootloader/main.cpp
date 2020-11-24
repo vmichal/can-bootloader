@@ -133,7 +133,6 @@ namespace boot {
 
 	void main() {
 
-		bsp::can::enableIRQs(); //Enable reception from CAN
 		setupCommonCanCallbacks();
 
 		//If the BL activation has been requested, we can assume that there is no other boi on the bus

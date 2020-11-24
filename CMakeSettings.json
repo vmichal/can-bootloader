@@ -9,7 +9,7 @@
 			"cmakeCommandArgs": "",
 			"buildCommandArgs": "",
 			"ctestCommandArgs": "",
-			"cmakeToolchain": "stm32f4.cmake",
+			"cmakeToolchain": "stm32f1.cmake",
 			"inheritEnvironments": [ "linux_x64" ],
 			"remoteMachineName": "1773855479;Vojta (username=vomi, port=22, authentication=Password)",
 			"remoteCMakeListsRoot": "/mnt/c/Users/vomi/source/repos/bootloader/",

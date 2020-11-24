@@ -15,9 +15,7 @@ namespace bsp::can {
 
 	void enableIRQs() {
 
-		//Enbale the Fifo1 Message Pending Iterrupt for both peripherals
-		ufsel::bit::set(std::ref(CAN1->IER), CAN_IER_FMPIE0);
-		ufsel::bit::set(std::ref(CAN2->IER), CAN_IER_FMPIE0);
+
 	}
 
 	namespace {
@@ -66,6 +64,9 @@ namespace bsp::can {
 				(bs1 - 1) << 16,
 				(prescaler - 1)
 			);
+
+			//Enable the Fifo1 Message Pending Iterrupt for this peripheral
+			ufsel::bit::set(std::ref(can.IER), CAN_IER_FMPIE0);
 
 			//request to enter normal mode
 			bit::clear(std::ref(can.MCR), CAN_MCR_INRQ);
