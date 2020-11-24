@@ -160,9 +160,11 @@ namespace boot {
 			txProcess();
 
 			if (bootloader.status() == Status::DownloadingFirmware && lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s) && !bootloader.stalled()) {
-				auto const expectedAddress = bootloader.expectedWriteLocation();
-				assert(expectedAddress.has_value());
-				canManager.RestartDataFrom(*expectedAddress);
+				if (static SysTickTimer lastRequest; lastRequest.RestartIfTimeElapsed(500_ms)) { //limit the frequency of requests
+					auto const expectedAddress = bootloader.expectedWriteLocation();
+					assert(expectedAddress.has_value());
+					canManager.RestartDataFrom(*expectedAddress);
+				}
 			}
 
 			if (txBufferGettingFull() && !bootloader.stalled()) {

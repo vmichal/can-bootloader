@@ -13,11 +13,8 @@
 #include <array>
 #include <cstdint>
 
-/* Timer allocation:
-	TIM6, TIM7 - available for microsecond timing
-*/
 
-constexpr auto SYS_CLK = 72'000'000_Hz; 
+constexpr auto SYS_CLK = 12'000'000_Hz; 
 constexpr auto SysTickFrequency = 1'000_Hz;
 
 extern "C" void SysTick_Handler();
