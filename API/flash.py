@@ -994,10 +994,11 @@ class FlashMaster():
 		self.ocarinaReadingThread.join()
 		
 
-this_terminal = os.ttyname(sys.stdout.fileno())
 
 if args.feature == 'list':
-	listing = BootloaderListing(oc, db, this_terminal if args.terminal is None else args.terminal)
+	if args.terminal is None: #TODO allow non-interactive runs (stdin may not be bound to any tty)
+		args.terminal = os.ttyname(sys.stdout.fileno())
+	listing = BootloaderListing(oc, db, args.terminal)
 
 	while True:
 		ev = oc.read_event(blocking = True)
