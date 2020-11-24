@@ -499,6 +499,7 @@ class FlashMaster():
 		self.currentDataOffset = None
 		self.dataTransmissionFinished = False
 		self.resentBytesCount = 0
+		self.dataTransmissionInProgress = False
 
 		self.listing = BootloaderListing(oc, db, other_terminal if not quiet else '/dev/null')
 		self.ocarinaReadingThread = threading.Thread(target = FlashMaster.eventReadingThread, args=(self,), daemon = True)
@@ -544,12 +545,13 @@ class FlashMaster():
 					self.stallStart = None
 				
 				elif self.Handshake['Command'].value[0] == enumerator_by_name('RestartFromAddress', self.CommandEnum):
-					self.stallRequested = True
-					time.sleep(0.001)
-					new_address = int(self.Handshake['Value'].value[0]) - self.firmware.base_address
-					self.resentBytesCount += self.currentDataOffset - new_address
-					self.currentDataOffset = new_address
-					self.stallRequested = False
+					if self.dataTransmissionInProgress:
+						self.stallRequested = True
+						time.sleep(0.00001)
+						new_address = int(self.Handshake['Value'].value[0]) - self.firmware.base_address
+						self.resentBytesCount += self.currentDataOffset - new_address
+						self.currentDataOffset = new_address
+						self.stallRequested = False
 
 				elif self.Handshake['Command'].value[0] == enumerator_by_name('AbortTransaction', self.CommandEnum):
 					print('\nBootloader aborted transaction!', file=self.output_file)
@@ -900,7 +902,7 @@ class FlashMaster():
 			print(f'Sending firmware size ({self.firmware.length} B)', end = '... ' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('FirmwareSize', 'None', self.firmware.length))
 
-		print(f'Sending {self.firmware.length} words of firmware...', file=self.output_file)
+		print(f'Sending {self.firmware.length} B of firmware...', file=self.output_file)
 		print(f'\tProgress ... {0:05}%', end='', file=self.output_file)
 		start = time.time()
 		last_print = time.time()
@@ -910,6 +912,7 @@ class FlashMaster():
 
 		totalSentBytes = 0
 		self.currentDataOffset = 0
+		self.dataTransmissionInProgress = True
 
 		while not self.dataTransmissionFinished:
 			if self.currentDataOffset == len(self.firmware.flattened_map):
@@ -943,6 +946,7 @@ class FlashMaster():
 				last_print = time.time()
 			if self.currentDataOffset/totalSentBytes < 0.9: #introduce a delay if the BL has problems catching up
 				time.sleep(0.00023)
+		self.dataTransmissionInProgress = False
 
 		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*self.currentDataOffset/totalSentBytes:3.3f}%, {1000*self.totalTimeStalled:5.2f} ms stalled))           ', file=self.output_file)
 		duration = (time.time() - start)
