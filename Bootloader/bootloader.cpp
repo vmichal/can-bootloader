@@ -570,6 +570,7 @@ namespace boot {
 			return result;
 		}
 		case Status::Error:
+		case Status::ComunicationStalled:
 			return HandshakeResponse::BootloaderInError;
 		case Status::OtherBootloaderDetected:
 			assert_unreachable();

@@ -200,6 +200,7 @@ namespace boot {
 		MetadataReceiver metadataReceiver_;
 
 		Status status_ = Status::Ready;
+		bool stall_ = false;
 		TransactionType transactionType_ = TransactionType::Unknown;
 		CanManager& can_;
 		static inline EntryReason entryReason_ = EntryReason::DontEnter;
@@ -219,6 +220,8 @@ namespace boot {
 				return std::nullopt;
 			return firmwareDownloader_.expectedWriteLocation();
 		}
+
+		bool & stalled() {return stall_;}
 
 		[[nodiscard]]
 		Status status() const { return status_; }
@@ -245,7 +248,6 @@ namespace boot {
 				can_.SendDataAck(address, boot::WriteStatus::Ok);
 			return ret;
 		}
-
 
 		HandshakeResponse processHandshake(Register reg, Command command, std::uint32_t value);
 		void processHandshakeAck(HandshakeResponse response);

@@ -180,6 +180,7 @@ namespace boot {
 
 	constexpr std::uint32_t smallestPageSize = (*std::min_element(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(),[](auto const &a, auto const &b) {return a.length < b.length;} )).length;
 
+	constexpr Frequency HSE = 8_MHz;
 }
 
 
