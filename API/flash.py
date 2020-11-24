@@ -494,6 +494,8 @@ class FlashMaster():
 
 		self.busBitrate = None
 		self.stallRequested = False
+		self.stallStart = None
+		self.totalTimeStalled = 0.0
 		self.currentDataOffset = None
 		self.dataTransmissionFinished = False
 		self.resentBytesCount = 0
@@ -533,12 +535,13 @@ class FlashMaster():
 
 				assert self.Handshake['Command']
 				if self.Handshake['Command'].value[0] == enumerator_by_name('StallSubtransaction', self.CommandEnum):
-					print('\nSubtransaction stalled', file=self.output_file)
 					self.stallRequested = True
+					self.stallStart = time.time()
 
 				elif self.Handshake['Command'].value[0] == enumerator_by_name('ResumeSubtransaction', self.CommandEnum):
-					print('\nSubtransaction resumed', file=self.output_file)
 					self.stallRequested = False
+					self.totalTimeStalled += time.time() - self.stallStart
+					self.stallStart = None
 				
 				elif self.Handshake['Command'].value[0] == enumerator_by_name('RestartFromAddress', self.CommandEnum):
 					self.stallRequested = True
@@ -936,13 +939,14 @@ class FlashMaster():
 				self.currentDataOffset = new_data_offset
 
 			if time.time() - last_print > 0.01:
-				print(f'\r\tProgress ... {100 * self.currentDataOffset / len(self.firmware.flattened_map):6.2f}% (avg {self.currentDataOffset/1024/(time.time()-start):5.2f} KiBps, efficiency {100*self.currentDataOffset/totalSentBytes:6.2f}%)', end='', file=self.output_file)
+				print(f'\r\tProgress ... {100 * self.currentDataOffset / len(self.firmware.flattened_map):6.2f}% (avg {self.currentDataOffset/1024/(time.time()-start):5.2f} KiBps, efficiency {100*self.currentDataOffset/totalSentBytes:6.2f}%, {1000*self.totalTimeStalled:5.2f} ms stalled)', end='', file=self.output_file)
 				last_print = time.time()
-			if self.currentDataOffset/totalSentBytes < 0.9: #introduce a delay
+			if self.currentDataOffset/totalSentBytes < 0.9: #introduce a delay if the BL has problems catching up
 				time.sleep(0.00023)
 
-		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*self.currentDataOffset/totalSentBytes:3.3f}%)           ', file=self.output_file)
-		print(f'Took {(time.time() - start)*1000:.2f} ms')
+		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*self.currentDataOffset/totalSentBytes:3.3f}%, {1000*self.totalTimeStalled:5.2f} ms stalled))           ', file=self.output_file)
+		duration = (time.time() - start)
+		print(f'Took {duration*1000:.2f} ms, stalled {100*self.totalTimeStalled/duration:4.2f}% of time.')
 		assert totalSentBytes == self.firmware.length + self.resentBytesCount
 
 		checksum = self.firmware.calculate_checksum()
@@ -987,6 +991,8 @@ class FlashMaster():
 		result = self.request_bootloader_exit(self.target, force = False)
 		print('Confirmed' if result else 'Declined', file=self.output_file)
 
+		if self.totalTimeStalled:
+			print('NOTE: BL clock may be too slow. Try to increase it to avoid stalls')
 		self.terminate()
 
 	def terminate(self):
