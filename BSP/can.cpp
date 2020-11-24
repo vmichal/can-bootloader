@@ -82,7 +82,7 @@ namespace bsp::can {
 		peripheralRequestInitialization(*CAN1);
 		peripheralRequestInitialization(*CAN2);
 
-		constexpr Frequency APB1_frequency = 36'000'000_Hz;
+		constexpr Frequency APB1_frequency = 12'000'000_Hz;
 		constexpr int quanta_per_bit = 6;
 
 		//Initialize peripherals

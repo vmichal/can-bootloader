@@ -107,19 +107,23 @@ namespace {
 		return boot::EntryReason::DontEnter;
 	}
 
-#ifdef STM32F1
-	//Initializes system clock to max frequencies: 72MHz SYSCLK, AHB, APB2; 36MHz APB1
 	void configure_system_clock() {
+#ifdef STM32F1
 
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Enable external oscilator
 		while (bit::all_cleared(RCC->CR, RCC_CR_HSERDY)); //wait for it to stabilize
 
 		bit::set(std::ref(RCC->CFGR),
-			RCC_CFGR_PLLMULL9, //Make PLL multiply 8MHz * 9 -> 72 MHz (max frequency)
-			RCC_CFGR_PLLSRC, //clock it from 8 MHz HSE
-			RCC_CFGR_PPRE1_DIV2, //Divide clock for APB1 by 2 (max 36 MHz)
-			RCC_CFGR_ADCPRE_DIV6 //Divide by six for adc (max 14 MHz)
+			RCC_CFGR_PLLMULL6, //Make PLL multiply 2MHz * 6 -> 12 MHz
+			RCC_CFGR_PLLSRC //clock it from PREDIV1 (divided HSE)
 		);
+
+		constexpr Frequency desiredPLLinput = 2_MHz;
+		constexpr int PREDIV1 = boot::HSE / desiredPLLinput;
+		static_assert(PREDIV1 * desiredPLLinput == boot::HSE, "Your HSE is not an integral multiple of 2 MHz!");
+		bit::set(std::ref(RCC->CFGR2),
+			PREDIV1-1 //divide HSE by PREDIV1 so that we get 4MHz at PLL input
+			);
 
 		bit::modify(std::ref(FLASH->ACR), FLASH_ACR_LATENCY, FLASH_ACR_LATENCY_2); //Flash latency of two wait states
 
@@ -128,13 +132,8 @@ namespace {
 
 		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_0 | RCC_CFGR_SW_1, RCC_CFGR_SW_PLL); //Set PLL as system clock
 		while (bit::sliceable_value{ RCC->CFGR } [bit::slice{ 3,2 }].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
-
-		//Configure and start system milisecond clock
-		SystemTimer::Initialize();
-	}
 #else
 #ifdef STM32F4
-	void configure_system_clock() {
 		using namespace ufsel;
 
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Start and wait for HSE stabilization
@@ -170,9 +169,11 @@ namespace {
 		while (bit::sliceable_reference{ RCC->CFGR } [bit::slice{ 3,2 }].unshifted()!=RCC_CFGR_SWS_PLL);
 
 		bit::clear(std::ref(RCC->CR), RCC_CR_HSION); //Kill power to HSI
+#else
+#error "This MCU is not supported"
+#endif
+#endif
 	}
-#endif
-#endif
 
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
@@ -249,6 +250,8 @@ extern "C" void Reset_Handler() {
 	load_section(data);
 
 	configure_system_clock();
+	//Configure and start system milisecond clock
+	SystemTimer::Initialize();
 	__libc_init_array(); //Branch to static constructors
 
 	boot::Bootloader::setEntryReason(reason);
