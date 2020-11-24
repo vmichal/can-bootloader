@@ -55,9 +55,7 @@ namespace boot {
 
 		static bool ErasePage(std::uint32_t pageAddress);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);
-#if 0
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint16_t halfWord);
-#endif
 
 		static bool isAvailableAddress(std::uint32_t address) {
 			return addressOrigin(address) == AddressSpace::AvailableFlash;
