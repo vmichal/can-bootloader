@@ -33,6 +33,10 @@ namespace bsp::gpio {
 
 			ufsel::bit::modify(std::ref(reg), mask, static_cast<std::uint32_t>(p.mode_), shift);
 		}
+		//Disable clock to GPIOA, GPIOB. Pins are still fully functional
+		ufsel::bit::clear(std::ref(RCC->APB2ENR),
+			RCC_APB2ENR_IOPAEN,
+			RCC_APB2ENR_IOPBEN);
 	}
 #else
 #ifdef STM32F4
