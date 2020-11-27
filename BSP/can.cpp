@@ -8,6 +8,7 @@
 
 
 #include <library/assert.hpp>
+#include <library/units.hpp>
 #include <CANdb/tx2/tx.h>
 #include <CANdb/can_Bootloader.h>
 

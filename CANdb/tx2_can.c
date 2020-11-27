@@ -38,6 +38,8 @@ int txReceiveCANMessage(int bus, CAN_ID_t id, const void* data, size_t length) {
 }
 
 bool txBufferGettingFull() {
+	//TODO probably too big margin. Decrease to six messages? BL filters all non-BL messages in HW
+	//therefore all data in the recv_rb should be expected messages.
 	return !ringbufCanWrite(&recv_rb, TX_RECV_BUFFER_SIZE / 2);
 }
 bool txBufferGettingEmpty() {
