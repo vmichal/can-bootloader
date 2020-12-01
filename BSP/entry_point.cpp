@@ -125,7 +125,7 @@ namespace {
 			PREDIV1-1 //divide HSE by PREDIV1 so that we get 4MHz at PLL input
 			);
 
-		bit::modify(std::ref(FLASH->ACR), FLASH_ACR_LATENCY, FLASH_ACR_LATENCY_2); //Flash latency of two wait states
+		bit::modify(std::ref(FLASH->ACR), FLASH_ACR_LATENCY,0); //Flash latency zero wait states, because the SYSCLK is slow as fuck.
 
 		bit::set(std::ref(RCC->CR), RCC_CR_PLLON); //Enable PLL
 		while (bit::all_cleared(RCC->CR, RCC_CR_PLLRDY)); //wait for it to stabilize
