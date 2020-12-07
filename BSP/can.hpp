@@ -15,7 +15,6 @@ namespace bsp::can {
 
 	void Initialize();
 
-	void enableIRQs();
 }
 
 

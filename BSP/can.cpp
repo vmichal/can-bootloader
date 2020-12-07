@@ -13,12 +13,6 @@
 #include <CANdb/can_Bootloader.h>
 
 namespace bsp::can {
-
-	void enableIRQs() {
-
-
-	}
-
 	namespace {
 
 		void peripheralRequestInitialization(CAN_TypeDef& can) {
