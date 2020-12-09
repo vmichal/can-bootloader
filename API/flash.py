@@ -498,7 +498,6 @@ class FlashMaster():
 		self.totalTimeStalled = 0.0
 		self.currentDataOffset = None
 		self.dataTransmissionFinished = False
-		self.resentBytesCount = 0
 		self.dataTransmissionInProgress = False
 
 		self.listing = BootloaderListing(oc, db, other_terminal if not quiet else '/dev/null')
@@ -549,7 +548,6 @@ class FlashMaster():
 						self.stallRequested = True
 						time.sleep(0.00001)
 						new_address = int(self.Handshake['Value'].value[0]) - self.firmware.base_address
-						self.resentBytesCount += self.currentDataOffset - new_address
 						self.currentDataOffset = new_address
 						self.stallRequested = False
 
@@ -952,7 +950,6 @@ class FlashMaster():
 		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*self.dataEfficiency:3.3f}%, {1000*self.totalTimeStalled:5.2f} ms stalled))           ', file=self.output_file)
 		duration = (time.time() - start)
 		print(f'Took {duration*1000:.2f} ms, stalled {100*self.totalTimeStalled/duration:4.2f}% of time.')
-		assert totalSentBytes == self.firmware.length + self.resentBytesCount
 
 		checksum = self.firmware.calculate_checksum()
 
