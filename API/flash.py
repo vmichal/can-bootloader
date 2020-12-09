@@ -932,8 +932,8 @@ class FlashMaster():
 
 			if self.currentDataOffset != len(self.firmware.flattened_map) and self.firmware.flattened_map[self.currentDataOffset] is None: #we have hit an empty space between two logical memory blocks
 				previous_block = list(filter(lambda block: block.address + len(block.data) == self.currentDataOffset + self.firmware.base_address, self.firmware.logical_memory_map))
-				assert len(previous_block) == 1# only a single block may have neded here
-				next_block = self.firmware.logical_memory_map[self.firmware.logical_memory_map.index(previous_block)]
+				assert len(previous_block) == 1# only a single block may has ended here
+				next_block = self.firmware.logical_memory_map[self.firmware.logical_memory_map.index(previous_block[0])]
 				new_data_offset = next_block.address - self.firmware.base_address
 				assert all(byte is None for byte in self.firmware.flattened_map[self.currentDataOffset : new_data_offset])
 
