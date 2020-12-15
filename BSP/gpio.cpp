@@ -13,7 +13,7 @@ namespace bsp::gpio {
 
 	using namespace pins;
 
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 	void Initialize(void)
 	{
 		//Enable clock to GPIOA, GPIOB
@@ -39,7 +39,7 @@ namespace bsp::gpio {
 			RCC_APB2ENR_IOPBEN);
 	}
 #else
-#ifdef STM32F4
+#ifdef BOOT_STM32F4
 
 	void Initialize(void)
 	{

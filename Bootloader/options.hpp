@@ -18,12 +18,12 @@
 #include <array>
 
 #define POS_FROM_MASK(x) std::countr_zero(x)
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 #include "stm32f10x.h"
 #define BIT_MASK(name) name ## _Msk
 #include "core_cm3.h"
 #else
-#ifdef STM32F4 //TODO make this more correct
+#ifdef BOOT_STM32F4 //TODO make this more correct
 #define BIT_MASK(name) name ## _Msk
 
 #include "stm32f4xx.h"
@@ -100,7 +100,7 @@ namespace boot {
 		//Start of flash memory. Must be kept in sync with the linker script
 		constexpr std::uint32_t flashMemoryBaseAddress = 0x0800'0000;
 
-#ifdef STM32F4 
+#ifdef BOOT_STM32F4 
 		//The number of physical blocks available on the target chip 
 		constexpr std::uint32_t physicalBlockCount = 12;
 
@@ -131,7 +131,7 @@ namespace boot {
 			MemoryBlock{0x080E'0000, (128_KiB).toBytes()}
 		};
 #else
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 
 		//The number of physical blocks available on the target chip 
 		constexpr std::uint32_t physicalBlockCount = 128;
@@ -166,7 +166,7 @@ namespace boot {
 			return customization::blocksWhenSizesAreUnequal;
 	}
 	constexpr auto physicalMemoryBlocks = getMemoryBlocks();
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 	static_assert(physicalMemoryBlocks.size() == 128); //sanity check that this template magic works
 #else
 	static_assert(physicalMemoryBlocks.size() == 12); //sanity check that this template magic works

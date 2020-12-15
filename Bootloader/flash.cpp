@@ -19,7 +19,7 @@ namespace boot {
 	std::uint32_t const Flash::jumpTableAddress = reinterpret_cast<std::uint32_t>(&jumpTable_start);
 	std::uint32_t const Flash::applicationAddress = reinterpret_cast<std::uint32_t>(&available_flash_start);
 
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
 
 		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_WRPRTERR, FLASH_SR_PGERR);
@@ -32,7 +32,7 @@ namespace boot {
 		return true;
 	}
 #else
-#ifdef STM32F4
+#ifdef BOOT_STM32F4
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
 
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY)); //wait for previous operation to end
@@ -60,7 +60,7 @@ namespace boot {
 #endif
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint16_t halfWord) {
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 		auto const cachedResult = FLASH->SR;
 		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);
 
@@ -72,7 +72,7 @@ namespace boot {
 
 		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
 #else
-#ifdef STM32F4
+#ifdef BOOT_STM32F4
 		std::uint32_t const cachedResult = FLASH->SR;
 
 		//select x16 programming paralelism
@@ -92,7 +92,7 @@ namespace boot {
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint32_t word) {
 
-#ifdef STM32F4
+#ifdef BOOT_STM32F4
 		std::uint32_t const cachedResult = FLASH->SR;
 		//select x32 programming paralelism
 		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
@@ -103,7 +103,7 @@ namespace boot {
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok: WriteStatus::MemoryProtected; //TODO make this more concrete
 #else
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 
 		auto const cachedResult = FLASH->SR;
 		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);

@@ -108,7 +108,7 @@ namespace {
 	}
 
 	void configure_system_clock() {
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Enable external oscilator
 		while (bit::all_cleared(RCC->CR, RCC_CR_HSERDY)); //wait for it to stabilize
@@ -133,7 +133,7 @@ namespace {
 		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_0 | RCC_CFGR_SW_1, RCC_CFGR_SW_PLL); //Set PLL as system clock
 		while (bit::sliceable_value{ RCC->CFGR } [bit::slice{ 3,2 }].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
 #else
-#ifdef STM32F4
+#ifdef BOOT_STM32F4
 		using namespace ufsel;
 
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Start and wait for HSE stabilization

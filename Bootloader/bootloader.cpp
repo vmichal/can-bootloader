@@ -339,10 +339,10 @@ namespace boot {
 					return HandshakeResponse::InvalidTransactionMagic;
 				//wait for all operations to finish and lock flash
 				while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
-#ifdef STM32F1
+#ifdef BOOT_STM32F1
 				ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
 #else
-#ifdef STM32F4
+#ifdef BOOT_STM32F4
 				ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_SER);
 #endif
 #endif
