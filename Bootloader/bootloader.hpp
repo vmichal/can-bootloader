@@ -27,6 +27,7 @@ namespace boot {
 	enum class TransactionType {
 		Unknown,
 		Flashing,
+		BootloaderUpdate
 		//TODO implement FirmwareDump
 	};
 
@@ -46,12 +47,16 @@ namespace boot {
 
 		Status status_ = Status::uninitialized;
 		std::uint32_t blocks_sent_ = 0;
+		TransactionType transaction_ = TransactionType::Unknown;
 
 	public:
 		[[nodiscard]] bool done() const { return status_ == Status::done; }
 		[[nodiscard]] bool shouldYield() const { return status_ == Status::shouldYield; }
 		[[nodiscard]] bool error() const { return status_ == Status::error; }
-		void startSubtransaction() { status_ = Status::pending; }
+		void startSubtransaction(TransactionType const transaction) {
+			transaction_ = transaction;
+			status_ = Status::pending;
+		}
 		void endSubtransaction() { status_ = Status::done; }
 		void processYield() { status_ = Status::masterYielded; }
 		Bootloader_Handshake_t update();
@@ -75,11 +80,13 @@ namespace boot {
 
 		std::uint32_t blocks_expected_ = 0;
 
+		TransactionType transaction_ = TransactionType::Unknown;
 		Status status_ = Status::uninitialized;
 	public:
-		void startSubtransaction() {
+		void startSubtransaction(TransactionType const transaction) {
+			transaction_ = transaction;
 			status_ = Status::pending;
-			remaining_bytes_ = Flash::availableMemory;
+			remaining_bytes_ = transaction == TransactionType::Flashing ? Flash::availableMemorySize : Flash::bootloaderMemorySize;
 		}
 
 		[[nodiscard]] bool done() const { return status_ == Status::done; }

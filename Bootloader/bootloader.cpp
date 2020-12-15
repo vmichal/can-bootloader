@@ -127,6 +127,10 @@ namespace boot {
 	}
 
 	Bootloader_Handshake_t PhysicalMemoryMapTransmitter::update() {
+		//the first "available" block. Bootloader is located in first pages.
+		int const firstBlockIndex = transaction_ == TransactionType::Flashing ? customization::firstBlockAvailableToApplication : 0;
+		int const pagesToSend = transaction_ == TransactionType::Flashing ? PhysicalMemoryMap::availablePages() : PhysicalMemoryMap::bootloaderPages();
+
 		switch (status_) {
 		case Status::uninitialized:
 		case Status::pending: //Update function shall not be reached with these states
@@ -139,23 +143,21 @@ namespace boot {
 
 		case Status::sentInitialMagic:
 			status_ = Status::sendingBlockAddress;
-			return handshake::get(Register::NumPhysicalMemoryBlocks, Command::None, PhysicalMemoryMap::availablePages());
+			return handshake::get(Register::NumPhysicalMemoryBlocks, Command::None, pagesToSend);
 
 		case Status::sendingBlockAddress: {
-
-			if (PhysicalMemoryMap::availablePages() == blocks_sent_) { //we have sent all available blocks
+			if (pagesToSend == blocks_sent_) { //we have sent all available blocks
 				status_ = Status::shouldYield;
 				return handshake::transactionMagic;
 			}
 			status_ = Status::sendingBlockLength;
-			auto const currentBlock = PhysicalMemoryMap::block(customization::firstBlockAvailableToApplication + blocks_sent_);
+			auto const currentBlock = PhysicalMemoryMap::block(firstBlockIndex + blocks_sent_);
 			return handshake::get(Register::PhysicalBlockStart, Command::None, currentBlock.address);
 
 		}
 		case Status::sendingBlockLength: {
-
 			status_ = Status::sendingBlockAddress;
-			auto const currentBlock = PhysicalMemoryMap::block(customization::firstBlockAvailableToApplication + blocks_sent_);
+			auto const currentBlock = PhysicalMemoryMap::block(firstBlockIndex + blocks_sent_);
 			++blocks_sent_;
 			return handshake::get(Register::PhysicalBlockLength, Command::None, currentBlock.length);
 		}
@@ -508,9 +510,10 @@ namespace boot {
 
 			switch (command) {
 			case Command::StartTransactionFlashing:
+			case Command::StartBootloaderUpdate:
 				status_ = Status::TransmittingPhysicalMemoryBlocks;
-				transactionType_ = TransactionType::Flashing;
-				physicalMemoryMapTransmitter_.startSubtransaction();
+				transactionType_ = command == Command::StartTransactionFlashing ? TransactionType::Flashing : TransactionType::BootloaderUpdate;
+				physicalMemoryMapTransmitter_.startSubtransaction(transactionType_);
 				return HandshakeResponse::Ok;
 			case Command::SetNewVectorTable: {
 

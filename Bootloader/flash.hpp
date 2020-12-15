@@ -49,7 +49,8 @@ namespace boot {
 
 		constexpr static bool pagesHaveSameSize() { return customization::physicalBlockSizePolicy == PhysicalBlockSizes::same; };
 
-		static std::size_t const availableMemory;
+		static std::size_t const availableMemorySize;
+		static std::size_t const bootloaderMemorySize;
 		static std::uint32_t const jumpTableAddress;
 		static std::uint32_t const applicationAddress;
 
@@ -144,6 +145,7 @@ namespace boot {
 	struct PhysicalMemoryMap {
 
 		constexpr static unsigned availablePages() {return customization::physicalBlockCount - customization::firstBlockAvailableToApplication;}
+		constexpr static unsigned bootloaderPages() {return customization::firstBlockAvailableToApplication;}
 
 		static MemoryBlock block(std::uint32_t const index) {
 			assert(index < customization::physicalBlockCount);
