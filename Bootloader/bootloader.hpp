@@ -233,9 +233,6 @@ namespace boot {
 		[[nodiscard]]
 		bool isPassive() const { return status_ == Status::OtherBootloaderDetected; }
 
-		[[noreturn]]
-		static void resetTo(std::uint16_t code);
-
 		WriteStatus write(std::uint32_t address, std::uint16_t half_word) {
 			auto const ret = firmwareDownloader_.write(address, half_word);
 			if (firmwareDownloader_.expectedSize() == firmwareDownloader_.actualSize())

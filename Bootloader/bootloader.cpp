@@ -601,28 +601,7 @@ namespace boot {
 	}
 
 
-	[[noreturn]] void Bootloader::resetTo(std::uint16_t const code) {
-		using namespace ufsel;
-#ifdef STM32F1
-		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
-		bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable write protection of Backup domain
-#else
-#ifdef STM32F4
-		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
-		bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable backup domain protection
-		bit::set(std::ref(RCC->BDCR), 0b10 << POS_FROM_MASK(RCC_BDCR_RTCSEL)); //select LSI as RTC clock
-		bit::set(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
-#endif
-#endif
 
-		assert(code == BackupDomain::application_magic || code == BackupDomain::bootloader_magic);
-		BackupDomain::bootControlRegister = code;
-
-		SCB->AIRCR = (0x5fA << SCB_AIRCR_VECTKEYSTAT_Pos) | //magic value required for write to succeed
-			BIT_MASK(SCB_AIRCR_SYSRESETREQ); //Start the system reset
-
-		for (;;); //wait for reset
-	}
 
 	void Bootloader::setEntryReason(EntryReason reason) {
 		assert(entryReason_ == EntryReason::DontEnter); //Make sure this is called only once

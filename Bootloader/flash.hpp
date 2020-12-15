@@ -141,20 +141,6 @@ namespace boot {
 
 	};
 
-	extern "C" {
-		extern std::uint16_t BootControlBackupRegisterAddress[];
-	}
-
-	struct BackupDomain {
-		constexpr static std::uint16_t reset_value = 0x00'00; //value after power reset. Enter the application
-		//Writing this value to the bootControlRegister requests entering the bootloader after reset
-		constexpr static std::uint16_t bootloader_magic = 0xB007;
-		constexpr static std::uint16_t application_magic = 0xC0DE; //enter the application
-
-		//Memory location in backup domain used for data exchange between BL and application
-		inline static std::uint16_t volatile& bootControlRegister = *BootControlBackupRegisterAddress;
-	};
-
 	struct ApplicationJumpTable {
 		constexpr static std::uint32_t expected_magic1_value = 0xb16'b00b5;
 		constexpr static std::uint32_t expected_magic2_value = 0xcafe'babe;

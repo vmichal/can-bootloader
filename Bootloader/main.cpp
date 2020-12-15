@@ -8,6 +8,8 @@
 
 #include <optional>
 
+#include <API/BLdriver.hpp>
+
 #include "bootloader.hpp"
 #include "canmanager.hpp"
 #include "tx2/tx.h"
@@ -48,7 +50,7 @@ namespace boot {
 					canManager.SendExitAck(true);
 					flushCAN(Bootloader_ExitReq_status.bus, 500_ms);
 
-					Bootloader::resetTo(BackupDomain::bootloader_magic);
+					resetTo(BackupDomain::bootloader_magic);
 				}
 
 				if (bootloader.transactionInProgress()) {
@@ -58,7 +60,7 @@ namespace boot {
 				canManager.SendExitAck(true);
 				flushCAN(Bootloader_ExitReq_status.bus, 500_ms);
 
-				Bootloader::resetTo(BackupDomain::application_magic);
+				resetTo(BackupDomain::application_magic);
 				});
 		}
 
