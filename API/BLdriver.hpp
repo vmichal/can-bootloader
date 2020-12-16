@@ -5,7 +5,9 @@
  *
  * Copyright (c) 2020 eforce FEE Prague Formula
  *
- * Contains compile-time configuration options controlling the program's behaviour
+ * Contains functions and variables that constitute the firmware's interface to bootloader
+ * Example code showing, what is necessary in order to integrate BL into your project,
+ * can be found in API/integration_example.txt
  */
 
 #pragma once

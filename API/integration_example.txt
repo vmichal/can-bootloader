@@ -1,0 +1,58 @@
+/*
+ * eForce CAN Bootloader
+ *
+ * Written by Vojtìch Michal
+ *
+ * Copyright (c) 2020 eforce FEE Prague Formula
+ *
+ * This file contains example code how to integrate the bootloader into your project.
+ * It is based on code from FSE09AMS, which may be used as a reference (uses BL since october 2020).
+ * The following code assumes that you have some code generated from CANdb included (e.g. #include <can_AMS.h>).
+ *
+ * The rest should be pretty self-explanatory. If you have not implemented serial output for your unit, then debug_printf
+ * will not be available. Identifier 'can' is of type CanManager and contains method for polling whether given peripheral
+ * is able to send a message.
+ */
+
+struct BootloaderDriver {
+	constexpr static Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
+
+	static void sendBootloaderPingResponse(bool bootloader_pending) {
+		Bootloader_PingResponse_t msg;
+		msg.Target = thisUnit;
+		msg.BootloaderPending = bootloader_pending;
+
+		//wait for at least one peripheral to be empty
+		for (; !can.hasEmptyMailbox<1>() && !can.hasEmptyMailbox<2>(););
+		send(msg);
+	}
+
+	static int pingReceivedCallback(Bootloader_Ping_t* data) {
+		if (data->Target != thisUnit)
+			return 1; //Ignore bootloader requests targeted at someone else
+
+		if (!data->BootloaderRequested) { //Bootloader is not received ... the master only polls connected units
+			debug_printf(("AMS: BL ping received.\r\n"));
+			sendBootloaderPingResponse(/*bootloader_pending=*/false);
+			return 0;
+		}
+
+		if (!airs.tsIdle()) { //Refuse to enter the bootloader when AIRs are closed.
+			sendBootloaderPingResponse(/*bootloader_pending=*/false);
+			debug_printf(("AMS: Refused to enter BL during critical process (closed AIRs).\r\n"));
+			return 1;
+		}
+		sendBootloaderPingResponse(/*bootloader_pending=*/true);
+
+
+		can.FlushSerialOutput();
+		can.FlushBuses(/*timeout=*/100_ms);
+
+		boot::resetTo(boot::BackupDomain::bootloader_magic);
+	}
+};
+
+//Called from main somethime during the initialization. Supplies pointer to callback function when BootloaderPing is received
+void setupBootloaderCANCallback() {
+	Bootloader_Ping_on_receive(BootloaderDriver::pingReceivedCallback);
+}
