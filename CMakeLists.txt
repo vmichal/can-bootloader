@@ -5,6 +5,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/QueryRepositoryState.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/BitOperations.cmake")
 
 set(SRC
+        API/BLdriver.cpp
         Bootloader/main.cpp
         Bootloader/bootloader.cpp
         Bootloader/canmanager.cpp
