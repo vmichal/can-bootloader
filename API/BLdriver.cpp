@@ -14,13 +14,13 @@
 
 #ifdef BOOT_STM32F1
 #define BIT_MASK(name) name ## _Msk
-#include "stm32f10x.h"
-#include "core_cm3.h"
+#include "../Drivers/stm32f10x.h"
+#include "../Drivers/core_cm3.h"
 #else
 #ifdef BOOT_STM32F4 //TODO make this more concrete
 #define BIT_MASK(name) name ## _Msk
-#include "stm32f4xx.h"
-#include "core_cm4.h"
+#include "../Drivers/stm32f4xx.h"
+#include "../Drivers/core_cm4.h"
 #endif
 #endif
 
