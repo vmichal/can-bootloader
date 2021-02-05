@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description="=========== CAN bootloader =======
 	formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('-j', metavar="file", dest='json_files', type=str, action='append', help='add candb json file to parse')
-parser.add_argument('-f', dest='feature', type=str, choices=["list", "flash", "set_vector_table"], default="list", help='choose feature - list bootloader aware units or flash new firmware')
+parser.add_argument('-f', dest='feature', type=str, choices=["list", "flash", "set_vector_table", "enter", "exit"], default="list", help='choose feature - list bootloader aware units or flash new firmware')
 parser.add_argument('--address', dest='address', type=str, help='absolute memory address to use (address of vector table to store when using -f set_vector_table)')
 parser.add_argument('-u', dest='unit', type=str, help='Unit to flash.')
 parser.add_argument('-x', dest='firmware', type=str, help='Path to hex file for flashing')
@@ -33,7 +33,8 @@ args = parser.parse_args()
 # python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f flash -u AMS -x build/AMS.hex /dev/ttyS4
 # python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f flash -x $repos/ams-sw/ams/build/dv01/AMS.hex -u AMS -t /dev/tty7 --force --verbose /dev/ttyS4
 # python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f set_vector_table --address 0x08003000 -u AMS /dev/ttyS3      #Make the BL accept already flashed firmware with isr vector located at 0x0800'3000
-
+# python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f exit -u AMS /dev/ttyS3			#Request the active bootloader to exit and start the application
+# python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f enter -u AMS /dev/ttyS3		#Request the application to enter the bootloader.
 from pycandb.candb import CanDB
 import ocarina_sw.api.ocarina as ocarina
 import time
@@ -727,6 +728,28 @@ class FlashMaster():
 			if res == enumerator_by_name('OK', self.HandshakeResponseEnum):
 				return #transaction magic is ok, we can go further
 
+	def reset_BL_to_application(self, force):
+		is_bootloader_active = lambda target: target in self.listing.active_bootloaders
+		is_application_active = lambda target: target in self.listing.aware_applications and self.listing.aware_applications[target].last_response is not None
+		self.ocarinaReadingThread.start()
+
+		print(f'Searching for {self.targetName} (target ID {self.target}) on the bus.\n', file=self.output_file)
+		#wait for the target unit to show up
+		while not is_bootloader_active(self.target) and not is_application_active(self.target):
+			time.sleep(0.01)
+
+		if is_application_active(self.target):
+			print('The target unit is already in application. Nothing to do.', file=self.output_file)
+			return
+
+		#the bootloader is active and responding. Request it to reset to the application
+
+		print('Leaving bootloader... ', end='', file=self.output_file)
+
+		result = self.request_bootloader_exit(self.target, force = force, toApp = True)
+		print('Confirmed' if result else 'Declined', file=self.output_file)
+
+
 	def estabilish_connection_to_slave(self, force):
 		self.ocarinaReadingThread.start()
 
@@ -1061,6 +1084,15 @@ elif args.feature == 'set_vector_table':
 	args.address = int(args.address, 16 if 'x' in args.address or 'X' in args.address else 10)
 	master = FlashMaster(args.unit, args.terminal, args.quiet)
 	master.set_vector_table(args.address, args.force)
+
+elif args.feature == 'enter':
+	master = FlashMaster(args.unit, args.terminal, args.quiet)
+	master.estabilish_connection_to_slave(args.force)
+
+elif args.feature == 'exit':
+	master = FlashMaster(args.unit, args.terminal, args.quiet)
+
+	master.reset_BL_to_application(args.force)
 
 else:
 	assert False
