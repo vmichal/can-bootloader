@@ -68,6 +68,7 @@ namespace boot {
 		BackupDomain::bootControlRegister = code;
 
 		NVIC_SystemReset();
+		for (;;);
 	}
 
 }
