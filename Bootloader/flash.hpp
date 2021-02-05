@@ -13,6 +13,7 @@
 #include <library/assert.hpp>
 #include "options.hpp"
 
+#include <span>
 #include <cstddef>
 #include <cstdint>
 
@@ -52,6 +53,11 @@ namespace boot {
 			FLASH->KEYR = 0x45670123;
 			FLASH->KEYR = 0xcdef89ab;
 		}
+
+		struct RAII_unlock {
+			RAII_unlock() { Unlock(); }
+			~RAII_unlock() { Lock(); }
+		};
 
 		static bool ErasePage(std::uint32_t pageAddress);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);
@@ -148,12 +154,18 @@ namespace boot {
 		constexpr static std::uint32_t expected_magic4_value = 0xfeed'd06e;
 		constexpr static std::uint32_t expected_magic5_value = 0xface'b00c;
 
+		constexpr static std::uint32_t metadata_valid_magic_value = 0x0f0c'd150;
+
 	private:
-		constexpr static int members_before_segment_array = 8;
+		constexpr static int members_before_segment_array = 9;
 	public:
 
 		std::uint32_t magic1_;
+		//If this contains the magic value, the rest of firmware metadata is valid. It is not necessary for the bootloader,
+		//for example the firmware size is only useful for firmware readout.
+		std::uint32_t metadata_valid_magic_;
 		std::uint32_t magic2_;
+		//The interruptVector must be valid at all times when magic[1-5] are valid.
 		std::uint32_t interruptVector_;
 		std::uint32_t magic3_;
 		std::uint32_t firmwareSize_;
@@ -164,9 +176,15 @@ namespace boot {
 
 		//Returns true iff all magics are valid
 		bool magicValid() const __attribute__((section(".executed_from_flash")));
+		bool has_valid_metadata() const;
 
 		//Clear the memory location with jump table
 		void invalidate();
+
+		void write_magics();
+		void write_metadata(InformationSize firmware_size, std::span<MemoryBlock const> logical_memory_blocks);
+
+		void write_interrupt_vector(std::uint32_t isr_vector);
 	};
 
 	static_assert(sizeof(ApplicationJumpTable) <= smallestPageSize, "The application jump table must fit within one page of flash.");

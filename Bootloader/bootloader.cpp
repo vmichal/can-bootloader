@@ -140,24 +140,11 @@ namespace boot {
 		constexpr auto empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
 		assert(jumpTable.magic1_ == empty && jumpTable.magic2_ == empty && jumpTable.magic3_ == empty && jumpTable.magic4_ == empty && jumpTable.magic5_ == empty);
 
+		Flash::RAII_unlock const _;
 		//entry point is not stored as it can be derived from the isr vector
-		Flash::Unlock();
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.interruptVector_), firmware.interruptVector_);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.firmwareSize_), firmware.writtenBytes_.toBytes());
-		std::uint32_t logicalMemoryBlockCount = size(firmware.logical_memory_blocks_);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_block_count_), logicalMemoryBlockCount);
-
-		for (std::uint32_t i = 0; i < logicalMemoryBlockCount; ++i) {
-			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_blocks_[i].address), firmware.logical_memory_blocks_[i].address);
-			Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.logical_memory_blocks_[i].length), firmware.logical_memory_blocks_[i].length);
-		}
-
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic1_), ApplicationJumpTable::expected_magic1_value);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic2_), ApplicationJumpTable::expected_magic2_value);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic3_), ApplicationJumpTable::expected_magic3_value);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic4_), ApplicationJumpTable::expected_magic4_value);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&jumpTable.magic5_), ApplicationJumpTable::expected_magic5_value);
-		Flash::Lock();
+		jumpTable.write_interrupt_vector(firmware.interruptVector_);
+		jumpTable.write_metadata(firmware.writtenBytes_, firmware.logical_memory_blocks_);
+		jumpTable.write_magics();
 	}
 
 	Bootloader_Handshake_t PhysicalMemoryMapTransmitter::update() {

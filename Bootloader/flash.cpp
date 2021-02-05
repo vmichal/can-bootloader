@@ -198,4 +198,41 @@ namespace boot {
 			&& magic5_ == expected_magic5_value;
 	}
 
+	bool ApplicationJumpTable::has_valid_metadata() const {
+		return metadata_valid_magic_ == metadata_valid_magic_value;
+	}
+
+	void ApplicationJumpTable::write_magics() {
+		//This vv better hold if we want to preserve data integrity
+		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
+
+		Flash::Write(reinterpret_cast<std::uint32_t>(&magic1_), expected_magic1_value);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&magic2_), expected_magic2_value);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&magic3_), expected_magic3_value);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&magic4_), expected_magic4_value);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&magic5_), expected_magic5_value);
+	}
+
+	void ApplicationJumpTable::write_metadata(InformationSize const firmware_size, std::span<MemoryBlock const> const logical_memory_blocks) {
+		//This vv better hold if we want to preserve data integrity
+		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
+
+		Flash::Write(reinterpret_cast<std::uint32_t>(&firmwareSize_), firmware_size.toBytes());
+		std::uint32_t const logicalMemoryBlockCount = size(logical_memory_blocks_);
+		Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_block_count_), logicalMemoryBlockCount);
+
+		for (std::uint32_t i = 0; i < logicalMemoryBlockCount; ++i) {
+			Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_blocks_[i].address), logical_memory_blocks_[i].address);
+			Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_blocks_[i].length), logical_memory_blocks_[i].length);
+		}
+		Flash::Write(reinterpret_cast<std::uint32_t>(&metadata_valid_magic_), metadata_valid_magic_value);
+	}
+
+	void ApplicationJumpTable::write_interrupt_vector(std::uint32_t const isr_vector) {
+		//This vv better hold if we want to preserve data integrity
+		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
+
+		Flash::Write(reinterpret_cast<std::uint32_t>(&interruptVector_), isr_vector);
+	}
+
 }
