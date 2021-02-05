@@ -22,7 +22,7 @@ namespace boot {
 #ifdef BOOT_STM32F1
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
 
-		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_WRPRTERR, FLASH_SR_PGERR);
+		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_WRPRTERR, FLASH_SR_PGERR);
 
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY)); //wait for previous operation to end
 
@@ -62,7 +62,7 @@ namespace boot {
 	WriteStatus Flash::Write(std::uint32_t address, std::uint16_t halfWord) {
 #ifdef BOOT_STM32F1
 		auto const cachedResult = FLASH->SR;
-		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);
+		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);
 
 		for (; ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY);); //wait for previous operation to end
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //enable flash programming
@@ -106,7 +106,7 @@ namespace boot {
 #ifdef BOOT_STM32F1
 
 		auto const cachedResult = FLASH->SR;
-		ufsel::bit::clear(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);
+		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);
 
 		for (; ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY);); //wait for previous operation to end
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //enable flash programming
