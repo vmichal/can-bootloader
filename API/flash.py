@@ -645,8 +645,8 @@ class FlashMaster():
 		return self.send_handshake("Command", command, value)
 
 
-	def request_bootloader_exit(self, target, force):
-		return self.send_generic_message_and_await_response(self.ExitReq.identifier, [target, force], self.ExitAck.identifier)[0]
+	def request_bootloader_exit(self, target, force, toApp):
+		return self.send_generic_message_and_await_response(self.ExitReq.identifier, [target, force, toApp], self.ExitAck.identifier)[0]
 
 	def request_bootloader_entry(self, target):
 		return self.send_generic_message_and_await_response(self.Ping.identifier, [target, True], self.PingResponse.identifier)[0]
@@ -769,18 +769,16 @@ class FlashMaster():
 
 				if args.verbose:
 					print('Forcing bootloader to abort current transaction ... ', file=self.output_file)
-				if not self.request_bootloader_exit(self.target, force = True):
+				if not self.request_bootloader_exit(self.target, force = True, toApp = False):
 					print('Bootloader refused to abort ongoing transaction.', file=self.output_file)
 					return
 				#wait for the bootloader to become ready
 				while self.listing.active_bootloaders[self.target].state != ready_state:
 					time.sleep(0.1)
-
-			if args.verbose:
-				print('Target bootloader is ready.', file=self.output_file)
-
 		else:
 			assert False
+
+		print('Target bootloader is ready.', file=self.output_file)
 
 	def send_initial_transaction_magic(self):
 		if args.verbose:
@@ -805,7 +803,7 @@ class FlashMaster():
 			print('Interrupt vector table address updated sucessfully.', file=self.output_file)
 		print('Leaving bootloader... ', end='', file=self.output_file)
 
-		result = self.request_bootloader_exit(self.target, force = False)
+		result = self.request_bootloader_exit(self.target, force = False, toApp = True)
 		print('Confirmed' if result else 'Declined', file=self.output_file)
 
 	def flash(self, force = False):
@@ -1017,7 +1015,7 @@ class FlashMaster():
 			print('Firmware flashed successfully', file=self.output_file)
 		print('Leaving bootloader... ', end='', file=self.output_file)
 
-		result = self.request_bootloader_exit(self.target, force = False)
+		result = self.request_bootloader_exit(self.target, force = False, toApp = True)
 		print('Confirmed' if result else 'Declined', file=self.output_file)
 
 		print('\n')

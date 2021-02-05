@@ -234,15 +234,17 @@ int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_
 
 	data_out->Target = (enum Bootloader_BootTarget)((bytes[0] & 0x0F));
 	data_out->Force = ((bytes[0] >> 4) & 0x01);
+	data_out->InitializeApplication = ((bytes[0] >> 5) & 0x01);
 	return 1;
 }
 
-int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* Force_out) {
+int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* Force_out, uint8_t* InitializeApplication_out) {
 	if (length < 1)
 		return 0;
 
 	*Target_out = (enum Bootloader_BootTarget)((bytes[0] & 0x0F));
 	*Force_out = ((bytes[0] >> 4) & 0x01);
+	*InitializeApplication_out = ((bytes[0] >> 5) & 0x01);
 	return 1;
 }
 

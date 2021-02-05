@@ -272,6 +272,9 @@ typedef struct Bootloader_ExitReq_t {
 
 	/* Force the bootloader to reset regardless of current state. Necessary when there is an ongoing transaction. */
 	uint8_t	Force;
+
+    /* Should the bootloader enter the application or only reboot itself? */
+    uint8_t InitializeApplication;
 } Bootloader_ExitReq_t;
 
 
@@ -370,7 +373,7 @@ void Bootloader_DataAck_on_receive(int (*callback)(Bootloader_DataAck_t* data));
 int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result);
 
 int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out);
-int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* Force_out);
+int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* Force_out, uint8_t* InitializeApplication_out);
 int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
 void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 

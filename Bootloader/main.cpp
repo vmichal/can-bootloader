@@ -46,11 +46,14 @@ namespace boot {
 				if (data->Target != customization::thisUnit)
 					return 2;
 
-				if (data->Force) { //We want to restart the bootloader
+				std::uint16_t const destination = data->InitializeApplication
+					? BackupDomain::application_magic : BackupDomain::bootloader_magic;
+
+				if (data->Force) { //We want to abort any ongoing transaction
 					canManager.SendExitAck(true);
 					flushCAN(Bootloader_ExitReq_status.bus, 500_ms);
 
-					resetTo(BackupDomain::bootloader_magic);
+					resetTo(destination);
 				}
 
 				if (bootloader.transactionInProgress()) {
@@ -60,7 +63,7 @@ namespace boot {
 				canManager.SendExitAck(true);
 				flushCAN(Bootloader_ExitReq_status.bus, 500_ms);
 
-				resetTo(BackupDomain::application_magic);
+				resetTo(destination);
 				});
 		}
 
