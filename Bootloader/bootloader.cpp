@@ -428,6 +428,17 @@ namespace boot {
 		assert_unreachable();
 	}
 
+	HandshakeResponse Bootloader::validateVectorTable(std::uint32_t address) {
+
+		if (Flash::addressOrigin(address) != AddressSpace::AvailableFlash)
+			return HandshakeResponse::AddressNotInFlash;
+
+		if (!ufsel::bit::all_cleared(address, isrVectorAlignmentMask))
+			return HandshakeResponse::InterruptVectorNotAligned;
+
+		return HandshakeResponse::Ok;
+	}
+
 	HandshakeResponse MetadataReceiver::receive(Register reg, Command com, std::uint32_t value) {
 		switch (status_) {
 		case Status::unitialized:
@@ -443,12 +454,8 @@ namespace boot {
 			if (reg != Register::InterruptVector)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (Flash::addressOrigin(value) != AddressSpace::AvailableFlash)
-				return HandshakeResponse::AddressNotInFlash;
-
-			if (!ufsel::bit::all_cleared(value, isrVectorAlignmentMask))
-				return HandshakeResponse::InterruptVectorNotAligned;
-
+			if (auto const response = Bootloader::validateVectorTable(value); response != HandshakeResponse::Ok)
+				return response;
 
 			isr_vector_ = value;
 			status_ = Status::awaitingEntryPoint;

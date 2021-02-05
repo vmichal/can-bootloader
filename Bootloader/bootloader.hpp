@@ -251,6 +251,7 @@ namespace boot {
 
 		Bootloader_Handshake_t processYield();
 
+		static HandshakeResponse validateVectorTable(std::uint32_t address);
 		static void setEntryReason(EntryReason);
 
 		static EntryReason entryReason() { return entryReason_; }
