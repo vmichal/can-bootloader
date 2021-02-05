@@ -58,6 +58,11 @@ enum Bootloader_Command {
     Bootloader_Command_ResumeSubtransaction = 4,
     /* Some data packets have been lost. Return to specified address and start again */
     Bootloader_Command_RestartFromAddress = 5,
+    /* The bootloader itself shall be erased and flashed. */
+    Bootloader_Command_StartBootloaderUpdate = 6,
+    /* Update the application jump table with new value of the isr vector. If the jump table was not valid, fill other metadata with zeros. */
+    Bootloader_Command_SetNewVectorTable = 7,
+
 };
 
 enum Bootloader_EntryReason {

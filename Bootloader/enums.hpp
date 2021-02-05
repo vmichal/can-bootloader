@@ -34,7 +34,9 @@ namespace boot {
 		AbortTransaction = Bootloader_Command_AbortTransaction,
 		StallSubtransaction = Bootloader_Command_StallSubtransaction,
 		ResumeSubtransaction = Bootloader_Command_ResumeSubtransaction,
-		RestartFromAddress = Bootloader_Command_RestartFromAddress
+		RestartFromAddress = Bootloader_Command_RestartFromAddress,
+		StartBootloaderUpdate = Bootloader_Command_StartBootloaderUpdate,
+		SetNewVectorTable = Bootloader_Command_SetNewVectorTable,
 	};
 
 	enum class HandshakeResponse {
