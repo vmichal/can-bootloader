@@ -179,6 +179,9 @@ namespace {
 
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
+	//The O0 optimization is currently the best workaround so that the compiler does not optimize this function into a memcpy.
+	//We have no control over the definition of memcpy and thus it goes to .text. Section .text is initialized by calling this function
+	//hence an unsolveable circular dependency would occur.
 	void do_load_section(std::uint32_t const* load_address, std::uint32_t * begin, std::uint32_t const* const end) __attribute__((section(".executed_from_flash")));
 	void do_load_section(std::uint32_t const* load_address, std::uint32_t * begin, std::uint32_t const* const end) {
 		for (; begin != end; ++load_address, ++begin)
