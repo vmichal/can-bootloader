@@ -30,6 +30,8 @@ namespace boot {
 		constexpr static std::uint16_t reset_value = 0x00'00; //value after power reset. Enter the application
 		//Writing this value to the bootControlRegister requests entering the bootloader after reset
 		constexpr static std::uint16_t bootloader_magic = 0xB007;
+		//The application has been unstable and could not be kept running.
+		constexpr static std::uint16_t app_fatal_error_magic = 0xDEAD;
 		constexpr static std::uint16_t application_magic = 0xC0DE; //enter the application
 
 		//Memory location in backup domain used for data exchange between BL and application

@@ -77,6 +77,7 @@ namespace boot {
 		InvalidTopOfStack = Bootloader_EntryReason_InvalidTopOfStack, //The specified top of stack points to flash
 		BackupRegisterCorrupted = Bootloader_EntryReason_BackupRegisterCorrupted, //The backup register contained value different from 0 (reset value) or application_magic
 		Requested = Bootloader_EntryReason_Requested, //The bootloader was requested
+		ApplicationFailure = Bootloader_EntryReason_ApplicationFailure, //The application died horribly.
 	};
 
 	enum class Status {

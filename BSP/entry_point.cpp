@@ -77,6 +77,8 @@ namespace {
 		switch (boot::BackupDomain::bootControlRegister) {
 		case boot::BackupDomain::bootloader_magic:
 			return boot::EntryReason::Requested; //return to enter the bootloader
+		case boot::BackupDomain::app_fatal_error_magic:
+			return boot::EntryReason::ApplicationFailure;
 
 		case boot::BackupDomain::reset_value:
 		case boot::BackupDomain::application_magic:

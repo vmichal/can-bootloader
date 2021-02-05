@@ -62,7 +62,7 @@ namespace boot {
 	[[noreturn]]
 	void resetTo(std::uint16_t const code) {
 
-		assert(code == BackupDomain::application_magic || code == BackupDomain::bootloader_magic);
+		assert(code == BackupDomain::application_magic || code == BackupDomain::bootloader_magic || code == BackupDomain::app_fatal_error_magic);
 
 		BackupDomain::unlock();
 		BackupDomain::bootControlRegister = code;
