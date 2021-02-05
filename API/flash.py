@@ -15,7 +15,8 @@ parser = argparse.ArgumentParser(description="=========== CAN bootloader =======
 	formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('-j', metavar="file", dest='json_files', type=str, action='append', help='add candb json file to parse')
-parser.add_argument('-f', dest='feature', type=str, choices=["list", "flash"], default="list", help='choose feature - list bootloader aware units or flash new firmware')
+parser.add_argument('-f', dest='feature', type=str, choices=["list", "flash", "set_vector_table"], default="list", help='choose feature - list bootloader aware units or flash new firmware')
+parser.add_argument('--address', dest='address', type=str, help='absolute memory address to use (address of vector table to store when using -f set_vector_table)')
 parser.add_argument('-u', dest='unit', type=str, help='Unit to flash.')
 parser.add_argument('-x', dest='firmware', type=str, help='Path to hex file for flashing')
 parser.add_argument('-t', dest='terminal', type=str, help='Path to second terminal for pretty bootloader listing')
@@ -30,7 +31,9 @@ args = parser.parse_args()
 #usage:
 # python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f list /dev/ttyS4
 # python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f flash -u AMS -x build/AMS.hex /dev/ttyS4
-#python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f flash -x $repos/ams-sw/ams/build/dv01/AMS.hex -u AMS -t /dev/tty7 --force --verbose /dev/ttyS4
+# python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f flash -x $repos/ams-sw/ams/build/dv01/AMS.hex -u AMS -t /dev/tty7 --force --verbose /dev/ttyS4
+# python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f set_vector_table --address 0x08003000 -u AMS /dev/ttyS3      #Make the BL accept already flashed firmware with isr vector located at 0x0800'3000
+
 from pycandb.candb import CanDB
 import ocarina_sw.api.ocarina as ocarina
 import time
@@ -786,6 +789,25 @@ class FlashMaster():
 
 		self.report_handshake_response(self.send_transaction_magic())
 
+	def set_vector_table(self, address, force):
+		if args.verbose:
+			print(f"Initiating flash process for {self.targetName} (target ID {self.target})\n", file=self.output_file)
+
+		self.estabilish_connection_to_slave(force)
+		self.send_initial_transaction_magic()
+
+		#actually send the new value
+		print(f'Setting address 0x{address:08x} as the new interrupt vector table.', file=self.output_file)
+		self.report_handshake_response(self.send_command('SetNewVectorTable', address))
+
+		#some more stupid messages to show that we are doing work.
+		if args.verbose:
+			print('Interrupt vector table address updated sucessfully.', file=self.output_file)
+		print('Leaving bootloader... ', end='', file=self.output_file)
+
+		result = self.request_bootloader_exit(self.target, force = False)
+		print('Confirmed' if result else 'Declined', file=self.output_file)
+
 	def flash(self, force = False):
 		if args.verbose:
 			print(f"Initiating flash process for {self.targetName} (target ID {self.target})\n", file=self.output_file)
@@ -1033,6 +1055,14 @@ elif args.feature == 'flash':
 	master = FlashMaster(args.unit, args.terminal, args.quiet)
 	master.parseFirmware(args.firmware)
 	master.flash(args.force)
+
+elif args.feature == 'set_vector_table':
+
+	assert args.unit is not None
+	assert args.address is not None
+	args.address = int(args.address, 16 if 'x' in args.address or 'X' in args.address else 10)
+	master = FlashMaster(args.unit, args.terminal, args.quiet)
+	master.set_vector_table(args.address, args.force)
 
 else:
 	assert False
