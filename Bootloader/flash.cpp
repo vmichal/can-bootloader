@@ -19,6 +19,18 @@ namespace boot {
 	std::uint32_t const Flash::jumpTableAddress = reinterpret_cast<std::uint32_t>(&jumpTable_start);
 	std::uint32_t const Flash::applicationAddress = reinterpret_cast<std::uint32_t>(&available_flash_start);
 
+	void Flash::AwaitEndOfErasure() {
+		//wait for all operations to finish and lock flash
+		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
+#ifdef BOOT_STM32F1
+		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
+#else
+#ifdef BOOT_STM32F4
+		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_SER);
+#endif
+#endif
+	}
+
 #ifdef BOOT_STM32F1
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
 
@@ -187,6 +199,8 @@ namespace boot {
 	void ApplicationJumpTable::invalidate() {
 		//This vv better hold if we want to preserve data integrity
 		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
+		assert(this == &jumpTable);
+
 		Flash::ErasePage(Flash::jumpTableAddress);
 	}
 
@@ -205,6 +219,7 @@ namespace boot {
 	void ApplicationJumpTable::write_magics() {
 		//This vv better hold if we want to preserve data integrity
 		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
+		assert(this == &jumpTable);
 
 		Flash::Write(reinterpret_cast<std::uint32_t>(&magic1_), expected_magic1_value);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&magic2_), expected_magic2_value);
@@ -216,14 +231,15 @@ namespace boot {
 	void ApplicationJumpTable::write_metadata(InformationSize const firmware_size, std::span<MemoryBlock const> const logical_memory_blocks) {
 		//This vv better hold if we want to preserve data integrity
 		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
+		assert(this == &jumpTable);
 
 		Flash::Write(reinterpret_cast<std::uint32_t>(&firmwareSize_), firmware_size.toBytes());
 		std::uint32_t const logicalMemoryBlockCount = size(logical_memory_blocks_);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_block_count_), logicalMemoryBlockCount);
 
 		for (std::uint32_t i = 0; i < logicalMemoryBlockCount; ++i) {
-			Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_blocks_[i].address), logical_memory_blocks_[i].address);
-			Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_blocks_[i].length), logical_memory_blocks_[i].length);
+			Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_blocks_[i].address), logical_memory_blocks[i].address);
+			Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_blocks_[i].length), logical_memory_blocks[i].length);
 		}
 		Flash::Write(reinterpret_cast<std::uint32_t>(&metadata_valid_magic_), metadata_valid_magic_value);
 	}
@@ -231,6 +247,7 @@ namespace boot {
 	void ApplicationJumpTable::write_interrupt_vector(std::uint32_t const isr_vector) {
 		//This vv better hold if we want to preserve data integrity
 		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
+		assert(this == &jumpTable);
 
 		Flash::Write(reinterpret_cast<std::uint32_t>(&interruptVector_), isr_vector);
 	}

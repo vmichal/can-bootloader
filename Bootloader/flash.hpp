@@ -59,6 +59,7 @@ namespace boot {
 			~RAII_unlock() { Lock(); }
 		};
 
+		static void AwaitEndOfErasure();
 		static bool ErasePage(std::uint32_t pageAddress);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);
 		static WriteStatus Write(std::uint32_t flashAddress, std::uint16_t halfWord);

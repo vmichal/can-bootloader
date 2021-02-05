@@ -246,6 +246,7 @@ namespace boot {
 			return ret;
 		}
 
+		HandshakeResponse setNewVectorTable(std::uint32_t isr_vector);
 		HandshakeResponse processHandshake(Register reg, Command command, std::uint32_t value);
 		void processHandshakeAck(HandshakeResponse response);
 

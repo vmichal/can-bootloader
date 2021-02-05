@@ -325,14 +325,8 @@ namespace boot {
 				if (value != Bootloader::transactionMagic)
 					return HandshakeResponse::InvalidTransactionMagic;
 				//wait for all operations to finish and lock flash
-				while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
-#ifdef BOOT_STM32F1
-				ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
-#else
-#ifdef BOOT_STM32F4
-				ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_SER);
-#endif
-#endif
+				Flash::AwaitEndOfErasure();
+
 				Flash::Lock();
 				status_ = Status::done;
 				return HandshakeResponse::Ok;
@@ -494,6 +488,42 @@ namespace boot {
 		assert_unreachable();
 	}
 
+	HandshakeResponse Bootloader::setNewVectorTable(std::uint32_t const isr_vector) {
+		//We want to update the interrupt vector address stored in the application jump table.
+		//Depending on the state on the jump table, we either have to copy and store all data again
+		//or fill it with empty metadata to make it valid. When this function returns, the jump table
+		//must be in a valid state (and the application bootable)
+
+		if (auto const response = validateVectorTable(isr_vector); response != HandshakeResponse::Ok)
+			return response; //Ignore this write if the given address does not fulfill requirements on vector table
+
+		bool const metadata_valid = jumpTable.has_valid_metadata();
+
+		decltype(ApplicationJumpTable::logical_memory_blocks_) logical_memory_blocks {{0,0}};
+		std::uint32_t logical_memory_blocks_count = 0;
+		InformationSize firmware_size = 0_B;
+
+		if (metadata_valid) {
+			//If the jump table is valid, we have to preserve its state. Otherwise, make it valid.
+			firmware_size = InformationSize::fromBytes(jumpTable.firmwareSize_);
+			logical_memory_blocks_count = jumpTable.logical_memory_block_count_;
+			auto const &source = jumpTable.logical_memory_blocks_;
+			std::copy(cbegin(source), cbegin(source) + logical_memory_blocks_count, begin(logical_memory_blocks));
+		}
+
+		Flash::RAII_unlock const _;
+
+		jumpTable.invalidate();
+		Flash::AwaitEndOfErasure(); //Make sure the page erasure has finished and exit erase mode.
+
+		jumpTable.write_interrupt_vector(isr_vector);
+		jumpTable.write_magics();
+
+		if (metadata_valid)
+			jumpTable.write_metadata(firmware_size, std::span{logical_memory_blocks.data(), logical_memory_blocks_count});
+		return HandshakeResponse::Ok;
+	}
+
 	HandshakeResponse Bootloader::processHandshake(Register const reg, Command const command, std::uint32_t const value) {
 
 		if (reg != Register::Command && command != Command::None)
@@ -517,6 +547,13 @@ namespace boot {
 				transactionType_ = TransactionType::Flashing;
 				physicalMemoryMapTransmitter_.startSubtransaction();
 				return HandshakeResponse::Ok;
+			case Command::SetNewVectorTable: {
+
+				auto const response = setNewVectorTable(value);
+				if (response == HandshakeResponse::Ok)
+					status_ = Status::Ready; //If the jumpTable update was successful, then we are done here
+				return response;
+			}
 			default:
 				return HandshakeResponse::UnknownTransactionType;
 			}
