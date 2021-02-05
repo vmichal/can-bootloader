@@ -638,8 +638,8 @@ class FlashMaster():
 	def send_transaction_magic(self):
 		return self.send_handshake("TransactionMagic", "None", FlashMaster.transactionMagic)
 
-	def send_command(self, command):
-		return self.send_handshake("Command", command, 0)
+	def send_command(self, command, value = 0):
+		return self.send_handshake("Command", command, value)
 
 
 	def request_bootloader_exit(self, target, force):
@@ -724,10 +724,7 @@ class FlashMaster():
 			if res == enumerator_by_name('OK', self.HandshakeResponseEnum):
 				return #transaction magic is ok, we can go further
 
-
-	def flash(self, force = False):
-		if args.verbose:
-			print(f"Initiating flash process for {self.targetName} (target ID {self.target})\n", file=self.output_file)
+	def estabilish_connection_to_slave(self, force):
 		self.ocarinaReadingThread.start()
 
 		print('Searching bootloader aware units present on the bus...', file=self.output_file)
@@ -744,7 +741,7 @@ class FlashMaster():
 
 		#the target has application running -> request it to reset into bootloader
 		if is_application_active(self.target):
-			print(f'Waiting for {self.targetName} to enter bootloader.', file=self.output_file)
+			print(f'Waiting for {self.targetName} to enter the bootloader.', file=self.output_file)
 
 			for i in range(5):
 				if self.request_bootloader_entry(self.target):
@@ -782,11 +779,19 @@ class FlashMaster():
 		else:
 			assert False
 
+	def send_initial_transaction_magic(self):
 		if args.verbose:
 			print('\nTransaction starts\n', file=self.output_file)
 			print('Sending initial transaction magic ... ', end='', file=self.output_file)
 
 		self.report_handshake_response(self.send_transaction_magic())
+
+	def flash(self, force = False):
+		if args.verbose:
+			print(f"Initiating flash process for {self.targetName} (target ID {self.target})\n", file=self.output_file)
+
+		self.estabilish_connection_to_slave(force)
+		self.send_initial_transaction_magic()
 
 		if args.verbose:
 			print('Initiating flashing transaction ... ', end = '', file=self.output_file)
