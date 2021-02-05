@@ -75,8 +75,10 @@ enum Bootloader_EntryReason {
     Bootloader_EntryReason_InvalidTopOfStack = 5,
     /* The backup register contained value different from 0 (reset value) or application_magic */
     Bootloader_EntryReason_BackupRegisterCorrupted = 6,
-    /* The bootloader was requested */
+    /* The bootloader was requested by the flash master via message Ping */
     Bootloader_EntryReason_Requested = 7,
+    /* The application repeatedly crashed (it was unable to properly initialize or encountered fatal error like a failed assertion) */
+    Bootloader_EntryReason_ApplicationFailure = 8,
 };
 
 enum Bootloader_HandshakeResponse {
@@ -227,7 +229,7 @@ typedef struct Bootloader_Beacon_t {
  * Stream of data to be flashed into the MCU.
  */
 typedef struct Bootloader_Data_t {
-    /* Word (4B) aligned address where the data shall be written */
+	/* Word aligned absolute address */
 	uint32_t	Address;
 
 	/* If set to true, only the lower 16 bits of Word will be flashed. */
