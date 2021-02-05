@@ -550,8 +550,8 @@ namespace boot {
 			case Command::SetNewVectorTable: {
 
 				auto const response = setNewVectorTable(value);
-				if (response == HandshakeResponse::Ok)
-					status_ = Status::Ready; //If the jumpTable update was successful, then we are done here
+				//Return to the ready state. Should the master want to send data again, it would start a new transaction
+				status_ = Status::Ready;
 				return response;
 			}
 			default:
