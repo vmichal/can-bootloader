@@ -780,7 +780,8 @@ class FlashMaster():
 				time.sleep(0.01)
 
 		elif is_bootloader_active(self.target):
-			print('Target is already in bootloader.', file=self.output_file)
+			if args.verbose:
+				print('Target is already in bootloader.', file=self.output_file)
 			ready_state = enumerator_by_name('Ready', self.StateEnum)
 			#if the bootloader is not ready, there is another transaction
 			if self.listing.active_bootloaders[self.target].state != ready_state: 
