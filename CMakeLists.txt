@@ -11,6 +11,7 @@ set(SRC
         Bootloader/canmanager.cpp
         Bootloader/flash.cpp
         BSP/entry_point.cpp
+        BSP/isr_vector.cpp
         BSP/can.cpp
         BSP/gpio.cpp
         BSP/timer.cpp
@@ -25,8 +26,6 @@ set(SRC
         CANdb/tx2_can.c
         CANdb/tx2_ringbuf.c
         CANdb/can_Bootloader.c
-
-        startup/startup_stm32f105xc.s
         )
 
 add_executable(${PROJECT_NAME}.elf ${SRC} ${CAN_SRC})
