@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-memory_map_print_elems_per_line = 5
+memory_map_print_elems_per_line = 4
 
 import os
 import struct
@@ -11,7 +11,29 @@ import itertools
 import queue
 from collections import namedtuple
 
-parser = argparse.ArgumentParser(description="=========== CAN bootloader ============\nDesktop interface to CAN bootloaders embedded into the electric formula.\nWritten by Vojtech Michal, (c) eForce FEE Prague Formula 2020",\
+parser = argparse.ArgumentParser(description=
+"""=========== CAN bootloader ============
+Desktop interface to CAN bootloaders embedded into the electric formula.
+Written by Vojtech Michal, (c) eForce FEE Prague Formula 2020, 2021
+
+Possible ways you may want to use this API:
+List all bootloader aware units present on the bus:
+	python3.8 flash.py -j path_to_json -f list /dev/ttyS4
+
+Flash an ECU with new firmware in the simplest way possible
+	python3.8 flash.py -j path_to_json -f flash -u AMS -x build/AMS.hex /dev/ttyS4
+
+Flash an ECU with new firmware with fancy UI, terminating al previous transactions
+	python3.8 flash.py -j path_to_json -f flash -x path_to_hex -u AMS -t /dev/tty7 --force --verbose /dev/ttyS4
+
+Make the BL accept already flashed firmware with isr vector located at 0x0800'3000
+	python3.8 flash.py -j path_to_json -f set_vector_table --address 0x08003000 -u AMS /dev/ttyS3     
+
+Request the active bootloader to exit and start the application
+	python3.8 flash.py -j path_to_json -f exit -u AMS /dev/ttyS3	
+
+Request the application to enter the bootloader.   
+	python3.8 flash.py -j path_to_json -f enter -u AMS /dev/ttyS3""",\
 	formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('-j', metavar="file", dest='json_files', type=str, action='append', help='add candb json file to parse')
@@ -20,7 +42,7 @@ parser.add_argument('--address', dest='address', type=str, help='absolute memory
 parser.add_argument('-u', dest='unit', type=str, help='Unit to flash.')
 parser.add_argument('-x', dest='firmware', type=str, help='Path to hex file for flashing')
 parser.add_argument('-t', dest='terminal', type=str, help='Path to second terminal for pretty bootloader listing')
-parser.add_argument('--force', dest='force', action='store_true', help='Terminate ongoing transactions and start a new one')
+parser.add_argument('--force', dest='force', action='store_true', help='Terminate all ongoing transactions and start a new one')
 parser.add_argument('-q', dest='quiet', action='store_true', help='Do not print to standard output.')
 parser.add_argument('--verbose', dest='verbose', action='store_true', help='Print absolutely everything.')
 
@@ -28,13 +50,6 @@ parser.add_argument('ocarina',  metavar='ocarina', type=str, help='path to ocari
 
 args = parser.parse_args()
 
-#usage:
-# python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f list /dev/ttyS4
-# python3.8 flash.py -j $repos/../FSE09-Bootloader.json -f flash -u AMS -x build/AMS.hex /dev/ttyS4
-# python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f flash -x $repos/ams-sw/ams/build/dv01/AMS.hex -u AMS -t /dev/tty7 --force --verbose /dev/ttyS4
-# python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f set_vector_table --address 0x08003000 -u AMS /dev/ttyS3      #Make the BL accept already flashed firmware with isr vector located at 0x0800'3000
-# python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f exit -u AMS /dev/ttyS3			#Request the active bootloader to exit and start the application
-# python3.8 flash.py -j $repos/../FSE08-FSE09ams.json -f enter -u AMS /dev/ttyS3		#Request the application to enter the bootloader.
 from pycandb.candb import CanDB
 import ocarina_sw.api.ocarina as ocarina
 import time
