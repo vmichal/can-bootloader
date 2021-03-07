@@ -145,14 +145,14 @@ namespace {
 
 		constexpr int PLLM = boot::HSE / 1_MHz; //Frequency 1MHz at PLL input
 		//PLL can further divide by 2,4,6 or 8 and multiply by 50 to 432
-		constexpr int PLLN = 4*12; //We want to achieve SYSCLK 12 MHz, so lets set P = 4 and N = 12-4
+		constexpr int PLLN = 6*12; //We want to achieve SYSCLK 12 MHz, so lets set P = 6 and N = 12*6
 
 		RCC->PLLCFGR = bit::set(
 			7 << POS_FROM_MASK(RCC_PLLCFGR_PLLR), //Probably irrelevant, not used
 			15 << POS_FROM_MASK(RCC_PLLCFGR_PLLQ), //Probably irrelevant, not used
 			RCC_PLLCFGR_PLLSRC, //HSE used as source
-			//Divide PLL output (48MHz) by 4 in order to get 12MHz on AHB
-			0b01 << POS_FROM_MASK(RCC_PLLCFGR_PLLP),
+			//Divide PLL output (72MHz) by 6 in order to get 12MHz on AHB
+			0b10 << POS_FROM_MASK(RCC_PLLCFGR_PLLP),
 			PLLN << POS_FROM_MASK(RCC_PLLCFGR_PLLN),
 			PLLM << POS_FROM_MASK(RCC_PLLCFGR_PLLM));
 
@@ -162,7 +162,7 @@ namespace {
 		bit::set(std::ref(FLASH->ACR), FLASH_ACR_PRFTEN);
 		while (bit::get(FLASH->ACR, FLASH_ACR_LATENCY) != desired_latency); //Wait for ack
 
-		RCC->CFGR = bit::set(
+		RCC->CFGR = bit::bitmask(
 			RCC_CFGR_PPRE2_DIV1, //APB2 has full speed (12 MHz)
 			RCC_CFGR_PPRE1_DIV1, //APB1 has full speed
 			RCC_CFGR_HPRE_DIV1);

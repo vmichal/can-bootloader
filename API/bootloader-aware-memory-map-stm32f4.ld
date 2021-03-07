@@ -27,5 +27,5 @@ MEMORY
 BootloaderFlash(rx)      : ORIGIN = FlashStart, LENGTH = BootloaderSize
 JumpTableFlash(rx)       : ORIGIN = FlashStart + BootloaderSize, LENGTH = JumpTableSize
 ApplicationFlash(rx)     : ORIGIN = FlashStart + BootloaderSize + JumpTableSize, LENGTH = FlashSize - BootloaderSize - JumpTableSize
-RAM (xrw)                : ORIGIN = 0x20000000, LENGTH = 256K
+RAM (xrw)                : ORIGIN = 0x20001000, LENGTH = 252K /*TODO this is a temporary workaround for error in FSEX.PDL SRAM (cell 0x20'00'04cc cannot be written by the MCU)*/
 }
