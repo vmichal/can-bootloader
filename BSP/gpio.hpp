@@ -18,14 +18,20 @@ namespace bsp::gpio {
 			return Pin { ports[port - 'A'], pin , mode};
 		}
 
-		//CAN1_RX	GPIO port A, pin 44, digital – CAN RX
+
+#ifdef BOOT_STM32F1
 		constexpr Pin CAN1_RX              = P('A', 11, PinMode::input_floating);
-		//CAN1_TX	GPIO port A, pin 45, digital – CAN TX
 		constexpr Pin CAN1_TX              = P('A', 12, PinMode::af_pushpull);
-		//CAN2_RX	GPIO port B, pin 33, digital – CAN RX
 		constexpr Pin CAN2_RX              = P('B', 12, PinMode::input_floating);
-		//CAN2_TX	GPIO port B, pin 34, digital – CAN TX
 		constexpr Pin CAN2_TX              = P('B', 13, PinMode::af_pushpull);
+#else
+#ifdef BOOT_STM32F4
+		constexpr Pin CAN1_RX              = P('A', 11, PinMode::alternate_function);
+		constexpr Pin CAN1_TX              = P('A', 12, PinMode::alternate_function);
+		constexpr Pin CAN2_RX              = P('B', 12, PinMode::alternate_function);
+		constexpr Pin CAN2_TX              = P('B', 13, PinMode::alternate_function);
+#endif
+#endif
 	}
 
 	void Initialize(void);

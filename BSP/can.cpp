@@ -25,13 +25,13 @@ namespace bsp::can {
 
 		//wait for bxCAN to synchronize with the bus (leave initialization)
 		void peripheralAwaitSynchronization(CAN_TypeDef& can) {
-			for (; ufsel::bit::all_set(can.MSR, CAN_MSR_INAK););
+			ufsel::bit::wait_until_cleared(can.MSR, CAN_MSR_INAK);
 		}
 
 		void peripheralInit(CAN_TypeDef& can, unsigned prescaler) {
 			using namespace ufsel;
 			//await acknowledge that the peripheral entered initialization mode
-			for (; bit::all_cleared(can.MSR, CAN_MSR_INAK););
+			ufsel::bit::wait_until_set(can.MSR, CAN_MSR_INAK);
 
 			constexpr bool ttcm = false,
 				abom = true,
@@ -68,7 +68,7 @@ namespace bsp::can {
 		}
 	}
 
-	void Initialize(void) {
+	void Initialize() {
 		using namespace ufsel;
 
 		//enable peripheral clock to CAN1, CAN2

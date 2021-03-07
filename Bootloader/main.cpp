@@ -185,13 +185,12 @@ namespace boot {
 
 	}
 
-	extern "C" [[noreturn]] void HardFault_Handler() {
+	extern "C" void HardFault_Handler() {
 
 		for (;;) {
 		}
 
 	}
-
 }
 
 

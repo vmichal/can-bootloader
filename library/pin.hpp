@@ -4,10 +4,19 @@
 #include <Bootloader/options.hpp>
 
 
+
+
 enum class PinMode { //These two mode are sufficient to control CAN peripheral.
-	//TODO fill this with relevant data from your reference manual
+#ifdef BOOT_STM32F1
 	input_floating = 0b0100,
 	af_pushpull = 0b1010
+#else 
+#ifdef BOOT_STM32F4
+	alternate_function
+#else
+#error MCU not specified!
+#endif
+#endif
 };
 
 struct Pin {
