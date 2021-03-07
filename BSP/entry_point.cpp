@@ -40,24 +40,26 @@ extern "C" {
 	} > RAM AT > BootloaderFlash
 #endif
 
-	extern std::uint32_t           _sdata[]; //Points to the start of data in RAM
-	extern std::uint32_t           _edata[]; //Points past the end of data in RAM
-	extern std::uint32_t const _load_data[]; //Points to the start of data in FLASH
+	using section_elem_t = std::uint32_t;
 
-	extern std::uint32_t _sbss[]; //Points to the beginning of .bss in RAM
-	extern std::uint32_t _ebss[]; //Points past the end of .bss in RAM
+	extern section_elem_t           _sdata[]; //Points to the start of data in RAM
+	extern section_elem_t           _edata[]; //Points past the end of data in RAM
+	extern section_elem_t const _load_data[]; //Points to the start of data in FLASH
 
-	extern std::uint32_t           _stext[]; //Points to the beginning of .text in RAM
-	extern std::uint32_t           _etext[]; //Points past the end of .text in RAM
-	extern std::uint32_t const _load_text[]; //Points to the start of .text in FLASH
+	extern section_elem_t _sbss[]; //Points to the beginning of .bss in RAM
+	extern section_elem_t _ebss[]; //Points past the end of .bss in RAM
 
-	extern std::uint32_t           _sisr_vector[]; //Points to the beginning of .isr_vector in RAM
-	extern std::uint32_t           _eisr_vector[]; //Points past the end of .isr_vector in RAM
-	extern std::uint32_t const _load_isr_vector[]; //Points to the start of .isr_vector in FLASH
+	extern section_elem_t           _stext[]; //Points to the beginning of .text in RAM
+	extern section_elem_t           _etext[]; //Points past the end of .text in RAM
+	extern section_elem_t const _load_text[]; //Points to the start of .text in FLASH
 
-	extern std::uint32_t           _srodata[]; //Points to the beginning of .rodata in RAM
-	extern std::uint32_t           _erodata[]; //Points past the end of .rodata in RAM
-	extern std::uint32_t const _load_rodata[]; //Points to the start of .rodata in FLASH
+	extern section_elem_t           _sisr_vector[]; //Points to the beginning of .isr_vector in RAM
+	extern section_elem_t           _eisr_vector[]; //Points past the end of .isr_vector in RAM
+	extern section_elem_t const _load_isr_vector[]; //Points to the start of .isr_vector in FLASH
+
+	extern section_elem_t           _srodata[]; //Points to the beginning of .rodata in RAM
+	extern section_elem_t           _erodata[]; //Points past the end of .rodata in RAM
+	extern section_elem_t const _load_rodata[]; //Points to the start of .rodata in FLASH
 
 	void __libc_init_array();
 }
@@ -183,8 +185,7 @@ namespace {
 	//The O0 optimization is currently the best workaround so that the compiler does not optimize this function into a memcpy.
 	//We have no control over the definition of memcpy and thus it goes to .text. Section .text is initialized by calling this function
 	//hence an unsolveable circular dependency would occur.
-	void do_load_section(std::uint32_t const* load_address, std::uint32_t * begin, std::uint32_t const* const end) __attribute__((section(".executed_from_flash")));
-	void do_load_section(std::uint32_t const* load_address, std::uint32_t * begin, std::uint32_t const* const end) {
+	__attribute__((section(".executed_from_flash"))) void do_load_section(section_elem_t const* load_address, section_elem_t* begin, section_elem_t const* const end) {
 		for (; begin != end; ++load_address, ++begin)
 			*begin = *load_address;
 	}
