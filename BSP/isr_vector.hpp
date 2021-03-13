@@ -210,8 +210,7 @@ __attribute__((weak, alias("Default_Handler"))) void DMA2D_IRQHandler(void);
     LCD_TFT_ERR_IRQHandler, \
     DMA2D_IRQHandler
 
-#else
-#ifdef BOOT_STM32F1
+#elif defined(BOOT_STM32F1)
 
 __attribute__((weak, alias("Default_Handler"))) void WWDG_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void PVD_IRQHandler(void);
@@ -232,10 +231,10 @@ __attribute__((weak, alias("Default_Handler"))) void DMA1_Channel5_IRQHandler(vo
 __attribute__((weak, alias("Default_Handler"))) void DMA1_Channel6_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void DMA1_Channel7_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void ADC1_2_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void USB_HP_CAN_TX_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void USB_LP_CAN_RX0_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void CAN_RX1_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void CAN_SCE_IRQHandler(void);
+__attribute__((weak, alias("Default_Handler"))) void CAN1_TX_IRQHandler(void);
+__attribute__((weak, alias("Default_Handler"))) void CAN1_RX0_IRQHandler(void);
+__attribute__((weak, alias("Default_Handler"))) void CAN1_RX1_IRQHandler(void);
+__attribute__((weak, alias("Default_Handler"))) void CAN1_SCE_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void EXTI9_5_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void TIM1_BRK_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void TIM1_UP_IRQHandler(void);
@@ -254,15 +253,8 @@ __attribute__((weak, alias("Default_Handler"))) void USART1_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void USART2_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void USART3_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void EXTI15_10_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void RTC_ALARM_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void USB_WAKEUP_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void TIM8_BRK_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void TIM8_UP_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void TIM8_TRG_COM_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void TIM8_CC_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void ADC3_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void FSMC_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void SDIO_IRQHandler(void);
+__attribute__((weak, alias("Default_Handler"))) void RTC_Alarm_IRQHandler(void);
+__attribute__((weak, alias("Default_Handler"))) void OTG_FS_WKUP_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void TIM5_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void SPI3_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void UART4_IRQHandler(void);
@@ -272,10 +264,8 @@ __attribute__((weak, alias("Default_Handler"))) void TIM7_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void DMA2_Channel1_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void DMA2_Channel2_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void DMA2_Channel3_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void DMA2_Channel4_5_IRQHandler(void);
+__attribute__((weak, alias("Default_Handler"))) void DMA2_Channel4_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void DMA2_Channel5_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void ETH_IRQHandler(void);
-__attribute__((weak, alias("Default_Handler"))) void ETH_WKUP_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void CAN2_TX_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void CAN2_RX0_IRQHandler(void);
 __attribute__((weak, alias("Default_Handler"))) void CAN2_RX1_IRQHandler(void);
@@ -326,13 +316,13 @@ __attribute__((weak, alias("Default_Handler"))) void OTG_FS_IRQHandler(void);
     EXTI15_10_IRQHandler        ,\
     RTC_Alarm_IRQHandler        ,\
     OTG_FS_WKUP_IRQHandler      ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
     TIM5_IRQHandler             ,\
     SPI3_IRQHandler             ,\
     UART4_IRQHandler            ,\
@@ -344,53 +334,52 @@ __attribute__((weak, alias("Default_Handler"))) void OTG_FS_IRQHandler(void);
     DMA2_Channel3_IRQHandler    ,\
     DMA2_Channel4_IRQHandler    ,\
     DMA2_Channel5_IRQHandler    ,\
-    0                           ,\
-    0                           ,\
+    nullptr                     ,\
+    nullptr                     ,\
     CAN2_TX_IRQHandler          ,\
     CAN2_RX0_IRQHandler         ,\
     CAN2_RX1_IRQHandler         ,\
     CAN2_SCE_IRQHandler         ,\
     OTG_FS_IRQHandler           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
-    0                           ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
+    nullptr                     ,\
 
 #else
 #error MCU NOT SUPPORTED
-#endif
 #endif
 }
 
