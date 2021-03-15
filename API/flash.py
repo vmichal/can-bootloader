@@ -602,8 +602,14 @@ class FlashMaster():
 				return ev # we are waiting for a single specific one
 
 	def wait_for_response(self, expected_id, sent):
+		entry_time = time.time()
+		last_print = entry_time
 		while True:
 			ev = self.get_next_message()
+
+			if time.time() - last_print > 10:
+				print(f'Awaited response {expected_id} was not received for {time.time() - entry_time:.2f} seconds.', file=self.output_file)
+				last_print = time.time()
 
 			if ev.id.value in (self.SoftwareBuild.identifier, self.Beacon.identifier):
 				continue #these messages are not part of protocol - ignore them
