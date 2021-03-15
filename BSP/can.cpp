@@ -138,6 +138,7 @@ extern "C" {
 	}
 
 	int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
+		using namespace ufsel;
 		assert(bus == bus_connected_to_CAN1 || bus == bus_connected_to_CAN2);
 
 		CAN_TypeDef *const peripheral = bus == bus_connected_to_CAN1 ? CAN1 : CAN2;
@@ -149,7 +150,7 @@ extern "C" {
 		std::memcpy(msg_data.data(), data, length);
 
 		//Get the code of an empty mailbox.
-		std::uint32_t const mailbox_index = ufsel::bit::sliceable_value{peripheral->TSR}[ufsel::bit::slice(25,24)];
+		std::uint32_t const mailbox_index = ufsel::bit::sliceable_value{peripheral->TSR}[25_to, 24];
 		std::uint32_t const corresponding_bit = ufsel::bit::bit(std::countr_zero(CAN_TSR_TME0) + mailbox_index);
 		assert(ufsel::bit::all_set(peripheral->TSR, corresponding_bit)); //make sure that mailbox is really empty
 

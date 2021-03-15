@@ -135,7 +135,7 @@ namespace {
 		while (bit::all_cleared(RCC->CR, RCC_CR_PLLRDY)); //wait for it to stabilize
 
 		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_0 | RCC_CFGR_SW_1, RCC_CFGR_SW_PLL); //Set PLL as system clock
-		while (bit::sliceable_value{ RCC->CFGR } [bit::slice{ 3,2 }].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
+		while (bit::sliceable_value{ RCC->CFGR } [3_to, 2].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
 #else
 #ifdef BOOT_STM32F4
 		using namespace ufsel;
@@ -171,7 +171,7 @@ namespace {
 		while (bit::all_cleared(RCC->CR, RCC_CR_PLLRDY));
 
 		bit::set(std::ref(RCC->CFGR), RCC_CFGR_SW_PLL); //Switch system clock to PLL and await acknowledge
-		while (bit::sliceable_reference{ RCC->CFGR } [bit::slice{ 3,2 }].unshifted()!=RCC_CFGR_SWS_PLL);
+		while (bit::sliceable_reference{ RCC->CFGR } [3_to, 2].unshifted()!=RCC_CFGR_SWS_PLL);
 
 		bit::clear(std::ref(RCC->CR), RCC_CR_HSION); //Kill power to HSI
 #else
