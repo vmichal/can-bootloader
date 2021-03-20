@@ -136,8 +136,7 @@ namespace {
 
 		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_0 | RCC_CFGR_SW_1, RCC_CFGR_SW_PLL); //Set PLL as system clock
 		while (bit::sliceable_value{ RCC->CFGR } [3_to, 2].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
-#else
-#ifdef BOOT_STM32F4
+#elif BOOT_STM32F4
 		using namespace ufsel;
 
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Start and wait for HSE stabilization
@@ -176,7 +175,6 @@ namespace {
 		bit::clear(std::ref(RCC->CR), RCC_CR_HSION); //Kill power to HSI
 #else
 #error "This MCU is not supported"
-#endif
 #endif
 	}
 

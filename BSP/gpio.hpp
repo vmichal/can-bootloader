@@ -24,13 +24,11 @@ namespace bsp::gpio {
 		constexpr Pin CAN1_TX              = P('A', 12, PinMode::af_pushpull);
 		constexpr Pin CAN2_RX              = P('B', 12, PinMode::input_floating);
 		constexpr Pin CAN2_TX              = P('B', 13, PinMode::af_pushpull);
-#else
-#ifdef BOOT_STM32F4
+#elif BOOT_STM32F4
 		constexpr Pin CAN1_RX              = P('A', 11, PinMode::alternate_function);
 		constexpr Pin CAN1_TX              = P('A', 12, PinMode::alternate_function);
 		constexpr Pin CAN2_RX              = P('B', 12, PinMode::alternate_function);
 		constexpr Pin CAN2_TX              = P('B', 13, PinMode::alternate_function);
-#endif
 #endif
 	}
 

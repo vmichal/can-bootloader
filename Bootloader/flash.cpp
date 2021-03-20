@@ -24,10 +24,8 @@ namespace boot {
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
 #ifdef BOOT_STM32F1
 		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
-#else
-#ifdef BOOT_STM32F4
+#elif BOOT_STM32F4
 		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_SER);
-#endif
 #endif
 	}
 
@@ -43,8 +41,7 @@ namespace boot {
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_STRT);
 		return true;
 	}
-#else
-#ifdef BOOT_STM32F4
+#elif BOOT_STM32F4
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
 
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY)); //wait for previous operation to end
@@ -69,7 +66,6 @@ namespace boot {
 #else
 #error "This MCU is not supported"
 #endif
-#endif
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint16_t halfWord) {
 #ifdef BOOT_STM32F1
@@ -83,8 +79,7 @@ namespace boot {
 		assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
 
 		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
-#else
-#ifdef BOOT_STM32F4
+#elif BOOT_STM32F4
 		std::uint32_t const cachedResult = FLASH->SR;
 
 		//select x16 programming paralelism
@@ -98,7 +93,6 @@ namespace boot {
 
 #else
 #error "This MCU is not supported"
-#endif
 #endif
 	}
 
@@ -114,8 +108,7 @@ namespace boot {
 		ufsel::bit::access_register<decltype(word)>(address) = word;
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok: WriteStatus::MemoryProtected; //TODO make this more concrete
-#else
-#ifdef BOOT_STM32F1
+#elif BOOT_STM32F1
 
 		auto const cachedResult = FLASH->SR;
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);
@@ -132,7 +125,6 @@ namespace boot {
 		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
 #else
 #error "This MCU is not supported"
-#endif
 #endif
 	}
 

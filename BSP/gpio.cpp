@@ -38,8 +38,7 @@ namespace bsp::gpio {
 			RCC_APB2ENR_IOPAEN,
 			RCC_APB2ENR_IOPBEN);
 	}
-#else
-#ifdef BOOT_STM32F4
+#elif BOOT_STM32F4
 
 	void Initialize(void)
 	{
@@ -59,7 +58,6 @@ namespace bsp::gpio {
 			bit::modify(std::ref(gpio.OSPEEDR), ufsel::bit::bitmask_of_width(2), 0b01, p.pin * 2);
 		}
 	}
-#endif
 #endif
 }
 
