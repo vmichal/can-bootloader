@@ -4,6 +4,7 @@
 
 #include <initializer_list>
 #include <array>
+#include <bit>
 #include <algorithm>
 #include <functional>
 
@@ -33,6 +34,11 @@ namespace bsp::gpio {
 
 			ufsel::bit::modify(std::ref(reg), mask, static_cast<std::uint32_t>(p.mode_), shift);
 		}
+
+		if constexpr (boot::customization::remapCAN2)
+			ufsel::bit::modify(std::ref(AFIO->MAPR), ufsel::bit::bitmask_of_width(1), 1, std::countr_zero(AFIO_MAPR_CAN2_REMAP)); //remap CAN2
+
+
 		//Disable clock to GPIOA, GPIOB. Pins are still fully functional
 		ufsel::bit::clear(std::ref(RCC->APB2ENR),
 			RCC_APB2ENR_IOPAEN,

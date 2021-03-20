@@ -157,6 +157,9 @@ namespace boot {
 		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_AMS;
 		//Frequency of used external oscillator
 		constexpr Frequency HSE = 8_MHz;
+#ifdef BOOT_STM32F1 //currently supprted only in STM32F1 mode
+		constexpr bool remapCAN2 = false; //Govenrs whether the CAN2 is remapped
+#endif
 	}
 
 	auto constexpr getMemoryBlocks() {
