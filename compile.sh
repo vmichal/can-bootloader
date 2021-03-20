@@ -1,9 +1,9 @@
 #!/bin/bash
 
-rm -rf build
 mkdir -p build
+mkdir -p build/STM32F$1
 
-cd build
-cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=stm32f$1.cmake ..
+cd build/STM32F$1
+cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=stm32f$1.cmake ../..
 ninja
 

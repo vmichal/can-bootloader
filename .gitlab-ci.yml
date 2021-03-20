@@ -12,6 +12,6 @@ build:
 
   artifacts:
     paths:
-      - build/*.elf
-      - build/*.hex
-      - build/disasm
+      - build/*/*.elf
+      - build/*/*.hex
+      - build/*/disasm
