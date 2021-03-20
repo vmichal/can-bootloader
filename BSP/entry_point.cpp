@@ -123,8 +123,8 @@ namespace {
 		);
 
 		constexpr Frequency desiredPLLinput = 2_MHz;
-		constexpr int PREDIV1 = boot::HSE / desiredPLLinput;
-		static_assert(PREDIV1 * desiredPLLinput == boot::HSE, "Your HSE is not an integral multiple of 2 MHz!");
+		constexpr int PREDIV1 = boot::customization::HSE / desiredPLLinput;
+		static_assert(PREDIV1 * desiredPLLinput == boot::customization::HSE, "Your HSE is not an integral multiple of 2 MHz!");
 		bit::set(std::ref(RCC->CFGR2),
 			PREDIV1-1 //divide HSE by PREDIV1 so that we get 4MHz at PLL input
 			);
@@ -142,7 +142,7 @@ namespace {
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Start and wait for HSE stabilization
 		while (bit::all_cleared(RCC->CR, RCC_CR_HSERDY));
 
-		constexpr int PLLM = boot::HSE / 1_MHz; //Frequency 1MHz at PLL input
+		constexpr int PLLM = boot::customization::HSE / 1_MHz; //Frequency 1MHz at PLL input
 		//PLL can further divide by 2,4,6 or 8 and multiply by 50 to 432
 		constexpr int PLLN = 6*12; //We want to achieve SYSCLK 12 MHz, so lets set P = 6 and N = 12*6
 
