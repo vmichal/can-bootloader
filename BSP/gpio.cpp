@@ -20,7 +20,9 @@ namespace bsp::gpio {
 		//Enable clock to GPIOA, GPIOB
 		ufsel::bit::set(std::ref(RCC->APB2ENR),
 			RCC_APB2ENR_IOPAEN,
-			RCC_APB2ENR_IOPBEN);
+			RCC_APB2ENR_IOPBEN,
+			RCC_APB2ENR_AFIOEN
+			);
 
 		//Most of the following pin configurations are based on section 9.1.11 GPIO configurations for device peripherals
 		//from the STM32f105 reference manual
@@ -42,7 +44,9 @@ namespace bsp::gpio {
 		//Disable clock to GPIOA, GPIOB. Pins are still fully functional
 		ufsel::bit::clear(std::ref(RCC->APB2ENR),
 			RCC_APB2ENR_IOPAEN,
-			RCC_APB2ENR_IOPBEN);
+			RCC_APB2ENR_IOPBEN,
+			RCC_APB2ENR_AFIOEN
+		);
 	}
 #elif BOOT_STM32F4
 
