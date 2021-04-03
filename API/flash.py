@@ -630,7 +630,15 @@ class FlashMaster():
 			elif ev.id.value == self.ExitAck.identifier:
 				return self.receive_generic_response(self.ExitAck.identifier, sent, ['Target'], ['Confirmed'])
 			elif ev.id.value == self.PingResponse.identifier:
-				return self.receive_generic_response(self.PingResponse.identifier, sent, ['Target'], ['BootloaderPending'])
+				# PingResponses may clash a lot, because this message is used to detect presence as well as request bootloader.
+				# Therefore it is necessary to filter incomming messages. It is safe to ignore PingResponses from other units
+				# as this message does not carry mission critical information.
+				message = self.db.getMsgById(self.PingResponse.identifier)
+
+				from_target = sent.Target == message['Target'].value[0]
+				if not from_target:
+					continue
+				return [message['BootloaderPending'].value[0]]
 
 
 	def send_generic_message_and_await_response(self, id : int, data : list, responseID : int, await_response = True):
