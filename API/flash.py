@@ -134,6 +134,7 @@ class BootloaderListing:
 		self.exit = False
 		self.shall_sleep = False
 		self.receiving_acks = False
+		self.busBitrate = None
 
 		if self.terminal is not None:
 			self.printThread = threading.Thread(target = BootloaderListing._do_print, args = (self,), daemon=True)
@@ -152,7 +153,7 @@ class BootloaderListing:
 			if not self.receiving_acks:
 				print('WARNING: Ocarina is not receving acknowledge frames!\n', file = self.terminal)
 
-			print('State of bootloader aware units:\n', file = self.terminal)
+			print(f'State of bootloader aware units (bitrate {self.busBitrate if self.busBitrate is not None else "N/A"} kbitps):\n', file = self.terminal)
 			if len(self.aware_applications) == 0 and len(self.active_bootloaders) == 0:
 				print('None', file = self.terminal)
 				continue
@@ -232,8 +233,13 @@ class BootloaderListing:
 				self.receiving_acks = False
 			return
 
-		elif isinstance(ev, ocarina.HeartbeatEvent) or isinstance(ev, ocarina.ErrorFlagsEvent) or isinstance(ev, ocarina.ConfigEvent):
+		elif isinstance(ev, ocarina.HeartbeatEvent) or isinstance(ev, ocarina.ErrorFlagsEvent):
 			return#ignore HeartbeatEvent
+
+		elif isinstance(ev, ocarina.ConfigEvent):
+			if self.busBitrate is None:
+				self.busBitrate = ev.bitrate.kbits
+			return
 	
 		elif not isinstance(ev, ocarina.CanMsgEvent): #ignore other events
 			print(f'other event {ev}', file= sys.stderr)
