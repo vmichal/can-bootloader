@@ -43,6 +43,8 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_PDL = 3,
     /* Fuse Box */
     Bootloader_BootTarget_FSB = 4,
+    /* Steering wheel */
+    Bootloader_BootTarget_STW = 5,
 };
 
 enum Bootloader_Command {
@@ -209,26 +211,45 @@ enum Bootloader_WriteResult {
 };
 
 /*
- * Sent periodically by an active bootloader to announce its presence.
+ * Configuration message exchanged between the flashing master and the bootloader. Has corresponding acknowledge.
  */
-typedef struct Bootloader_Beacon_t {
-    /* Identifies which unit has active bootloader */
-    enum Bootloader_BootTarget	Target;
+typedef struct Bootloader_Handshake_t {
+	/* Which register is currently configured */
+	enum Bootloader_Register	Register;
 
-    /* Current state of the bootloader */
-    enum Bootloader_State	State;
+	/* Command to be carried out by the bootloader */
+	enum Bootloader_Command	Command;
 
-    /* Why is the bootloader active? */
-    enum Bootloader_EntryReason	EntryReason;
+	/* Value for selected register */
+	uint32_t	Value;
+} Bootloader_Handshake_t;
 
-    /* Available flash size in kibibytes. */
-    uint16_t	FlashSize;
-} Bootloader_Beacon_t;
 
-#define Bootloader_Beacon_FlashSize_OFFSET	((float)0)
-#define Bootloader_Beacon_FlashSize_FACTOR	((float)1)
-#define Bootloader_Beacon_FlashSize_MIN	((float)0)
-#define Bootloader_Beacon_FlashSize_MAX	((float)4095)
+/*
+ * Acknowledgement that a Handshake message has been received.
+ * //TODO wastes bandwidth - remove reserved fields ASAP
+ */
+typedef struct Bootloader_HandshakeAck_t {
+	/* Last written register */
+	enum Bootloader_Register	Register;
+
+	/* Error code indicating the result of last operation */
+	enum Bootloader_HandshakeResponse	Response;
+
+	/* Last written value */
+	uint32_t	Value;
+} Bootloader_HandshakeAck_t;
+
+
+/*
+ * Current bus master yields control of communication to the other node.
+ * Sent between subtransactions.
+ */
+typedef struct Bootloader_CommunicationYield_t {
+	/* Identifies targeted unit. */
+	enum Bootloader_BootTarget	Target;
+} Bootloader_CommunicationYield_t;
+
 
 /*
  * Stream of data to be flashed into the MCU.
@@ -273,8 +294,8 @@ typedef struct Bootloader_ExitReq_t {
 	/* Force the bootloader to reset regardless of current state. Necessary when there is an ongoing transaction. */
 	uint8_t	Force;
 
-    /* Should the bootloader enter the application or only reboot itself? */
-    uint8_t InitializeApplication;
+	/* Should the bootloader enter the application or only reboot itself? */
+	uint8_t	InitializeApplication;
 } Bootloader_ExitReq_t;
 
 
@@ -293,35 +314,26 @@ typedef struct Bootloader_ExitAck_t {
 
 
 /*
- * Configuration message exchanged between the flashing master and the bootloader. Has corresponding acknowledge.
+ * Sent periodically by an active bootloader to announce its presence.
  */
-typedef struct Bootloader_Handshake_t {
-    /* Which register is currently configured */
-    enum Bootloader_Register	Register;
+typedef struct Bootloader_Beacon_t {
+	/* Identifies which unit has active bootloader */
+	enum Bootloader_BootTarget	Target;
 
-    /* Command to be carried out by the bootloader */
-    enum Bootloader_Command	Command;
+	/* Current state of the bootloader */
+	enum Bootloader_State	State;
 
-    /* Value for selected register */
-    uint32_t	Value;
-} Bootloader_Handshake_t;
+	/* Why is the bootloader active? */
+	enum Bootloader_EntryReason	EntryReason;
 
+	/* Available flash size in kibibytes. */
+	uint16_t	FlashSize;
+} Bootloader_Beacon_t;
 
-/*
- * Acknowledgement that a Handshake message has been received.
- * //TODO wastes bandwidth - remove reserved fields ASAP
- */
-typedef struct Bootloader_HandshakeAck_t {
-    /* Last written register */
-    enum Bootloader_Register	Register;
-
-    /* Error code indicating the result of last operation */
-    enum Bootloader_HandshakeResponse	Response;
-
-    /* Last written value */
-    uint32_t	Value;
-} Bootloader_HandshakeAck_t;
-
+#define Bootloader_Beacon_FlashSize_OFFSET	((float)0)
+#define Bootloader_Beacon_FlashSize_FACTOR	((float)1)
+#define Bootloader_Beacon_FlashSize_MIN	((float)0)
+#define Bootloader_Beacon_FlashSize_MAX	((float)4095)
 
 /*
  * Information about the currently running software (SHA of git commit).
@@ -338,25 +350,28 @@ typedef struct Bootloader_SoftwareBuild_t {
 } Bootloader_SoftwareBuild_t;
 
 
-/*
- * Current bus master yields control of communication to the other node.
- * Sent between subtransactions.
- */
-typedef struct Bootloader_CommunicationYield_t {
-    /* Identifies targeted unit. */
-    enum Bootloader_BootTarget	Target;
-} Bootloader_CommunicationYield_t;
-
-
 void candbInit(void);
 
-int Bootloader_decode_Beacon_s(const uint8_t* bytes, size_t length, Bootloader_Beacon_t* data_out);
-int Bootloader_decode_Beacon(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, enum Bootloader_State* State_out, enum Bootloader_EntryReason* EntryReason_out, uint16_t* FlashSize_out);
-int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
-int Bootloader_get_Beacon(Bootloader_Beacon_t* data_out);
-void Bootloader_Beacon_on_receive(int (*callback)(Bootloader_Beacon_t* data));
-int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, enum Bootloader_EntryReason EntryReason, uint16_t FlashSize);
-int Bootloader_Beacon_need_to_send(void);
+int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
+int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, uint32_t* Value_out);
+int Bootloader_send_Handshake_s(const Bootloader_Handshake_t* data);
+int Bootloader_get_Handshake(Bootloader_Handshake_t* data_out);
+void Bootloader_Handshake_on_receive(int (*callback)(Bootloader_Handshake_t* data));
+int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, uint32_t Value);
+
+int Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootloader_HandshakeAck_t* data_out);
+int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out);
+int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data);
+int Bootloader_get_HandshakeAck(Bootloader_HandshakeAck_t* data_out);
+void Bootloader_HandshakeAck_on_receive(int (*callback)(Bootloader_HandshakeAck_t* data));
+int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_HandshakeResponse Response, uint32_t Value);
+
+int Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out);
+int Bootloader_decode_CommunicationYield(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
+int Bootloader_send_CommunicationYield_s(const Bootloader_CommunicationYield_t* data);
+int Bootloader_get_CommunicationYield(Bootloader_CommunicationYield_t* data_out);
+void Bootloader_CommunicationYield_on_receive(int (*callback)(Bootloader_CommunicationYield_t* data));
+int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
 int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint8_t* HalfwordAccess_out, uint32_t* Word_out);
@@ -380,30 +395,17 @@ void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
 int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
 
-int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
-int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, uint32_t* Value_out);
-int Bootloader_send_Handshake_s(const Bootloader_Handshake_t* data);
-int Bootloader_get_Handshake(Bootloader_Handshake_t* data_out);
-void Bootloader_Handshake_on_receive(int (*callback)(Bootloader_Handshake_t* data));
-int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, uint32_t Value);
-
-int Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootloader_HandshakeAck_t* data_out);
-int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out);
-int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data);
-int Bootloader_get_HandshakeAck(Bootloader_HandshakeAck_t* data_out);
-void Bootloader_HandshakeAck_on_receive(int (*callback)(Bootloader_HandshakeAck_t* data));
-int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_HandshakeResponse Response, uint32_t Value);
+int Bootloader_decode_Beacon_s(const uint8_t* bytes, size_t length, Bootloader_Beacon_t* data_out);
+int Bootloader_decode_Beacon(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, enum Bootloader_State* State_out, enum Bootloader_EntryReason* EntryReason_out, uint16_t* FlashSize_out);
+int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
+int Bootloader_get_Beacon(Bootloader_Beacon_t* data_out);
+void Bootloader_Beacon_on_receive(int (*callback)(Bootloader_Beacon_t* data));
+int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, enum Bootloader_EntryReason EntryReason, uint16_t FlashSize);
+int Bootloader_Beacon_need_to_send(void);
 
 int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data);
 int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo, enum Bootloader_BootTarget Target);
 int Bootloader_SoftwareBuild_need_to_send(void);
-
-int Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out);
-int Bootloader_decode_CommunicationYield(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
-int Bootloader_send_CommunicationYield_s(const Bootloader_CommunicationYield_t* data);
-int Bootloader_get_CommunicationYield(Bootloader_CommunicationYield_t* data_out);
-void Bootloader_CommunicationYield_on_receive(int (*callback)(Bootloader_CommunicationYield_t* data));
-int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target);
 
 #ifdef __cplusplus
 }
@@ -411,13 +413,16 @@ int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target);
 template <typename T>
 bool need_to_send();
 
-template <>
-inline bool need_to_send<Bootloader_Beacon_t>() {
-    return Bootloader_Beacon_need_to_send();
+inline int send(const Bootloader_Handshake_t& data) {
+    return Bootloader_send_Handshake_s(&data);
 }
 
-inline int send(const Bootloader_Beacon_t& data) {
-    return Bootloader_send_Beacon_s(&data);
+inline int send(const Bootloader_HandshakeAck_t& data) {
+    return Bootloader_send_HandshakeAck_s(&data);
+}
+
+inline int send(const Bootloader_CommunicationYield_t& data) {
+    return Bootloader_send_CommunicationYield_s(&data);
 }
 
 inline int send(const Bootloader_Data_t& data) {
@@ -432,12 +437,13 @@ inline int send(const Bootloader_ExitAck_t& data) {
     return Bootloader_send_ExitAck_s(&data);
 }
 
-inline int send(const Bootloader_Handshake_t& data) {
-    return Bootloader_send_Handshake_s(&data);
+template <>
+inline bool need_to_send<Bootloader_Beacon_t>() {
+    return Bootloader_Beacon_need_to_send();
 }
 
-inline int send(const Bootloader_HandshakeAck_t& data) {
-    return Bootloader_send_HandshakeAck_s(&data);
+inline int send(const Bootloader_Beacon_t& data) {
+    return Bootloader_send_Beacon_s(&data);
 }
 
 template <>
@@ -447,10 +453,6 @@ inline bool need_to_send<Bootloader_SoftwareBuild_t>() {
 
 inline int send(const Bootloader_SoftwareBuild_t& data) {
     return Bootloader_send_SoftwareBuild_s(&data);
-}
-
-inline int send(const Bootloader_CommunicationYield_t& data) {
-    return Bootloader_send_CommunicationYield_s(&data);
 }
 
 #endif
