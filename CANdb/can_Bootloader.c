@@ -32,22 +32,24 @@ void candbInit(void) {
 }
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out) {
-    if (length < 5)
+    if (length < 6)
         return 0;
 
     data_out->Register = (enum Bootloader_Register) ((bytes[0] & 0x0F));
     data_out->Command = (enum Bootloader_Command) (((bytes[0] >> 4) & 0x0F));
-    data_out->Value = bytes[1] | bytes[2] << 8 | bytes[3] << 16 | bytes[4] << 24;
+    data_out->Target = (enum Bootloader_BootTarget) (((bytes[1] >> 4) & 0x0F));
+    data_out->Value = bytes[2] | bytes[3] << 8 | bytes[4] << 16 | bytes[5] << 24;
     return 1;
 }
 
-int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, uint32_t* Value_out) {
-    if (length < 5)
+int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, enum Bootloader_BootTarget* Target_out, uint32_t* Value_out) {
+    if (length < 6)
         return 0;
 
     *Register_out = (enum Bootloader_Register) ((bytes[0] & 0x0F));
     *Command_out = (enum Bootloader_Command) (((bytes[0] >> 4) & 0x0F));
-    *Value_out = bytes[1] | bytes[2] << 8 | bytes[3] << 16 | bytes[4] << 24;
+    *Target_out = (enum Bootloader_BootTarget) (((bytes[1] >> 4) & 0x0F));
+    *Value_out = bytes[2] | bytes[3] << 8 | bytes[4] << 16 | bytes[5] << 24;
     return 1;
 }
 
@@ -64,23 +66,25 @@ int Bootloader_get_Handshake(Bootloader_Handshake_t* data_out) {
 }
 
 int Bootloader_send_Handshake_s(const Bootloader_Handshake_t* data) {
-    uint8_t buffer[5];
+    uint8_t buffer[6];
     buffer[0] = (data->Register & 0x0F) | ((data->Command & 0x0F) << 4);
-    buffer[1] = data->Value;
-    buffer[2] = (data->Value >> 8);
-    buffer[3] = (data->Value >> 16);
-    buffer[4] = (data->Value >> 24);
+    buffer[1] = ((data->Target & 0x0F) << 4);
+    buffer[2] = data->Value;
+    buffer[3] = (data->Value >> 8);
+    buffer[4] = (data->Value >> 16);
+    buffer[5] = (data->Value >> 24);
     int rc = txSendCANMessage(Bootloader_Handshake_status.bus, Bootloader_Handshake_id, buffer, sizeof(buffer));
     return rc;
 }
 
-int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, uint32_t Value) {
-    uint8_t buffer[5];
+int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, enum Bootloader_BootTarget Target, uint32_t Value) {
+    uint8_t buffer[6];
     buffer[0] = (Register & 0x0F) | ((Command & 0x0F) << 4);
-    buffer[1] = Value;
-    buffer[2] = (Value >> 8);
-    buffer[3] = (Value >> 16);
-    buffer[4] = (Value >> 24);
+    buffer[1] = ((Target & 0x0F) << 4);
+    buffer[2] = Value;
+    buffer[3] = (Value >> 8);
+    buffer[4] = (Value >> 16);
+    buffer[5] = (Value >> 24);
     int rc = txSendCANMessage(Bootloader_Handshake_status.bus, Bootloader_Handshake_id, buffer, sizeof(buffer));
     return rc;
 }
@@ -94,16 +98,18 @@ int Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootlo
         return 0;
 
     data_out->Register = (enum Bootloader_Register) ((bytes[0] & 0x0F));
+    data_out->Target = (enum Bootloader_BootTarget) (((bytes[0] >> 4) & 0x0F));
     data_out->Response = (enum Bootloader_HandshakeResponse) ((bytes[1] & 0x1F));
     data_out->Value = bytes[2] | bytes[3] << 8 | bytes[4] << 16 | bytes[5] << 24;
     return 1;
 }
 
-int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out) {
+int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_BootTarget* Target_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out) {
     if (length < 6)
         return 0;
 
     *Register_out = (enum Bootloader_Register) ((bytes[0] & 0x0F));
+    *Target_out = (enum Bootloader_BootTarget) (((bytes[0] >> 4) & 0x0F));
     *Response_out = (enum Bootloader_HandshakeResponse) ((bytes[1] & 0x1F));
     *Value_out = bytes[2] | bytes[3] << 8 | bytes[4] << 16 | bytes[5] << 24;
     return 1;
@@ -123,7 +129,7 @@ int Bootloader_get_HandshakeAck(Bootloader_HandshakeAck_t* data_out) {
 
 int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data) {
     uint8_t buffer[6];
-    buffer[0] = (data->Register & 0x0F);
+    buffer[0] = (data->Register & 0x0F) | ((data->Target & 0x0F) << 4);
     buffer[1] = (data->Response & 0x1F);
     buffer[2] = data->Value;
     buffer[3] = (data->Value >> 8);
@@ -133,9 +139,9 @@ int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data) {
     return rc;
 }
 
-int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_HandshakeResponse Response, uint32_t Value) {
+int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_BootTarget Target, enum Bootloader_HandshakeResponse Response, uint32_t Value) {
     uint8_t buffer[6];
-    buffer[0] = (Register & 0x0F);
+    buffer[0] = (Register & 0x0F) | ((Target & 0x0F) << 4);
     buffer[1] = (Response & 0x1F);
     buffer[2] = Value;
     buffer[3] = (Value >> 8);

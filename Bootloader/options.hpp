@@ -218,8 +218,6 @@ namespace boot {
 
 	constexpr bool enableAssert = true;
 
-	constexpr auto otherBLdetectionTime = 1_s;
-
 	constexpr std::uint32_t isrVectorAlignmentMask = ufsel::bit::bitmask_of_width(customization::isrVectorAlignmentBits);
 
 	constexpr std::uint32_t smallestPageSize = (*std::min_element(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(),[](auto const &a, auto const &b) {return a.length < b.length;} )).length;

@@ -245,12 +245,7 @@ namespace boot {
 		[[nodiscard]]
 		Status status() const { return status_; }
 		[[nodiscard]]
-		bool transactionInProgress() const { return !isPassive() && status_ != Status::Error && status_ != Status::Ready; }
-
-		void enterPassiveMode() { status_ = Status::OtherBootloaderDetected; }
-		void exitPassiveMode() { status_ = Status::Ready; }
-		[[nodiscard]]
-		bool isPassive() const { return status_ == Status::OtherBootloaderDetected; }
+		bool transactionInProgress() const { return status_ != Status::Error && status_ != Status::Ready; }
 
 		WriteStatus write(std::uint32_t address, WriteableIntegral auto data) {
 			auto const ret = firmwareDownloader_.write(address, data);
@@ -280,6 +275,7 @@ namespace boot {
 			Bootloader_Handshake_t const msg{
 				.Register = static_cast<Bootloader_Register>(reg),
 				.Command = static_cast<Bootloader_Command>(com),
+				.Target = customization::thisUnit,
 				.Value = value
 			};
 			return msg;

@@ -40,7 +40,7 @@ namespace boot {
 				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN2->TSR, CAN_TSR_TME));
 		}
 
-		void setupCommonCanCallbacks() {
+		void setupCanCallbacks() {
 
 			Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
 				if (data->Target != customization::thisUnit)
@@ -65,11 +65,43 @@ namespace boot {
 
 				resetTo(destination);
 				});
-		}
 
-		void setupActiveCanCallbacks() {
+			Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
+				if (data->Target != customization::thisUnit)
+					return 2;
+
+				Register const reg = static_cast<Register>(data->Register);
+				auto const response = bootloader.processHandshake(reg, static_cast<Command>(data->Command), data->Value);
+
+				canManager.SendHandshakeAck(reg, response, data->Value);
+				return 0;
+				});
+
+			Bootloader_HandshakeAck_on_receive([](Bootloader_HandshakeAck_t* data) -> int {
+				if (data->Target != customization::thisUnit)
+					return 2;
+
+				Bootloader_Handshake_t const last = canManager.lastSentHandshake();
+				if (data->Register != last.Register || data->Value != last.Value)
+					return 1;
+
+				bootloader.processHandshakeAck(static_cast<HandshakeResponse>(data->Response));
+				return 0;
+				});
+
+			Bootloader_CommunicationYield_on_receive([](Bootloader_CommunicationYield_t* const data) -> int {
+				if (data->Target != customization::thisUnit)
+					return 2;
+
+				canManager.SendHandshake(bootloader.processYield());
+				return 0;
+
+				});
 
 			Bootloader_Data_on_receive([](Bootloader_Data_t* data) -> int {
+				if (!bootloader.transactionInProgress())
+					return 2; //The transaction has not started yet, this Data is not for us.
+
 				std::uint32_t const address = data->Address << 2;
 
 				lastReceivedData = Timestamp::Now();
@@ -93,68 +125,19 @@ namespace boot {
 
 			Bootloader_DataAck_on_receive([](Bootloader_DataAck_t* data) -> int {
 				//TODO implement for firmware dumping
-				assert_unreachable();
-				});
-
-			Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
-				Register const reg = static_cast<Register>(data->Register);
-				auto const response = bootloader.processHandshake(reg, static_cast<Command>(data->Command), data->Value);
-
-				canManager.SendHandshakeAck(reg, response, data->Value);
 				return 0;
 				});
-
-			Bootloader_HandshakeAck_on_receive([](Bootloader_HandshakeAck_t* data) -> int {
-				Bootloader_Handshake_t const last = canManager.lastSentHandshake();
-				if (data->Register != last.Register || data->Value != last.Value)
-					return 1;
-
-				bootloader.processHandshakeAck(static_cast<HandshakeResponse>(data->Response));
-				return 0;
-				});
-
-			Bootloader_CommunicationYield_on_receive([](Bootloader_CommunicationYield_t* const data) -> int {
-				assert(data->Target == customization::thisUnit); //TODO maybe allow multiple bootloaders on bus
-
-				canManager.SendHandshake(bootloader.processYield());
-				return 0;
-
-				});
-		}
-
-		//Waits for some time (1 sec) to find out whether there is another BL on the CAN bus
-		bool findOtherBootloaders() {
-			Timestamp const entry_time = Timestamp::Now();
-
-			while (!entry_time.TimeElapsed(otherBLdetectionTime)) {
-				txProcess();
-
-				if (Bootloader_get_Beacon(nullptr))
-					return true;
-			}
-			return false;
 		}
 	}
 
 	void main() {
 
-		setupCommonCanCallbacks();
-
-		//If the BL activation has been requested, we can assume that there is no other boi on the bus
-		if (Bootloader::entryReason() != EntryReason::Requested && findOtherBootloaders())
-			bootloader.enterPassiveMode();
-		else
-			setupActiveCanCallbacks();
-
+		setupCanCallbacks();
 
 		canManager.SendSoftwareBuild();
 		canManager.SendBeacon(bootloader.status(), bootloader.entryReason());
 
 		for (;;) { //main loop
-			if (bootloader.isPassive() && Bootloader_get_Beacon(nullptr) == 0) { //Bootloader::Beacon timed out
-				bootloader.exitPassiveMode();
-				setupActiveCanCallbacks();
-			}
 
 			if (need_to_send<Bootloader_SoftwareBuild_t>())
 				canManager.SendSoftwareBuild();

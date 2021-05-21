@@ -68,6 +68,7 @@ namespace boot {
 	void CanManager::SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const {
 		Bootloader_HandshakeAck_t message;
 		message.Register = static_cast<Bootloader_Register>(reg);
+		message.Target = customization::thisUnit;
 		message.Response = static_cast<Bootloader_HandshakeResponse>(response);
 		message.Value = val;
 

@@ -7,19 +7,19 @@
 extern "C" {
 #endif
 
-enum {
-    bus_CAN1 = 0,
-    bus_CAN2 = 1,
-    bus_UNDEFINED = 2,
-};
+    enum {
+        bus_CAN1 = 0,
+        bus_CAN2 = 1,
+        bus_UNDEFINED = 2,
+    };
 
-extern CAN_msg_status_t Bootloader_Beacon_status;
-extern CAN_msg_status_t Bootloader_Data_status;
-extern CAN_msg_status_t Bootloader_DataAck_status;
-extern CAN_msg_status_t Bootloader_ExitReq_status;
-extern CAN_msg_status_t Bootloader_Handshake_status;
-extern CAN_msg_status_t Bootloader_HandshakeAck_status;
-extern CAN_msg_status_t Bootloader_CommunicationYield_status;
+    extern CAN_msg_status_t Bootloader_Beacon_status;
+    extern CAN_msg_status_t Bootloader_Data_status;
+    extern CAN_msg_status_t Bootloader_DataAck_status;
+    extern CAN_msg_status_t Bootloader_ExitReq_status;
+    extern CAN_msg_status_t Bootloader_Handshake_status;
+    extern CAN_msg_status_t Bootloader_HandshakeAck_status;
+    extern CAN_msg_status_t Bootloader_CommunicationYield_status;
 
 enum { Bootloader_Handshake_id          = STD_ID(0x620) };
 enum { Bootloader_HandshakeAck_id       = STD_ID(0x621) };
@@ -64,7 +64,6 @@ enum Bootloader_Command {
     Bootloader_Command_StartBootloaderUpdate = 6,
     /* Update the application jump table with new value of the isr vector. If the jump table was not valid, fill other metadata with zeros. */
     Bootloader_Command_SetNewVectorTable = 7,
-
 };
 
 enum Bootloader_EntryReason {
@@ -193,10 +192,8 @@ enum Bootloader_State {
     Bootloader_State_ReceivingFirmwareMetadata = 6,
     /* Some error occured. //TODO make it more concrete */
     Bootloader_State_Error = 7,
-    /* There is another bootloader present on the bus! */
-    Bootloader_State_OtherBootloaderDetected = 8,
     /* Bootloader is overwhelmed and has suspended the communication. */
-    Bootloader_State_CommunicationStalled = 9,
+    Bootloader_State_CommunicationStalled = 8,
 };
 
 enum Bootloader_WriteResult {
@@ -220,6 +217,9 @@ typedef struct Bootloader_Handshake_t {
 	/* Command to be carried out by the bootloader */
 	enum Bootloader_Command	Command;
 
+	/* Identifier of the targeted unit */
+	enum Bootloader_BootTarget	Target;
+
 	/* Value for selected register */
 	uint32_t	Value;
 } Bootloader_Handshake_t;
@@ -232,6 +232,9 @@ typedef struct Bootloader_Handshake_t {
 typedef struct Bootloader_HandshakeAck_t {
 	/* Last written register */
 	enum Bootloader_Register	Register;
+
+	/* Identifier of the responding unit */
+	enum Bootloader_BootTarget	Target;
 
 	/* Error code indicating the result of last operation */
 	enum Bootloader_HandshakeResponse	Response;
@@ -353,18 +356,18 @@ typedef struct Bootloader_SoftwareBuild_t {
 void candbInit(void);
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
-int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, uint32_t* Value_out);
+int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, enum Bootloader_BootTarget* Target_out, uint32_t* Value_out);
 int Bootloader_send_Handshake_s(const Bootloader_Handshake_t* data);
 int Bootloader_get_Handshake(Bootloader_Handshake_t* data_out);
 void Bootloader_Handshake_on_receive(int (*callback)(Bootloader_Handshake_t* data));
-int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, uint32_t Value);
+int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, enum Bootloader_BootTarget Target, uint32_t Value);
 
 int Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootloader_HandshakeAck_t* data_out);
-int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out);
+int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_BootTarget* Target_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out);
 int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data);
 int Bootloader_get_HandshakeAck(Bootloader_HandshakeAck_t* data_out);
 void Bootloader_HandshakeAck_on_receive(int (*callback)(Bootloader_HandshakeAck_t* data));
-int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_HandshakeResponse Response, uint32_t Value);
+int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_BootTarget Target, enum Bootloader_HandshakeResponse Response, uint32_t Value);
 
 int Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out);
 int Bootloader_decode_CommunicationYield(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
