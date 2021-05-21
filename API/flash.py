@@ -626,7 +626,7 @@ class FlashMaster():
 				continue
 
 			if ev.id.value == self.HandshakeAck.identifier:
-				return self.receive_generic_response(self.HandshakeAck.identifier, sent, ['Register', 'Value'], ['Response'])
+				return self.receive_generic_response(self.HandshakeAck.identifier, sent, ['Register', 'Value', 'Target'], ['Response'])
 			elif ev.id.value == self.Handshake.identifier:
 				assert False #shall not be received here
 			elif ev.id.value == self.CommunicationYield.identifier:
@@ -664,13 +664,13 @@ class FlashMaster():
 	def send_handshake(self, reg, command, value):
 		r = enumerator_by_name(reg, self.RegisterEnum)
 		c = enumerator_by_name(command, self.CommandEnum)
-		return self.send_generic_message_and_await_response(self.Handshake.identifier, [r, c, value], self.HandshakeAck.identifier)[0]
+		return self.send_generic_message_and_await_response(self.Handshake.identifier, [r, c, self.target, value], self.HandshakeAck.identifier)[0]
 
 	def send_data(self, address, word):
 		return self.send_generic_message_and_await_response(self.Data.identifier, [address, False, word], None, False)
 
 	def send_handshake_ack(self, reg, response, value):
-		return self.send_generic_message_and_await_response(self.HandshakeAck.identifier, [reg, response, value], None, False)
+		return self.send_generic_message_and_await_response(self.HandshakeAck.identifier, [reg, self.target, response, value], None, False)
 
 	def yield_communication(self):
 		self.isBusMaster = False
@@ -746,7 +746,11 @@ class FlashMaster():
 		register = enumerator_by_name(register_name, self.RegisterEnum)
 		while True: 
 			self.get_next_message(self.Handshake.identifier)
-			reg, command, value = map(lambda f: f.value[0], self.Handshake.fields)
+			reg, command, target, value = map(lambda f: f.value[0], self.Handshake.fields)
+
+			if target != self.target:
+				print(f'Ignoring handshake from {tagret}.')
+				continue
 
 			if reg != register:
 				self.send_handshake_ack(reg, SeqError, value)
@@ -758,7 +762,11 @@ class FlashMaster():
 	def receive_transaction_magic(self):
 		while True:
 			self.get_next_message(self.Handshake.identifier)
-			reg, command, value = map(lambda f: f.value[0], self.Handshake.fields)
+			reg, command, target, value = map(lambda f: f.value[0], self.Handshake.fields)
+
+			if target != self.target:
+				print(f'Ignoring transaction magic from {tagret}.')
+				continue
 
 			res = self.checkMagic(reg, command, value)
 			self.send_handshake_ack(reg, res, value)
