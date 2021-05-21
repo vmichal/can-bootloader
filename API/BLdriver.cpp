@@ -74,8 +74,7 @@ namespace boot {
 
 	[[noreturn]]
 	void resetTo(std::uint16_t const code) {
-
-		assert(code == BackupDomain::application_magic || code == BackupDomain::bootloader_magic || code == BackupDomain::app_fatal_error_magic);
+		//TODO assert that 'code'  has valid value. Needs ufsel::assert or something else portable
 
 		BackupDomain::unlock();
 		BackupDomain::bootControlRegister = code;
