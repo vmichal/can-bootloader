@@ -986,7 +986,7 @@ class FlashMaster():
 			print(f'Sending firmware size ({self.firmware.length} B)', end = '... ' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('FirmwareSize', 'None', self.firmware.length))
 
-		print(f'Sending {self.firmware.length} B of firmware...', file=self.output_file)
+		print(f'Sending {self.firmware.length/1024:.2f} KiB of firmware...', file=self.output_file)
 		print(f'\tProgress ... {0:05}%', end='', file=self.output_file)
 		start = time.time()
 		last_print = time.time()

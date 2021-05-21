@@ -80,13 +80,13 @@ namespace boot {
 
 		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
 #elif defined BOOT_STM32F4
-		static_assert(std::is_same_v<writeAwriteableTypebleType, std::uint32_t>, "STM32F4 flash is currently hardcoded to use 32bit writes.");
+		static_assert(std::is_same_v<writeableType, std::uint32_t>, "STM32F4 flash is currently hardcoded to use 32bit writes.");
 		std::uint32_t const cachedResult = FLASH->SR;
 		//select x32 programming paralelism
 		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //Start flash programming
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
-		ufsel::bit::access_register<decltype(word)>(address) = word; //Write one word of data
+		ufsel::bit::access_register<writeableType>(address) = data; //Write one word of data
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
 #elif defined BOOT_STM32F7
