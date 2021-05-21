@@ -43,6 +43,28 @@
 			"remoteCopySourcesMethod": "rsync",
 			"addressSanitizerRuntimeFlags": "detect_leaks=0",
 			"variables": []
+		},
+								{
+			"name": "STM32F7",
+			"generator": "Ninja",
+			"configurationType": "Debug",
+			"cmakeExecutable": "/usr/bin/cmake",
+			"remoteCopySourcesExclusionList": [ ".vs", ".git", "out" ],
+			"cmakeCommandArgs": "",
+			"buildCommandArgs": "",
+			"ctestCommandArgs": "",
+			"cmakeToolchain": "stm32f7.cmake",
+			"inheritEnvironments": [ "linux_x64" ],
+			"remoteMachineName": "1773855479;Vojta (username=vomi, port=22, authentication=Password)",
+			"remoteCMakeListsRoot": "/mnt/c/Users/vomi/source/repos/bootloader/",
+			"remoteBuildRoot": "/mnt/c/Users/vomi/source/repos/bootloader/build/STM32F7",
+			"remoteInstallRoot": "/mnt/c/Users/vomi/source/repos/bootloader/build/STM32F7",
+			"remoteCopySources": false,
+			"rsyncCommandArgs": "-t --delete --delete-excluded",
+			"remoteCopyBuildOutput": false,
+			"remoteCopySourcesMethod": "rsync",
+			"addressSanitizerRuntimeFlags": "detect_leaks=0",
+			"variables": []
 		}
 	]
 }

@@ -48,7 +48,7 @@ namespace bsp::gpio {
 			RCC_APB2ENR_AFIOEN
 		);
 	}
-#elif BOOT_STM32F4
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7
 
 	void Initialize(void)
 	{

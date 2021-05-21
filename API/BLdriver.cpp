@@ -13,16 +13,17 @@
 #include "BLdriver.hpp"
 
 #ifdef BOOT_STM32F1
-#define BIT_MASK(name) name ## _Msk
 #include "../Drivers/stm32f10x.h"
 #include "../Drivers/core_cm3.h"
-#else
-#ifdef BOOT_STM32F4 //TODO make this more concrete
-#define BIT_MASK(name) name ## _Msk
+#elif defined(BOOT_STM32F4)
 #include "../Drivers/stm32f4xx.h"
 #include "../Drivers/core_cm4.h"
+#elif defined(BOOT_STM32F7)
+#include "../Drivers/stm32f767xx.h"
+#include "../Drivers/core_cm7.h"
 #endif
-#endif
+
+#include <bit>
 
 namespace boot {
 
@@ -31,31 +32,43 @@ namespace boot {
 #ifdef BOOT_STM32F1
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
 		bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable write protection of Backup domain
-#else
-#ifdef BOOT_STM32F4
+#elif defined BOOT_STM32F4
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
 		bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable backup domain protection
-		constexpr int RCC_BDCR_RTCSEL_Pos = 8;
-		bit::set(std::ref(RCC->BDCR), 0b10 << RCC_BDCR_RTCSEL_Pos); //select LSI as RTC clock
+
+		bit::set(std::ref(RCC->BDCR), 0b10 << std::countr_zero(RCC_BDCR_RTCSEL)); //select LSI as RTC clock
 		bit::set(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
-#endif
+#elif defined BOOT_STM32F7
+		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
+
+		bit::set(std::ref(PWR->CR1), PWR_CR1_DBP);		//Disable backup domain protection
+
+		bit::set(std::ref(RCC->BDCR), 0b10 << std::countr_zero(RCC_BDCR_RTCSEL)); //select LSI as RTC clock
+		bit::set(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
 #endif
 	}
 
 	void BackupDomain::lock() {
+		//Disable clock to backup registers (to make the application feel as if no bootloader was present)
 		using namespace ufsel;
 #ifdef BOOT_STM32F1
-		//Disable clock to backup registers (to make the application feel as if no bootloader was present)
 		bit::clear(std::ref(PWR->CR), PWR_CR_DBP); //Enable write protection of Backup domain
 		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
-#else
-#ifdef BOOT_STM32F4
-		//Disable clock to backup registers (to make the application feel as if no bootloader was present)
+#elif defined BOOT_STM32F4
 		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
-		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCSEL); //select LSI as RTC clock
-		bit::clear(std::ref(PWR->CR), PWR_CR_DBP); //Disable backup domain protection
+		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCSEL); //deactivate RTC clock
+
+		bit::clear(std::ref(PWR->CR), PWR_CR_DBP); 	//Disable backup domain protection
+
 		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
-#endif
+#elif defined BOOT_STM32F7
+
+		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
+		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCSEL); //deactivate RTC clock
+		
+		bit::clear(std::ref(PWR->CR1), PWR_CR1_DBP);	//Disable backup domain protection
+		
+		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
 #endif
 	}
 

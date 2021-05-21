@@ -24,13 +24,13 @@ namespace boot {
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
 #ifdef BOOT_STM32F1
 		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
-#elif BOOT_STM32F4
+#elif defined BOOT_STM32F4 || defined STM32F7
 		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_SER);
 #endif
 	}
 
-#ifdef BOOT_STM32F1
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
+#ifdef BOOT_STM32F1
 
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_WRPRTERR, FLASH_SR_PGERR);
 
@@ -40,9 +40,7 @@ namespace boot {
 		FLASH->AR = pageAddress;
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_STRT);
 		return true;
-	}
-#elif BOOT_STM32F4
-	bool Flash::ErasePage(std::uint32_t pageAddress) {
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7
 
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY)); //wait for previous operation to end
 
@@ -55,6 +53,7 @@ namespace boot {
 
 		assert(ufsel::bit::all_cleared(FLASH->CR, FLASH_CR_MER, FLASH_CR_PG));
 		FLASH->CR |= FLASH_CR_SER; //Choose sector erase.
+		//FLASH_CR_SNB is 5 bits wide on f767, but the highest bit is always 0, so it is enough to write only lower four bits.
 		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(4), sectorIndex, POS_FROM_MASK(FLASH_CR_SNB));
 		FLASH->CR |= FLASH_CR_STRT; //Start the operation
 
@@ -62,10 +61,10 @@ namespace boot {
 		FLASH->CR &= ~FLASH_CR_SER; //disable sector erase flag
 
 		return true;
-}
 #else
 #error "This MCU is not supported"
 #endif
+}
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint16_t halfWord) {
 #ifdef BOOT_STM32F1
@@ -79,7 +78,7 @@ namespace boot {
 		assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
 
 		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
-#elif BOOT_STM32F4
+#elif defined BOOT_STM32F4
 		std::uint32_t const cachedResult = FLASH->SR;
 
 		//select x16 programming paralelism
@@ -91,6 +90,18 @@ namespace boot {
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
 
+#elif defined BOOT_STM32F7
+		std::uint32_t const cachedResult = FLASH->SR;
+
+		//select x16 programming paralelism
+		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b01, POS_FROM_MASK(FLASH_CR_PSIZE));
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //Start flash programming
+		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
+		//Write one word of data
+		ufsel::bit::access_register<decltype(halfWord)>(address) = halfWord;
+
+		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
+
 #else
 #error "This MCU is not supported"
 #endif
@@ -98,7 +109,7 @@ namespace boot {
 
 	WriteStatus Flash::Write(std::uint32_t address, std::uint32_t word) {
 
-#ifdef BOOT_STM32F4
+#if defined BOOT_STM32F4
 		std::uint32_t const cachedResult = FLASH->SR;
 		//select x32 programming paralelism
 		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
@@ -108,7 +119,17 @@ namespace boot {
 		ufsel::bit::access_register<decltype(word)>(address) = word;
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok: WriteStatus::MemoryProtected; //TODO make this more concrete
-#elif BOOT_STM32F1
+#elif defined BOOT_STM32F7
+		std::uint32_t const cachedResult = FLASH->SR;
+		//select x32 programming paralelism
+		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //Start flash programming
+		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
+		//Write one word of data
+		ufsel::bit::access_register<decltype(word)>(address) = word;
+
+		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
+#elif defined BOOT_STM32F1
 
 		auto const cachedResult = FLASH->SR;
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);

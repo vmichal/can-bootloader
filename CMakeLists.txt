@@ -15,13 +15,14 @@ set(SRC
         BSP/can.cpp
         BSP/gpio.cpp
         BSP/timer.cpp
-        stm32f10x_conf.h
 
         Drivers/core_cm3.h
         Drivers/core_cm4.h
+        Drivers/core_cm7.h
         Drivers/core_cm3.c
         Drivers/stm32f10x.h
         Drivers/stm32f4xx.h
+        Drivers/stm32f767xx.h
         
         CANdb/tx2_can.c
         CANdb/tx2_ringbuf.c

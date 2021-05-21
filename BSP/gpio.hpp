@@ -24,7 +24,7 @@ namespace bsp::gpio {
 		constexpr Pin CAN1_TX              = P('A', 12, PinMode::af_pushpull);
 		constexpr Pin CAN2_RX              = P('B', boot::customization::remapCAN2 ? 5 : 12, PinMode::input_floating);
 		constexpr Pin CAN2_TX              = P('B', boot::customization::remapCAN2 ? 6: 13, PinMode::af_pushpull);
-#elif BOOT_STM32F4
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7
 		constexpr Pin CAN1_RX              = P('A', 11, PinMode::alternate_function);
 		constexpr Pin CAN1_TX              = P('A', 12, PinMode::alternate_function);
 		constexpr Pin CAN2_RX              = P('B', 12, PinMode::alternate_function);

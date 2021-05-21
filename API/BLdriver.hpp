@@ -16,7 +16,7 @@
 #include <ufsel/bit_operations.hpp>
 #include <library/assert.hpp>
 
-#if !defined(BOOT_STM32F1) && !defined(BOOT_STM32F4)
+#if !defined(BOOT_STM32F1) && !defined(BOOT_STM32F4) && !defined(BOOT_STM32F7)
 #error "You must specify the platform to build for!"
 #endif
 
@@ -41,14 +41,14 @@ namespace boot {
 #ifdef BUILDING_BOOTLOADER
 			/* Since we need this function during the execution of Reset_Handler, we must place
 			it in flash memory. Normal .text is located in RAM and has not been loaded yet.*/
-			__attribute__((section(".executed_from_flash")));
+			__attribute__((section(".executed_from_flash")))
 #endif
 			;
 		static void unlock()
 #ifdef BUILDING_BOOTLOADER
 			/* Since we need this function during the execution of Reset_Handler, we must place
 			it in flash memory. Normal .text is located in RAM and has not been loaded yet.*/
-			__attribute__((section(".executed_from_flash")));
+			__attribute__((section(".executed_from_flash")))
 #endif
 		;
 

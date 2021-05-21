@@ -1,5 +1,5 @@
 /*
-    Bootloader linker script for STM32F4
+    Bootloader linker script for STM32F7
 
     Vojtech Michal, eForce FEE Prague Formula, 2021
 */
@@ -13,7 +13,7 @@ _Min_Heap_Size = 0;      /* required amount of heap. None is required right now*
 _Min_Stack_Size = 0x800; /* required amount of stack, at least 2 KiB */
 
 /*Includes a MEMORY command defining address space available to the application*/
-INCLUDE ../../API/bootloader-aware-memory-map-stm32f4.ld
+INCLUDE ../../API/bootloader-aware-memory-map-stm32f7.ld
 
 bootloader_flash_start = ORIGIN(BootloaderFlash);
 bootloader_flash_end = ORIGIN(BootloaderFlash) + LENGTH(BootloaderFlash);
@@ -44,7 +44,7 @@ SECTIONS
     KEEP(*(.isr_vector)) /* Startup code */
     _eisr_vector = .;
     . = ALIGN(4);
-  } > RAM AT> BootloaderFlash
+  } > RAM AT > BootloaderFlash
 
   _load_text = LOADADDR(.text);
   /* The program code and other data goes into BootloaderFlash */

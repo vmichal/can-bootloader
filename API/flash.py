@@ -388,6 +388,8 @@ class Firmware():
 		physical_offset = 0
 
 		while True:
+			if physical_offset == len(physical_memory_map):
+				return False #We have run out of physical blocks without covering the whole firmware!
 			physical = physical_memory_map[physical_offset]
 
 			if physical.address + len(physical.data) <= address:

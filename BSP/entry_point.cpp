@@ -136,7 +136,7 @@ namespace {
 
 		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_0 | RCC_CFGR_SW_1, RCC_CFGR_SW_PLL); //Set PLL as system clock
 		while (bit::sliceable_value{ RCC->CFGR } [3_to, 2].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
-#elif BOOT_STM32F4
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7
 		using namespace ufsel;
 
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Start and wait for HSE stabilization
