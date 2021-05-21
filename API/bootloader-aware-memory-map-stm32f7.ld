@@ -27,5 +27,7 @@ MEMORY
 BootloaderFlash(rx)      : ORIGIN = FlashStart, LENGTH = BootloaderSize
 JumpTableFlash(rx)       : ORIGIN = FlashStart + BootloaderSize, LENGTH = JumpTableSize
 ApplicationFlash(rx)     : ORIGIN = FlashStart + BootloaderSize + JumpTableSize, LENGTH = FlashSize - BootloaderSize - JumpTableSize
-RAM   (xrw)              : ORIGIN = 0x20000000, LENGTH = 120K
+RAM   (xrw)              : ORIGIN = 0x20000000, LENGTH = 128K /*DTCM*/
+SRAM1 (xrw)              : ORIGIN = 0x20020000, LENGTH = 368K
+SRAM2 (xrw)              : ORIGIN = 0x2007C000, LENGTH = 16K
 }
