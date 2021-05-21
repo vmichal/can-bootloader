@@ -102,6 +102,9 @@ namespace boot {
 		constexpr std::uint32_t flashMemoryBaseAddress = 0x0800'0000;
 
 #ifdef BOOT_STM32F4 
+		//Governs the width of programming acesses to the flash memory
+		constexpr unsigned flashProgrammingParallelism = 32;
+
 		//The number of physical blocks available on the target chip 
 		constexpr std::uint32_t physicalBlockCount = 12;
 
@@ -132,6 +135,9 @@ namespace boot {
 			MemoryBlock{0x080E'0000, (128_KiB).toBytes()}
 		};
 #elif defined BOOT_STM32F7
+		//Governs the width of programming acesses to the flash memory
+		constexpr unsigned flashProgrammingParallelism = 32;
+
 		//The number of physical blocks available on the target chip 
 		constexpr std::uint32_t physicalBlockCount = 8;
 
@@ -158,6 +164,8 @@ namespace boot {
 			MemoryBlock{0x080C'0000, (256_KiB).toBytes()},
 	};
 #elif defined BOOT_STM32F1
+		//Governs the width of programming acesses to the flash memory
+		constexpr unsigned flashProgrammingParallelism = 16;
 
 		//The number of physical blocks available on the target chip 
 		constexpr std::uint32_t physicalBlockCount = 128;
@@ -205,6 +213,8 @@ namespace boot {
 #else
 #error "This MCU is not supported"
 #endif
+
+	static_assert(customization::flashProgrammingParallelism == 16 || customization::flashProgrammingParallelism == 32, "Unsupported flash programming parallelism!");
 
 	constexpr bool enableAssert = true;
 

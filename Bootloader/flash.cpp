@@ -66,84 +66,44 @@ namespace boot {
 #endif
 }
 
-	WriteStatus Flash::Write(std::uint32_t address, std::uint16_t halfWord) {
+	WriteStatus Flash::do_write(std::uint32_t address, writeableType data) {
 #ifdef BOOT_STM32F1
+		static_assert(std::is_same_v<writeableType, std::uint16_t>, "STM32F1 flash is unable to perform write access other than 16bits wide.");
+		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY); //wait for previous operation to end
 		auto const cachedResult = FLASH->SR;
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);
 
-		for (; ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY);); //wait for previous operation to end
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //enable flash programming
-		ufsel::bit::access_register<std::uint16_t>(address) = halfWord; //initiate programming
+		ufsel::bit::access_register<writeableType>(address) = data; //initiate programming
 
 		assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
 
 		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
 #elif defined BOOT_STM32F4
+		static_assert(std::is_same_v<writeAwriteableTypebleType, std::uint32_t>, "STM32F4 flash is currently hardcoded to use 32bit writes.");
 		std::uint32_t const cachedResult = FLASH->SR;
-
-		//select x16 programming paralelism
-		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b01, POS_FROM_MASK(FLASH_CR_PSIZE));
+		//select x32 programming paralelism
+		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //Start flash programming
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
-		//Write one word of data
-		ufsel::bit::access_register<decltype(halfWord)>(address) = halfWord;
+		ufsel::bit::access_register<decltype(word)>(address) = word; //Write one word of data
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
-
 #elif defined BOOT_STM32F7
+		static_assert(std::is_same_v<writeableType, std::uint32_t>, "STM32F7 flash is currently hardcoded to use 32bit writes.");
+		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY);
 		std::uint32_t const cachedResult = FLASH->SR;
 
-		//select x16 programming paralelism
-		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b01, POS_FROM_MASK(FLASH_CR_PSIZE));
-		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //Start flash programming
-		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
-		//Write one word of data
-		ufsel::bit::access_register<decltype(halfWord)>(address) = halfWord;
-
-		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
-
-#else
-#error "This MCU is not supported"
-#endif
-	}
-
-	WriteStatus Flash::Write(std::uint32_t address, std::uint32_t word) {
-
-#if defined BOOT_STM32F4
-		std::uint32_t const cachedResult = FLASH->SR;
-		//select x32 programming paralelism
-		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
-		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //Start flash programming
-		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_PGSERR , FLASH_SR_PGPERR , FLASH_SR_PGAERR , FLASH_SR_WRPERR);
-		//Write one word of data
-		ufsel::bit::access_register<decltype(word)>(address) = word;
-
-		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok: WriteStatus::MemoryProtected; //TODO make this more concrete
-#elif defined BOOT_STM32F7
-		std::uint32_t const cachedResult = FLASH->SR;
 		//select x32 programming paralelism
 		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //Start flash programming
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
-		//Write one word of data
-		ufsel::bit::access_register<decltype(word)>(address) = word;
+		__DSB();
+		ufsel::bit::access_register<writeableType>(address) = data; //Write one word of data
+		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY);
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
-#elif defined BOOT_STM32F1
 
-		auto const cachedResult = FLASH->SR;
-		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_PGERR);
-
-		for (; ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY);); //wait for previous operation to end
-		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //enable flash programming
-		ufsel::bit::access_register<std::uint16_t>(address) = word; //program lower half
-
-		for (; ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY);); //wait for first operation to end
-		ufsel::bit::access_register<std::uint16_t>(address + 2) = word >> 16; //program upper half
-
-		assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
-
-		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
 #else
 #error "This MCU is not supported"
 #endif
@@ -234,11 +194,11 @@ namespace boot {
 		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
 		assert(this == &jumpTable);
 
-		Flash::Write(reinterpret_cast<std::uint32_t>(&magic1_), expected_magic1_value);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&magic2_), expected_magic2_value);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&magic3_), expected_magic3_value);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&magic4_), expected_magic4_value);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&magic5_), expected_magic5_value);
+		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic1_), expected_magic1_value) == WriteStatus::Ok);
+		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic2_), expected_magic2_value) == WriteStatus::Ok);
+		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic3_), expected_magic3_value) == WriteStatus::Ok);
+		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic4_), expected_magic4_value) == WriteStatus::Ok);
+		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic5_), expected_magic5_value) == WriteStatus::Ok);
 	}
 
 	void ApplicationJumpTable::write_metadata(InformationSize const firmware_size, std::span<MemoryBlock const> const logical_memory_blocks) {
@@ -246,7 +206,7 @@ namespace boot {
 		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
 		assert(this == &jumpTable);
 
-		Flash::Write(reinterpret_cast<std::uint32_t>(&firmwareSize_), firmware_size.toBytes());
+		Flash::Write(reinterpret_cast<std::uint32_t>(&firmwareSize_), static_cast<std::uint32_t>(firmware_size.toBytes()));
 		std::uint32_t const logicalMemoryBlockCount = size(logical_memory_blocks_);
 		Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_block_count_), logicalMemoryBlockCount);
 

@@ -29,6 +29,7 @@ namespace boot {
 	}
 
 	WriteStatus FirmwareDownloader::checkAddressBeforeWrite(std::uint32_t const address) {
+		//TODO consider checking the alignment as well
 
 		switch (Flash::addressOrigin(address)) {
 
@@ -53,30 +54,6 @@ namespace boot {
 			return WriteStatus::NotInErasedMemory;
 
 		return WriteStatus::Ok; //Everything seems ok, try to write
-	}
-
-	WriteStatus FirmwareDownloader::write(std::uint32_t address, std::uint16_t half_word) {
-		if (!data_expected())
-			return WriteStatus::NotReady;
-
-		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
-			return ret;
-
-		return do_write(address, half_word);
-	}
-
-	WriteStatus FirmwareDownloader::write(std::uint32_t address, std::uint32_t word) {
-		if (!data_expected())
-			return WriteStatus::NotReady;
-
-		if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
-			return ret;
-
-		std::uint16_t const lower_half = word, upper_half = word >> 16;
-		if (WriteStatus const ret = do_write(address, lower_half); ret != WriteStatus::Ok)
-			return ret;
-
-		return do_write(address + 2, upper_half);
 	}
 
 	HandshakeResponse PhysicalMemoryBlockEraser::tryErasePage(std::uint32_t address) {
@@ -342,20 +319,6 @@ namespace boot {
 			return HandshakeResponse::BootloaderInError;
 		}
 		assert_unreachable();
-	}
-
-	WriteStatus FirmwareDownloader::do_write(std::uint32_t address, std::uint16_t half_word) {
-		checksum_ += half_word;
-		written_bytes_ += InformationSize::fromBytes(sizeof(half_word));
-
-		blockOffset_ += 2;
-		if (blockOffset_ == firmwareBlocks_[current_block_index_].length) {
-			blockOffset_ = 0;
-			if (++current_block_index_ == size(firmwareBlocks_))
-				status_ = Status::noMoreDataExpected;
-		}
-
-		return Flash::Write(address, half_word);
 	}
 
 	HandshakeResponse FirmwareDownloader::receive(Register reg, Command com, std::uint32_t value) {

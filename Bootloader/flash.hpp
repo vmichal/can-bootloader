@@ -40,7 +40,12 @@ namespace boot {
 		DiscontinuousWriteAccess
 	};
 
+	template<typename T>
+	concept WriteableIntegral = std::is_same_v<T, std::uint16_t> || std::is_same_v<T, std::uint32_t>;
+
 	struct Flash {
+
+		using writeableType = std::conditional_t<customization::flashProgrammingParallelism == 16, std::uint16_t, std::uint32_t>;
 
 		constexpr static bool pagesHaveSameSize() { return customization::physicalBlockSizePolicy == PhysicalBlockSizes::same; };
 
@@ -61,8 +66,39 @@ namespace boot {
 
 		static void AwaitEndOfErasure();
 		static bool ErasePage(std::uint32_t pageAddress);
-		static WriteStatus Write(std::uint32_t flashAddress, std::uint32_t word);
-		static WriteStatus Write(std::uint32_t flashAddress, std::uint16_t halfWord);
+		static WriteStatus do_write(std::uint32_t flashAddress, writeableType data);
+
+		//Chooses the most appropriate programming parallelism to write the specified data. Actual work is delegated to do_write
+		static WriteStatus Write(std::uint32_t address, WriteableIntegral auto data) {
+			if constexpr (std::is_same_v<writeableType, decltype(data)>) {
+				//it is possible to use the native parallelism
+				return Flash::do_write(address, data);
+			}
+			else if constexpr (sizeof(data) < sizeof(writeableType)) {
+				//a smaller portion of data is to be written. Since only transitions from 1 to 0 are allowed, the data must be extended
+				static_assert(std::is_same_v<decltype(data), std::uint16_t> && customization::flashProgrammingParallelism == 32);
+
+				//Read the currently stored word
+				std::uint32_t const aligned_address = ufsel::bit::clear(address, ufsel::bit::bitmask_of_width(2));
+				std::uint32_t const current_data = ufsel::bit::access_register<std::uint32_t>(aligned_address);
+				//since it is only possible to go from 1 to 0, we need to and the current data and the new data
+				bool const is_higher_half = address != aligned_address;
+				std::uint32_t const shifted_data = data << (is_higher_half ? 16 : 0);
+				std::uint32_t const fill = ufsel::bit::bitmask_of_width(16) << (is_higher_half ? 0 : 16);
+
+				std::uint32_t const to_write = current_data & (shifted_data | fill);
+
+				return Flash::do_write(aligned_address, to_write);
+			}
+			else {
+				//There is more data to program than the flash supports by default
+				static_assert(std::is_same_v<decltype(data), std::uint32_t> && customization::flashProgrammingParallelism == 16);
+				std::uint16_t const lower_half = data, upper_half = data >> customization::flashProgrammingParallelism;
+				if (WriteStatus const ret = Flash::do_write(address, lower_half); ret != WriteStatus::Ok)
+					return ret;
+				return Flash::do_write(address + customization::flashProgrammingParallelism / 8, upper_half);
+			}
+	}
 
 		static bool isAvailableAddress(std::uint32_t address) {
 			return addressOrigin(address) == AddressSpace::AvailableFlash;

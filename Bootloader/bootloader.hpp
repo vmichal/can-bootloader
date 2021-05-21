@@ -24,7 +24,6 @@
 
 namespace boot {
 
-
 	enum class TransactionType {
 		Unknown,
 		Flashing,
@@ -136,11 +135,31 @@ namespace boot {
 		std::size_t current_block_index_ = 0;
 		std::uint32_t blockOffset_ = 0;
 
-		WriteStatus do_write(std::uint32_t address, std::uint16_t half_word);
+		WriteStatus do_write(std::uint32_t address, WriteableIntegral auto data) {
+			checksum_ += (data & 0xff'ff) + (data >> 16);
+			written_bytes_ += InformationSize::fromBytes(sizeof(data));
+
+			blockOffset_ += sizeof(data);
+			if (blockOffset_ == firmwareBlocks_[current_block_index_].length) {
+				blockOffset_ = 0;
+				if (++current_block_index_ == size(firmwareBlocks_))
+					status_ = Status::noMoreDataExpected;
+			}
+
+			return Flash::Write(address, data);
+		}
+
 	public:
 		WriteStatus checkAddressBeforeWrite(std::uint32_t address);
-		WriteStatus write(std::uint32_t address, std::uint16_t half_word);
-		WriteStatus write(std::uint32_t address, std::uint32_t word);
+		WriteStatus write(std::uint32_t address, WriteableIntegral auto data) {
+			if (!data_expected())
+				return WriteStatus::NotReady;
+
+			if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
+				return ret;
+
+			return do_write(address, data);
+		}
 
 		bool done() const { return status_ == Status::done; }
 		bool data_expected() const { return status_ == Status::receivingData; }
@@ -233,14 +252,8 @@ namespace boot {
 		[[nodiscard]]
 		bool isPassive() const { return status_ == Status::OtherBootloaderDetected; }
 
-		WriteStatus write(std::uint32_t address, std::uint16_t half_word) {
-			auto const ret = firmwareDownloader_.write(address, half_word);
-			if (firmwareDownloader_.expectedSize() == firmwareDownloader_.actualSize())
-				can_.SendDataAck(address, boot::WriteStatus::Ok);
-			return ret;
-		}
-		WriteStatus write(std::uint32_t address, std::uint32_t word) {
-			auto const ret = firmwareDownloader_.write(address, word);
+		WriteStatus write(std::uint32_t address, WriteableIntegral auto data) {
+			auto const ret = firmwareDownloader_.write(address, data);
 			if (firmwareDownloader_.expectedSize() == firmwareDownloader_.actualSize())
 				can_.SendDataAck(address, boot::WriteStatus::Ok);
 			return ret;
