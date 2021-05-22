@@ -1,7 +1,7 @@
 /*
  * eForce CAN Bootloader
  *
- * Written by Vojt�ch Michal
+ * Written by Vojtěch Michal
  *
  * Copyright (c) 2020 eforce FEE Prague Formula
  */
