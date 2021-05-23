@@ -1,7 +1,7 @@
 /*
  * eForce CAN Bootloader
  *
- * Written by Vojtìch Michal
+ * Written by VojtÄ›ch Michal
  *
  * Copyright (c) 2020 eforce FEE Prague Formula
  *
@@ -11,6 +11,9 @@
 
 #include <cstdint>
 
+
+extern "C" [[noreturn]] void HardFault_Handler();
+
 namespace ufsel {
 
 
@@ -18,4 +21,17 @@ namespace ufsel {
 		using machine_word = std::uint32_t;
 	}
 
+
+	namespace assertion {
+		constexpr bool enableAssert = true;
+		constexpr bool breakInFailedAssert = false;
+
+		[[noreturn]] inline void assertionFailedHandler() {
+			HardFault_Handler();
+		}
+
+		[[noreturn]] inline void unreachableCodeHandler() {
+			HardFault_Handler();
+		}
+	}
 }

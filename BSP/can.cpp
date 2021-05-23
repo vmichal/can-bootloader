@@ -7,7 +7,7 @@
 #include <ufsel/bit_operations.hpp>
 
 
-#include <library/assert.hpp>
+#include <ufsel/assert.hpp>
 #include <ufsel/units.hpp>
 #include <CANdb/tx2/tx.h>
 #include <CANdb/can_Bootloader.h>

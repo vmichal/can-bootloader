@@ -4,6 +4,7 @@ project(Bootloader CXX C ASM)
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/QueryRepositoryState.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/BitOperations.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Units.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Assert.cmake")
 
 set(SRC
         API/BLdriver.cpp
@@ -37,7 +38,7 @@ include_directories(SYSTEM CANdb)
 include_directories(SYSTEM ufsel/include)
 include_directories(SYSTEM .)
 
-add_definitions(-DUFSEL_USING_UNITS -DUFSEL_USING_UNIT_LITERALS)
+add_definitions(-DUFSEL_USING_UNITS -DUFSEL_USING_UNIT_LITERALS -DUFSEL_USING_ASSERT)
 
 
 set(HEX_FILE ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.hex)

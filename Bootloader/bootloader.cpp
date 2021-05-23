@@ -10,7 +10,7 @@
 #include "bootloader.hpp"
 #include "flash.hpp"
 
-#include <library/assert.hpp>
+#include <ufsel/assert.hpp>
 #include <library/timer.hpp>
 namespace boot {
 

@@ -10,7 +10,7 @@
 #pragma once
 
 #include <ufsel/bit.hpp>
-#include <library/assert.hpp>
+#include <ufsel/assert.hpp>
 #include "options.hpp"
 
 #include <span>

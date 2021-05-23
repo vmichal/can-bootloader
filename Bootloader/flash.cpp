@@ -1,7 +1,7 @@
 #include "flash.hpp"
 #include <ufsel/bit.hpp>
 
-#include <library/assert.hpp>
+#include <ufsel/assert.hpp>
 
 namespace boot {
 

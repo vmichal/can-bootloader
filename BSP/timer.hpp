@@ -5,7 +5,7 @@
 #define __TIMER_H
 
 #include <ufsel/units.hpp>
-#include <library/assert.hpp>
+#include <ufsel/assert.hpp>
 #include <library/timer.hpp>
 #include <Bootloader/options.hpp>
 #include <optional>

@@ -14,7 +14,7 @@
 #include <optional>
 #include <span>
 
-#include <library/assert.hpp>
+#include <ufsel/assert.hpp>
 #include <ufsel/units.hpp>
 
 #include "flash.hpp"
