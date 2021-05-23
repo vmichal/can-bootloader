@@ -582,7 +582,7 @@ namespace boot {
 			if (physicalMemoryMapTransmitter_.shouldYield()) {
 				physicalMemoryMapTransmitter_.endSubtransaction();
 
-				logicalMemoryMapReceiver_.startSubtransaction();
+				logicalMemoryMapReceiver_.startSubtransaction(transactionType_);
 				status_ = Status::ReceivingFirmwareMemoryMap;
 
 				can_.yieldCommunication();
