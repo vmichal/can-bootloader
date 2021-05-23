@@ -130,12 +130,13 @@ namespace boot {
 		}
 	}
 
+	[[noreturn]]
 	void main() {
 
 		setupCanCallbacks();
 
 		canManager.SendSoftwareBuild();
-		canManager.SendBeacon(bootloader.status(), bootloader.entryReason());
+		canManager.SendBeacon(bootloader.status(), Bootloader::entryReason());
 
 		for (;;) { //main loop
 

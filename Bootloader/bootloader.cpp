@@ -16,6 +16,8 @@ namespace boot {
 
 	namespace {
 
+		// Checks given register and value and returns HandshakeResponse accordingly.
+		// Returns Ok iff reg is TransactionMagic and value has the expected value
 		HandshakeResponse checkMagic(Register const reg, std::uint32_t const value) {
 			if (reg != Register::TransactionMagic)
 				return HandshakeResponse::HandshakeSequenceError;
@@ -462,7 +464,7 @@ namespace boot {
 
 		bool const metadata_valid = jumpTable.has_valid_metadata();
 
-		decltype(ApplicationJumpTable::logical_memory_blocks_) logical_memory_blocks {{0,0}};
+		decltype(ApplicationJumpTable::logical_memory_blocks_) logical_memory_blocks {{{0,0}}};
 		std::uint32_t logical_memory_blocks_count = 0;
 		InformationSize firmware_size = 0_B;
 

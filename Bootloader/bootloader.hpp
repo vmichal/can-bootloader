@@ -39,7 +39,6 @@ namespace boot {
 
 			sendingBlockAddress,
 			sendingBlockLength,
-
 			shouldYield,
 			done,
 			error,
@@ -49,9 +48,9 @@ namespace boot {
 		std::uint32_t blocks_sent_ = 0;
 
 	public:
-		bool done() const { return status_ == Status::done; }
-		bool shouldYield() const { return status_ == Status::shouldYield; }
-		bool error() const { return status_ == Status::error; }
+		[[nodiscard]] bool done() const { return status_ == Status::done; }
+		[[nodiscard]] bool shouldYield() const { return status_ == Status::shouldYield; }
+		[[nodiscard]] bool error() const { return status_ == Status::error; }
 		void startSubtransaction() { status_ = Status::pending; }
 		void endSubtransaction() { status_ = Status::done; }
 		void processYield() { status_ = Status::masterYielded; }
@@ -75,7 +74,7 @@ namespace boot {
 		std::uint32_t blocks_received_ = 0;
 
 		std::uint32_t blocks_expected_ = 0;
-		
+
 		Status status_ = Status::uninitialized;
 	public:
 		void startSubtransaction() {
@@ -83,10 +82,10 @@ namespace boot {
 			remaining_bytes_ = Flash::availableMemory;
 		}
 
-		bool done() const { return status_ == Status::done; }
-		bool error() const { return status_ == Status::error; }
+		[[nodiscard]] bool done() const { return status_ == Status::done; }
+		[[nodiscard]] bool error() const { return status_ == Status::error; }
 
-		std::span<MemoryBlock const> logicalMemoryBlocks() const { return std::span{blocks_.begin(), blocks_received_}; }
+		[[nodiscard]] std::span<MemoryBlock const> logicalMemoryBlocks() const { return std::span{blocks_.begin(), blocks_received_}; }
 		HandshakeResponse receive(Register reg, Command com, std::uint32_t value);
 	};
 
@@ -161,19 +160,19 @@ namespace boot {
 			return do_write(address, data);
 		}
 
-		bool done() const { return status_ == Status::done; }
-		bool data_expected() const { return status_ == Status::receivingData; }
-		void startSubtransaction(std::span<MemoryBlock const> erasedBlocks, std::span<MemoryBlock const> firmwareBlocks) { 
+		[[nodiscard]] bool done() const { return status_ == Status::done; }
+		[[nodiscard]] bool data_expected() const { return status_ == Status::receivingData; }
+		void startSubtransaction(std::span<MemoryBlock const> erasedBlocks, std::span<MemoryBlock const> firmwareBlocks) {
 			erasedBlocks_ = erasedBlocks;
 			firmwareBlocks_ = firmwareBlocks;
-			status_ = Status::pending; 
+			status_ = Status::pending;
 		}
 		HandshakeResponse receive(Register, Command, std::uint32_t);
 
-		InformationSize expectedSize() const { return firmware_size_; }
-		InformationSize actualSize() const { return written_bytes_; }
+		[[nodiscard]] InformationSize expectedSize() const { return firmware_size_; }
+		[[nodiscard]] InformationSize actualSize() const { return written_bytes_; }
 
-		std::uint32_t expectedWriteLocation() const { 
+		[[nodiscard]] std::uint32_t expectedWriteLocation() const {
 			return firmwareBlocks_[current_block_index_].address + blockOffset_;
 		}
 	};
@@ -193,12 +192,12 @@ namespace boot {
 		std::uint32_t entry_point_ = 0, isr_vector_ = 0;
 
 	public:
-		bool done() const { return status_ == Status::done; }
 		void startSubtransaction() { status_ = Status::pending; }
 		HandshakeResponse receive(Register, Command, std::uint32_t);
 
-		std::uint32_t entry_point() const { return entry_point_; }
-		std::uint32_t isr_vector() const { return isr_vector_; }
+		[[nodiscard]] bool done() const { return status_ == Status::done; }
+		[[nodiscard]] std::uint32_t entry_point() const { return entry_point_; }
+		[[nodiscard]] std::uint32_t isr_vector() const { return isr_vector_; }
 
 	};
 
