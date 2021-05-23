@@ -31,6 +31,81 @@ enum { Bootloader_ExitAck_id            = STD_ID(0x626) };
 enum { Bootloader_Beacon_id             = STD_ID(0x627) };
 enum { Bootloader_Beacon_timeout = 1000 };
 enum { Bootloader_SoftwareBuild_id      = STD_ID(0x62D) };
+enum { CarDiagnostics_RecoveryModeBeacon_id = STD_ID(0x023) };
+
+enum CarDiagnostics_BusName {
+    /* Fse09 bus 1 */
+    CarDiagnostics_BusName_FSE09_CAN1 = 0,
+    /* Fse09 bus 2 */
+    CarDiagnostics_BusName_FSE09_CAN2 = 1,
+    /* Driverless bus 1 */
+    CarDiagnostics_BusName_DV01_CAN1 = 2,
+    /* Driverless bus 2 */
+    CarDiagnostics_BusName_DV01_CAN3 = 3,
+};
+
+enum CarDiagnostics_ClockState {
+    /* no initialization has been performed yet */
+    CarDiagnostics_ClockState_waiting_for_init = 0,
+    /* waiting for HSE to stabilize */
+    CarDiagnostics_ClockState_waiting_for_hse = 1,
+    /* waiting for PLL to stabilize */
+    CarDiagnostics_ClockState_waiting_for_pll = 2,
+    /* HSE has refused to start. DV01 Vietman flashbacks */
+    CarDiagnostics_ClockState_hse_dead = 3,
+    /* Pll has refused to lock */
+    CarDiagnostics_ClockState_pll_dead = 4,
+    /* No failure is detected */
+    CarDiagnostics_ClockState_fully_operational = 5,
+    /* Clock security system detected failure of HSE */
+    CarDiagnostics_ClockState_css_triggered = 6,
+};
+
+enum CarDiagnostics_ECU {
+    /* Accurator management system */
+    CarDiagnostics_ECU_AMS = 0,
+    /* Dashboard */
+    CarDiagnostics_ECU_DSH = 1,
+    /* Pedal unit */
+    CarDiagnostics_ECU_PDL = 2,
+    /* Fusebox */
+    CarDiagnostics_ECU_FSB = 3,
+    /* Vehicle dynamics control unit */
+    CarDiagnostics_ECU_VDCU = 4,
+    /* Steering wheel */
+    CarDiagnostics_ECU_STW = 5,
+    /* Driverless fusebox and some other functionality */
+    CarDiagnostics_ECU_EBSS = 6,
+    /* Bootloader of some ECU */
+    CarDiagnostics_ECU_Bootloader = 7,
+};
+
+enum CarDiagnostics_FirmwareState {
+    /* The device has experienced a power reset */
+    CarDiagnostics_FirmwareState_coldStart = 0,
+    /* Software reset occured because a bootloader was running. */
+    CarDiagnostics_FirmwareState_bootloaderRequested = 1,
+    /* Software reset occured because a noncritical error was encountered */
+    CarDiagnostics_FirmwareState_minorError = 2,
+    /* Software reset occured because of a major failure */
+    CarDiagnostics_FirmwareState_fatalError = 3,
+    /* Software reset because of failed assertion */
+    CarDiagnostics_FirmwareState_failedAssertion = 4,
+    /* Clock security system detected fail of HSE during the previous run. */
+    CarDiagnostics_FirmwareState_clockError = 5,
+    /* The firmware is stable and running */
+    CarDiagnostics_FirmwareState_stable = 6,
+    /* The firmware is being monitored because of recent reset (boot loop detection is active) */
+    CarDiagnostics_FirmwareState_initialization = 7,
+    /* The MCU has repeatedly failed to properly initialize. */
+    CarDiagnostics_FirmwareState_infiniteBootLoop = 8,
+    /* The firmware repeatedly encountered a fatal error */
+    CarDiagnostics_FirmwareState_tooManyFatalErrors = 9,
+    /* The state register contains unrecognized value */
+    CarDiagnostics_FirmwareState_stateRegisterCorrupted = 10,
+    /* Application's main function exited */
+    CarDiagnostics_FirmwareState_mainReturned = 11,
+};
 
 enum Bootloader_BootTarget {
     /* Accumulator management System */
@@ -353,6 +428,38 @@ typedef struct Bootloader_SoftwareBuild_t {
 } Bootloader_SoftwareBuild_t;
 
 
+/*
+ * Beacon sent by a unit stuck in recovery mode.
+ */
+typedef struct CarDiagnostics_RecoveryModeBeacon_t {
+	/* The name of unit that generated this message. */
+	enum CarDiagnostics_ECU	ECU;
+
+	/* State of the clock system (failed HSE/PLL) */
+	enum CarDiagnostics_ClockState	ClockState;
+
+	/* The number of detected fatal software errors (these include mainly failed assertions or bus faults) */
+	uint8_t	NumFatalFirmwareErrors;
+
+	/* High level state of the firmware. What errors has it recently encountered. */
+	enum CarDiagnostics_FirmwareState	FirmwareState;
+
+	/* True iff the unit is in recovery mode only temporarily and will enter the bootloader in a few seconds. */
+	uint8_t	WillEnterBootloader;
+
+	/* Safety up counter */
+	uint8_t	SEQ;
+} CarDiagnostics_RecoveryModeBeacon_t;
+
+#define CarDiagnostics_RecoveryModeBeacon_NumFatalFirmwareErrors_OFFSET	((float)0)
+#define CarDiagnostics_RecoveryModeBeacon_NumFatalFirmwareErrors_FACTOR	((float)1)
+#define CarDiagnostics_RecoveryModeBeacon_NumFatalFirmwareErrors_MIN	((float)0)
+#define CarDiagnostics_RecoveryModeBeacon_NumFatalFirmwareErrors_MAX	((float)3)
+#define CarDiagnostics_RecoveryModeBeacon_SEQ_OFFSET	((float)0)
+#define CarDiagnostics_RecoveryModeBeacon_SEQ_FACTOR	((float)1)
+#define CarDiagnostics_RecoveryModeBeacon_SEQ_MIN	((float)0)
+#define CarDiagnostics_RecoveryModeBeacon_SEQ_MAX	((float)15)
+
 void candbInit(void);
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
@@ -410,6 +517,10 @@ int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data);
 int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo, enum Bootloader_BootTarget Target);
 int Bootloader_SoftwareBuild_need_to_send(void);
 
+int CarDiagnostics_send_RecoveryModeBeacon_s(const CarDiagnostics_RecoveryModeBeacon_t* data);
+int CarDiagnostics_send_RecoveryModeBeacon(enum CarDiagnostics_ECU ECU, enum CarDiagnostics_ClockState ClockState, uint8_t NumFatalFirmwareErrors, enum CarDiagnostics_FirmwareState FirmwareState, uint8_t WillEnterBootloader, uint8_t SEQ);
+int CarDiagnostics_RecoveryModeBeacon_need_to_send(void);
+
 #ifdef __cplusplus
 }
 
@@ -456,6 +567,15 @@ inline bool need_to_send<Bootloader_SoftwareBuild_t>() {
 
 inline int send(const Bootloader_SoftwareBuild_t& data) {
     return Bootloader_send_SoftwareBuild_s(&data);
+}
+
+template <>
+inline bool need_to_send<CarDiagnostics_RecoveryModeBeacon_t>() {
+    return CarDiagnostics_RecoveryModeBeacon_need_to_send();
+}
+
+inline int send(const CarDiagnostics_RecoveryModeBeacon_t& data) {
+    return CarDiagnostics_send_RecoveryModeBeacon_s(&data);
 }
 
 #endif

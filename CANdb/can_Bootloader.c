@@ -18,6 +18,7 @@ Bootloader_Handshake_t Bootloader_Handshake_data;
 Bootloader_HandshakeAck_t Bootloader_HandshakeAck_data;
 int32_t Bootloader_SoftwareBuild_last_sent;
 Bootloader_CommunicationYield_t Bootloader_CommunicationYield_data;
+int32_t CarDiagnostics_RecoveryModeBeacon_last_sent;
 
 void candbInit(void) {
     canInitMsgStatus(&Bootloader_Handshake_status, -1);
@@ -29,6 +30,7 @@ void candbInit(void) {
     canInitMsgStatus(&Bootloader_Beacon_status, 1000);
     Bootloader_Beacon_last_sent = -1;
     Bootloader_SoftwareBuild_last_sent = -1;
+    CarDiagnostics_RecoveryModeBeacon_last_sent = -1;
 }
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out) {
@@ -486,6 +488,36 @@ int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo, enum Bo
 
 int Bootloader_SoftwareBuild_need_to_send(void) {
     return (Bootloader_SoftwareBuild_last_sent == -1) || (txGetTimeMillis() >= (uint32_t)(Bootloader_SoftwareBuild_last_sent + 10000));
+}
+
+int CarDiagnostics_send_RecoveryModeBeacon_s(const CarDiagnostics_RecoveryModeBeacon_t* data) {
+    uint8_t buffer[2];
+    buffer[0] = (data->ECU & 0x07) | ((data->ClockState & 0x07) << 3) | ((data->NumFatalFirmwareErrors & 0x03) << 6);
+    buffer[1] = (data->FirmwareState & 0x0F) | (data->WillEnterBootloader ? 16 : 0) | ((data->SEQ & 0x07) << 5);
+    int rc = txSendCANMessage(bus_UNDEFINED, CarDiagnostics_RecoveryModeBeacon_id, buffer, sizeof(buffer));
+
+    if (rc == 0) {
+        CarDiagnostics_RecoveryModeBeacon_last_sent = txGetTimeMillis();
+    }
+
+    return rc;
+}
+
+int CarDiagnostics_send_RecoveryModeBeacon(enum CarDiagnostics_ECU ECU, enum CarDiagnostics_ClockState ClockState, uint8_t NumFatalFirmwareErrors, enum CarDiagnostics_FirmwareState FirmwareState, uint8_t WillEnterBootloader, uint8_t SEQ) {
+    uint8_t buffer[2];
+    buffer[0] = (ECU & 0x07) | ((ClockState & 0x07) << 3) | ((NumFatalFirmwareErrors & 0x03) << 6);
+    buffer[1] = (FirmwareState & 0x0F) | (WillEnterBootloader ? 16 : 0) | ((SEQ & 0x07) << 5);
+    int rc = txSendCANMessage(bus_UNDEFINED, CarDiagnostics_RecoveryModeBeacon_id, buffer, sizeof(buffer));
+
+    if (rc == 0) {
+        CarDiagnostics_RecoveryModeBeacon_last_sent = txGetTimeMillis();
+    }
+
+    return rc;
+}
+
+int CarDiagnostics_RecoveryModeBeacon_need_to_send(void) {
+    return (CarDiagnostics_RecoveryModeBeacon_last_sent == -1) || (txGetTimeMillis() >= (uint32_t)(CarDiagnostics_RecoveryModeBeacon_last_sent + 100));
 }
 
 void candbHandleMessage(uint32_t timestamp, int bus, CAN_ID_t id, const uint8_t* payload, size_t payload_length) {

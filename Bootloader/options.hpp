@@ -216,7 +216,8 @@ namespace boot {
 
 	static_assert(customization::flashProgrammingParallelism == 16 || customization::flashProgrammingParallelism == 32, "Unsupported flash programming parallelism!");
 
-	constexpr bool enableAssert = true;
+	constexpr bool rebootAfterHardfault = true;
+	constexpr auto rebootDelayHardfault = 10_s;
 
 	constexpr std::uint32_t isrVectorAlignmentMask = ufsel::bit::bitmask_of_width(customization::isrVectorAlignmentBits);
 

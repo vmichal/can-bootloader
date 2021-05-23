@@ -11,8 +11,7 @@
 
 #include <cstdint>
 
-
-extern "C" [[noreturn]] void HardFault_Handler();
+extern "C" [[noreturn]] void EverythingsFuckedUpHandler(bool assertFailed);
 
 namespace ufsel {
 
@@ -27,11 +26,11 @@ namespace ufsel {
 		constexpr bool breakInFailedAssert = false;
 
 		[[noreturn]] inline void assertionFailedHandler() {
-			HardFault_Handler();
+			EverythingsFuckedUpHandler(true);
 		}
 
 		[[noreturn]] inline void unreachableCodeHandler() {
-			HardFault_Handler();
+			EverythingsFuckedUpHandler(true);
 		}
 	}
 }
