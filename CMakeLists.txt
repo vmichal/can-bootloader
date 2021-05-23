@@ -3,6 +3,7 @@ project(Bootloader CXX C ASM)
 
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/QueryRepositoryState.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/BitOperations.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Units.cmake")
 
 set(SRC
         API/BLdriver.cpp
@@ -31,13 +32,12 @@ set(SRC
 
 add_executable(${PROJECT_NAME}.elf ${SRC} ${CAN_SRC})
 
-target_include_directories(${PROJECT_NAME}.elf PRIVATE
-        Drivers/
-        CANdb
-        .
-        ufsel/include
-        )
+include_directories(SYSTEM Drivers)
+include_directories(SYSTEM CANdb)
+include_directories(SYSTEM ufsel/include)
+include_directories(SYSTEM .)
 
+add_definitions(-DUFSEL_USING_UNITS -DUFSEL_USING_UNIT_LITERALS)
 
 
 set(HEX_FILE ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.hex)
