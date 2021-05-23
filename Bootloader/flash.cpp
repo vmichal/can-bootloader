@@ -17,8 +17,9 @@ namespace boot {
 
 	std::size_t const Flash::availableMemorySize = available_flash_end - available_flash_start;
 	std::size_t const Flash::bootloaderMemorySize = bootloader_flash_end - bootloader_flash_start;
-	std::uint32_t const Flash::jumpTableAddress = reinterpret_cast<std::uint32_t>(&jumpTable_start);
-	std::uint32_t const Flash::applicationAddress = reinterpret_cast<std::uint32_t>(&available_flash_start);
+	std::uint32_t const Flash::jumpTableAddress = reinterpret_cast<std::uint32_t>(jumpTable_start);
+	std::uint32_t const Flash::applicationAddress = reinterpret_cast<std::uint32_t>(available_flash_start);
+	std::uint32_t const Flash::bootloaderAddress = reinterpret_cast<std::uint32_t>(bootloader_flash_start);
 
 	void Flash::AwaitEndOfErasure() {
 		//wait for all operations to finish and lock flash

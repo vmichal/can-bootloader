@@ -251,7 +251,7 @@ namespace boot {
 		[[nodiscard]]
 		Status status() const { return status_; }
 		[[nodiscard]]
-		bool transactionInProgress() const { return status_ != Status::Error && status_ != Status::Ready; }
+		bool transactionInProgress() const { return transactionType_ != TransactionType::Unknown && status_ != Status::Error && status_ != Status::Ready; }
 
 		WriteStatus write(std::uint32_t address, WriteableIntegral auto data) {
 			auto const ret = firmwareDownloader_.write(address, data);

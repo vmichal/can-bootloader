@@ -103,7 +103,7 @@ namespace boot {
 		Bootloader_Beacon_t message;
 		message.State = static_cast<Bootloader_State>(BLstate);
 		message.Target = customization::thisUnit;
-		message.FlashSize = Flash::availableMemory / 1024;
+		message.FlashSize = Flash::availableMemorySize / 1024;
 		message.EntryReason = static_cast<Bootloader_EntryReason>(entryReason);
 
 		send(message);

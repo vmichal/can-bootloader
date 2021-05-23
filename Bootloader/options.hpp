@@ -105,7 +105,7 @@ namespace boot {
 		//Governs the width of programming acesses to the flash memory
 		constexpr unsigned flashProgrammingParallelism = 32;
 
-		//The number of physical blocks available on the target chip 
+		//The number of physical blocks available on the target chip
 		constexpr std::uint32_t physicalBlockCount = 12;
 
 		//Used only iff the flash memory consists of blocks of the same size
@@ -115,9 +115,10 @@ namespace boot {
 		constexpr PhysicalBlockSizes physicalBlockSizePolicy = PhysicalBlockSizes::different;
 
 		//In case of AMS/DSH, the bootloader occupies 10K of flash and the application jump table occupies two more.
-		//Hence the application can not start at lower address as the start of sixth block
+		//Hence the application can not start at lower address as the start of n-th block
 		//TODO this must be checked once in a while, whether it is correct...
 		constexpr std::uint32_t firstBlockAvailableToApplication = 2;
+		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
 		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal {
@@ -138,7 +139,7 @@ namespace boot {
 		//Governs the width of programming acesses to the flash memory
 		constexpr unsigned flashProgrammingParallelism = 32;
 
-		//The number of physical blocks available on the target chip 
+		//The number of physical blocks available on the target chip
 		constexpr std::uint32_t physicalBlockCount = 8;
 
 		//Used only iff the flash memory consists of blocks of the same size
@@ -151,6 +152,7 @@ namespace boot {
 		//Hence the application can not start at lower address as the start of sixth block
 		//TODO this must be checked once in a while, whether it is correct...
 		constexpr std::uint32_t firstBlockAvailableToApplication = 4;
+		constexpr std::uint32_t firstBlockAvailableToBootloader = 2; //because of the flash FS
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
 		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{
@@ -167,7 +169,7 @@ namespace boot {
 		//Governs the width of programming acesses to the flash memory
 		constexpr unsigned flashProgrammingParallelism = 16;
 
-		//The number of physical blocks available on the target chip 
+		//The number of physical blocks available on the target chip
 		constexpr std::uint32_t physicalBlockCount = 128;
 
 		//Used only iff the flash memory consists of blocks of the same size
@@ -180,6 +182,7 @@ namespace boot {
 		//Hence the application can not start at lower address as the start of sixth block
 		//TODO this must be checked once in a while, whether it is correct...
 		constexpr std::uint32_t firstBlockAvailableToApplication = 6;
+		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
 		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{ };

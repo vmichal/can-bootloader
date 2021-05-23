@@ -35,7 +35,7 @@ namespace boot {
 		StallSubtransaction = Bootloader_Command_StallSubtransaction,
 		ResumeSubtransaction = Bootloader_Command_ResumeSubtransaction,
 		SetNewVectorTable = Bootloader_Command_SetNewVectorTable,
-		RestartFromAddress = Bootloader_Command_RestartFromAddress
+		RestartFromAddress = Bootloader_Command_RestartFromAddress,
 		StartBootloaderUpdate = Bootloader_Command_StartBootloaderUpdate
 	};
 

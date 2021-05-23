@@ -127,9 +127,9 @@ namespace boot {
 	}
 
 	Bootloader_Handshake_t PhysicalMemoryMapTransmitter::update() {
-		//the first "available" block. Bootloader is located in first pages.
-		int const firstBlockIndex = transaction_ == TransactionType::Flashing ? customization::firstBlockAvailableToApplication : 0;
-		int const pagesToSend = transaction_ == TransactionType::Flashing ? PhysicalMemoryMap::availablePages() : PhysicalMemoryMap::bootloaderPages();
+		//the first "available" block. Bootloader is located in preceding memory pages.
+		std::uint32_t const firstBlockIndex = transaction_ == TransactionType::Flashing ? customization::firstBlockAvailableToApplication : customization::firstBlockAvailableToBootloader;
+		std::uint32_t const pagesToSend = transaction_ == TransactionType::Flashing ? PhysicalMemoryMap::availablePages() : PhysicalMemoryMap::bootloaderPages();
 
 		switch (status_) {
 		case Status::uninitialized:
@@ -340,7 +340,7 @@ namespace boot {
 			if (reg != Register::FirmwareSize)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value > Flash::availableMemory)
+			if (value > Flash::availableMemorySize)
 				return HandshakeResponse::BinaryTooBig;
 
 			firmware_size_ = InformationSize::fromBytes(value);
