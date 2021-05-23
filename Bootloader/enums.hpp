@@ -65,8 +65,9 @@ namespace boot {
 		LogicalBlocksOverlapping = Bootloader_HandshakeResponse_LogicalBlocksOverlapping,
 		LogicalBlockAddressesNotIncreasing = Bootloader_HandshakeResponse_LogicalBlockAddressesNotIncreasing,
 		LogicalBlockNotCoverable = Bootloader_HandshakeResponse_LogicalBlockNotCoverable,
-		LogicalBlockNotInFlash = Bootloader_HandshakeResponse_LogicalBlockNotInFlash,
+		AddressNotInBootloader = Bootloader_HandshakeResponse_AddressNotInBootloader,
 		LogicalBlockTooLong = Bootloader_HandshakeResponse_LogicalBlockTooLong,
+		MustBeNonZero = Bootloader_HandshakeResponse_MustBeNonZero,
 	};
 
 	enum class EntryReason {

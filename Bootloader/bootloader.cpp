@@ -33,32 +33,36 @@ namespace boot {
 	WriteStatus FirmwareDownloader::checkAddressBeforeWrite(std::uint32_t const address) {
 		//TODO consider checking the alignment as well
 
-		switch (Flash::addressOrigin(address)) {
+		AddressSpace const origin = Flash::addressOrigin(address);
+		switch (origin) {
 
 		case AddressSpace::AvailableFlash:
-			break;
+		case AddressSpace::BootloaderFlash:
+			if (origin == bootloader_.expectedAddressSpace())
+				break;
 
-		case AddressSpace::BootloaderFlash: case AddressSpace::JumpTable:
+			[[fallthrough]];
+		case AddressSpace::JumpTable:
 			return WriteStatus::MemoryProtected;
 
 		case AddressSpace::RAM: case AddressSpace::Unknown:
 			return WriteStatus::NotInFlash;
 		}
 
-		assert(Flash::isAvailableAddress(address));
+		assert(Flash::isBootloaderAddress(address) == bootloader_.updatingBootloader());
 
 		if (expectedWriteLocation() != address)
 			return WriteStatus::DiscontinuousWriteAccess;
 
 		//see whether this is not the same page as the last one written.
 		//if it is, we can let the write continue.
-		if (std::find(begin(erasedBlocks_), end(erasedBlocks_), Flash::getEnclosingBlock(address)) == end(erasedBlocks_))
+		if (std::ranges::find(erasedBlocks_, Flash::getEnclosingBlock(address)) == end(erasedBlocks_))
 			return WriteStatus::NotInErasedMemory;
 
 		return WriteStatus::Ok; //Everything seems ok, try to write
 	}
 
-	HandshakeResponse PhysicalMemoryBlockEraser::tryErasePage(std::uint32_t address) {
+	HandshakeResponse PhysicalMemoryBlockEraser::tryErasePage(std::uint32_t const address) {
 
 		if (!Flash::isPageAligned(address))
 			return HandshakeResponse::PageAddressNotAligned;
@@ -66,8 +70,13 @@ namespace boot {
 		AddressSpace const space = Flash::addressOrigin(address);
 		switch (space) {
 		case AddressSpace::AvailableFlash:
-			break;
 		case AddressSpace::BootloaderFlash:
+			// If the address lies in memory we want to update, continue with other checks.
+			// Otherwise fail right away
+			if (space == bootloader_.expectedAddressSpace())
+				break;
+
+			[[fallthrough]];
 		case AddressSpace::JumpTable:
 			return HandshakeResponse::PageProtected;
 		case AddressSpace::RAM:
@@ -77,7 +86,8 @@ namespace boot {
 
 		MemoryBlock const enclosingBlock = Flash::getEnclosingBlock(address);
 
-		if (std::find(begin(erased_pages()), end(erased_pages()), enclosingBlock) != end(erased_pages()))
+		std::span const already_erased = erased_pages();
+		if (std::ranges::find(already_erased, enclosingBlock) != end(already_erased))
 			return HandshakeResponse::PageAlreadyErased;
 
 		Flash::ErasePage(address);
@@ -128,8 +138,8 @@ namespace boot {
 
 	Bootloader_Handshake_t PhysicalMemoryMapTransmitter::update() {
 		//the first "available" block. Bootloader is located in preceding memory pages.
-		std::uint32_t const firstBlockIndex = transaction_ == TransactionType::Flashing ? customization::firstBlockAvailableToApplication : customization::firstBlockAvailableToBootloader;
-		std::uint32_t const pagesToSend = transaction_ == TransactionType::Flashing ? PhysicalMemoryMap::availablePages() : PhysicalMemoryMap::bootloaderPages();
+		std::uint32_t const firstBlockIndex = bootloader_.updatingBootloader() ? customization::firstBlockAvailableToBootloader : customization::firstBlockAvailableToApplication;
+		std::uint32_t const pagesToSend = bootloader_.updatingBootloader() ? PhysicalMemoryMap::bootloaderPages() : PhysicalMemoryMap::availablePages();
 
 		switch (status_) {
 		case Status::uninitialized:
@@ -171,6 +181,11 @@ namespace boot {
 		assert_unreachable();
 	}
 
+	void LogicalMemoryMapReceiver::startSubtransaction() {
+		status_ = Status::pending;
+		remaining_bytes_ = bootloader_.updatingBootloader() ? Flash::bootloaderMemorySize : Flash::availableMemorySize;
+	}
+
 	HandshakeResponse LogicalMemoryMapReceiver::receive(Register reg, Command com, std::uint32_t value) {
 		switch (status_) {
 		case Status::uninitialized:
@@ -188,56 +203,64 @@ namespace boot {
 			if (reg != Register::NumLogicalMemoryBlocks)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value > blocks_.size() || value == 0) //That many memory blocks cant be stored
-				return HandshakeResponse::TooManyLogicalMemoryBlocks; //TODO distinguish case for value == 0
+			if (value == 0)
+				return HandshakeResponse::MustBeNonZero;
+
+			if (!bootloader_.updatingBootloader()) {
+				//since we don't need to save logical blocks of the bootloader, we don't care about the number of blocks in this case
+				if (value > blocks_.size()) //That many memory blocks cant be stored
+					return HandshakeResponse::TooManyLogicalMemoryBlocks;
+			}
+
 
 			blocks_expected_ = value;
 			status_ = Status::waitingForBlockAddress;
 			return HandshakeResponse::Ok;
 
-		case Status::waitingForBlockAddress:
-			switch (reg) {
-			case Register::LogicalBlockStart:
-				if (blocks_received_ == blocks_expected_) //no more memory blocks may be received
-					return HandshakeResponse::LogicalBlockCountMismatch;
+		case Status::waitingForBlockAddress: {
 
-				if (Flash::addressOrigin(value) != AddressSpace::AvailableFlash)
-					return HandshakeResponse::LogicalBlockNotInFlash;
-
-				if (blocks_received_) { //We have already received at least one block
-					MemoryBlock const& previous = blocks_[blocks_received_ - 1];
-
-					if (value < previous.address)
-						return HandshakeResponse::LogicalBlockAddressesNotIncreasing;
-
-					if (value < end(previous))
-						return HandshakeResponse::LogicalBlocksOverlapping;
-				}
-
-				blocks_[blocks_received_].address = value; //Add the address to list of received.
-				status_ = Status::waitingForBlockLength;
-
-				return HandshakeResponse::Ok;
-
-			case Register::TransactionMagic:
-				if (value != Bootloader::transactionMagic)
-					return HandshakeResponse::InvalidTransactionMagic;
-				status_ = Status::done;
-				return HandshakeResponse::Ok;
-
-			default:
-				return HandshakeResponse::HandshakeSequenceError;
+			if (reg != Register::LogicalBlockStart) {
+				// At the the end of (address, length) pairs there should be a single transaction magic. Check it and conditionally
+				// continue to the next subtransaction
+				HandshakeResponse const response = checkMagic(reg, value);
+				if (response == HandshakeResponse::Ok)
+					status_ = Status::done;
+				return response;
 			}
-			assert_unreachable();
 
+			if (blocks_received_ == blocks_expected_) //no more memory blocks may be received
+				return HandshakeResponse::LogicalBlockCountMismatch;
+
+			if (Flash::addressOrigin(value) != bootloader_.expectedAddressSpace())
+				return bootloader_.updatingBootloader() ? HandshakeResponse::AddressNotInBootloader : HandshakeResponse::AddressNotInFlash;
+
+			if (blocks_received_) { //We have already received at least one block
+				MemoryBlock const& previous = blocks_[blocks_received_ - 1];
+
+				if (value < previous.address)
+					return HandshakeResponse::LogicalBlockAddressesNotIncreasing;
+
+				if (value < end(previous))
+					return HandshakeResponse::LogicalBlocksOverlapping;
+			}
+
+			blocks_[blocks_received_].address = value; //Add the address to list of received.
+			status_ = Status::waitingForBlockLength;
+
+			return HandshakeResponse::Ok;
+
+		}
 		case Status::waitingForBlockLength:
 			if (reg != Register::LogicalBlockLength)
 				return HandshakeResponse::HandshakeSequenceError;
-			//TODO add separate return value for length 0 block
-			if (value == 0 || value > remaining_bytes_) //the block is too long
+
+			if (value == 0)
+				return HandshakeResponse::MustBeNonZero;
+
+			if (value > remaining_bytes_) //the block is too long
 				return HandshakeResponse::LogicalBlockTooLong;
 
-			if (!PhysicalMemoryMap::canCover(blocks_[blocks_received_]))
+			if (!PhysicalMemoryMap::canCover(bootloader_.expectedAddressSpace(), blocks_[blocks_received_]))
 				return HandshakeResponse::LogicalBlockNotCoverable;
 
 			remaining_bytes_ -= value;
@@ -266,24 +289,35 @@ namespace boot {
 			status_ = Status::waitingForMemoryBlockCount;
 			return HandshakeResponse::Ok;
 
-		case Status::waitingForMemoryBlockCount:
+		case Status::waitingForMemoryBlockCount: {
+
 			if (reg != Register::NumPhysicalBlocksToErase)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value > PhysicalMemoryMap::availablePages() || value == 0)
+			if (value == 0)
+				return HandshakeResponse::MustBeNonZero;
+
+			std::uint32_t const max_pages = bootloader_.updatingBootloader()
+					? PhysicalMemoryMap::availablePages() : PhysicalMemoryMap::bootloaderPages();
+
+			if (value > max_pages)
 				return HandshakeResponse::NotEnoughPages;
 
 			expectedPageCount_ = value;
 			status_ = Status::waitingForMemoryBlocks;
 			return HandshakeResponse::Ok;
 
+		}
 		case Status::waitingForMemoryBlocks:
 			if (reg != Register::PhysicalBlockToErase) //We have to erase at least one page.
 				return HandshakeResponse::HandshakeSequenceError;
 
 			//We are about to erase one of the pages of flash. It meas that we are really commited
 			Flash::Unlock();
-			jumpTable.invalidate();
+
+			//Invalidate the jump table only when the application is updated. When updating bootloader, preserve all information.
+			if (!bootloader_.updatingBootloader())
+				jumpTable.invalidate();
 
 			if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
 				return result;
@@ -292,29 +326,27 @@ namespace boot {
 			return HandshakeResponse::Ok;
 
 		case Status::receivingMemoryBlocks:
-			switch (reg) {
-			case Register::PhysicalBlockToErase:
-				if (erased_pages_count_ >= expectedPageCount_)
-					return HandshakeResponse::ErasedPageCountMismatch;
 
-				if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
-					return result;
+			if (reg != Register::PhysicalBlockToErase) {
+				auto const response = checkMagic(reg, value);
+				if (response == HandshakeResponse::Ok) {
+					//wait for all operations to finish and lock flash
+					Flash::AwaitEndOfErasure();
 
-				return HandshakeResponse::Ok;
-
-			case Register::TransactionMagic:
-				if (value != Bootloader::transactionMagic)
-					return HandshakeResponse::InvalidTransactionMagic;
-				//wait for all operations to finish and lock flash
-				Flash::AwaitEndOfErasure();
-
-				Flash::Lock();
-				status_ = Status::done;
-				return HandshakeResponse::Ok;
-
-			default:
-				return HandshakeResponse::HandshakeSequenceError;
+					Flash::Lock();
+					status_ = Status::done;
+				}
+				return response;
 			}
+
+			if (erased_pages_count_ == expectedPageCount_)
+				return HandshakeResponse::ErasedPageCountMismatch;
+
+			if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
+				return result;
+
+			return HandshakeResponse::Ok;
+
 		case Status::done:
 			status_ = Status::error;
 			return HandshakeResponse::InternalStateMachineError;
@@ -339,6 +371,9 @@ namespace boot {
 		case Status::waitingForFirmwareSize:
 			if (reg != Register::FirmwareSize)
 				return HandshakeResponse::HandshakeSequenceError;
+
+			if (value == 0)
+				return HandshakeResponse::MustBeNonZero;
 
 			if (value > Flash::availableMemorySize)
 				return HandshakeResponse::BinaryTooBig;
@@ -376,10 +411,11 @@ namespace boot {
 		assert_unreachable();
 	}
 
-	HandshakeResponse Bootloader::validateVectorTable(std::uint32_t address) {
+	HandshakeResponse Bootloader::validateVectorTable(AddressSpace const expected_space, std::uint32_t const address) {
 
-		if (Flash::addressOrigin(address) != AddressSpace::AvailableFlash)
-			return HandshakeResponse::AddressNotInFlash;
+		if (Flash::addressOrigin(address) != expected_space)
+			return expected_space == AddressSpace::BootloaderFlash
+				? HandshakeResponse::AddressNotInBootloader : HandshakeResponse::AddressNotInFlash;
 
 		if (!ufsel::bit::all_cleared(address, isrVectorAlignmentMask))
 			return HandshakeResponse::InterruptVectorNotAligned;
@@ -402,7 +438,7 @@ namespace boot {
 			if (reg != Register::InterruptVector)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (auto const response = Bootloader::validateVectorTable(value); response != HandshakeResponse::Ok)
+			if (auto const response = Bootloader::validateVectorTable(bootloader_.expectedAddressSpace(), value); response != HandshakeResponse::Ok)
 				return response;
 
 			isr_vector_ = value;
@@ -414,8 +450,8 @@ namespace boot {
 			if (reg != Register::EntryPoint)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (Flash::addressOrigin(value) != AddressSpace::AvailableFlash)
-				return HandshakeResponse::AddressNotInFlash;
+			if (Flash::addressOrigin(value) != bootloader_.expectedAddressSpace())
+				return bootloader_.updatingBootloader() ? HandshakeResponse::AddressNotInBootloader : HandshakeResponse::AddressNotInFlash;
 
 			std::uint32_t const* const isr_vector = reinterpret_cast<std::uint32_t const*>(isr_vector_);
 			if (isr_vector[1] != value)
@@ -461,7 +497,7 @@ namespace boot {
 		//or fill it with empty metadata to make it valid. When this function returns, the jump table
 		//must be in a valid state (and the application bootable)
 
-		if (auto const response = validateVectorTable(isr_vector); response != HandshakeResponse::Ok)
+		if (auto const response = validateVectorTable(AddressSpace::AvailableFlash, isr_vector); response != HandshakeResponse::Ok)
 			return response; //Ignore this write if the given address does not fulfill requirements on vector table
 
 		bool const metadata_valid = jumpTable.has_valid_metadata();
@@ -513,7 +549,7 @@ namespace boot {
 			case Command::StartBootloaderUpdate:
 				status_ = Status::TransmittingPhysicalMemoryBlocks;
 				transactionType_ = command == Command::StartTransactionFlashing ? TransactionType::Flashing : TransactionType::BootloaderUpdate;
-				physicalMemoryMapTransmitter_.startSubtransaction(transactionType_);
+				physicalMemoryMapTransmitter_.startSubtransaction();
 				return HandshakeResponse::Ok;
 			case Command::SetNewVectorTable: {
 
@@ -564,7 +600,9 @@ namespace boot {
 			auto const result = metadataReceiver_.receive(reg, command, value);
 			if (metadataReceiver_.done()) {
 				status_ = Status::Ready;
-				finishFlashingTransaction();
+				//We are done here. If the bootloader was updated, we don't need to write anything more to flash.
+				if (!updatingBootloader())
+					finishFlashingTransaction();
 			}
 			return result;
 		}
@@ -582,7 +620,7 @@ namespace boot {
 			if (physicalMemoryMapTransmitter_.shouldYield()) {
 				physicalMemoryMapTransmitter_.endSubtransaction();
 
-				logicalMemoryMapReceiver_.startSubtransaction(transactionType_);
+				logicalMemoryMapReceiver_.startSubtransaction();
 				status_ = Status::ReceivingFirmwareMemoryMap;
 
 				can_.yieldCommunication();

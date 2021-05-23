@@ -100,10 +100,13 @@ namespace boot {
 					return ret;
 				return Flash::do_write(address + customization::flashProgrammingParallelism / 8, upper_half);
 			}
-	}
+		}
 
 		static bool isAvailableAddress(std::uint32_t address) {
 			return addressOrigin(address) == AddressSpace::AvailableFlash;
+		}
+		static bool isBootloaderAddress(std::uint32_t address) {
+			return addressOrigin(address) == AddressSpace::BootloaderFlash;
 		}
 
 		constexpr static int getEnclosingBlockIndex(std::uint32_t address) {
@@ -153,9 +156,13 @@ namespace boot {
 			return physicalMemoryBlocks[index];
 		}
 
-		static bool canCover(MemoryBlock logical) {
+		static bool canCover(AddressSpace const space, MemoryBlock logical) {
 
-			for (std::uint32_t i = customization::firstBlockAvailableToApplication; i <customization::physicalBlockCount; ++i) {
+			bool const is_bootloader = space == AddressSpace::BootloaderFlash;
+			std::uint32_t const begin_index = is_bootloader ? customization::firstBlockAvailableToBootloader : customization::firstBlockAvailableToApplication;
+			std::uint32_t const end_index = is_bootloader ? customization::firstBlockAvailableToApplication : customization::physicalBlockCount;
+
+			for (std::uint32_t i = begin_index; i < end_index; ++i) {
 				MemoryBlock const physical = physicalMemoryBlocks[i];
 
 				if (end(physical) <= logical.address)

@@ -213,10 +213,12 @@ enum Bootloader_HandshakeResponse {
     Bootloader_HandshakeResponse_LogicalBlockAddressesNotIncreasing = 23,
     /* Received logical block cannot be covered using available physical blocks */
     Bootloader_HandshakeResponse_LogicalBlockNotCoverable = 24,
-    /* Received address of logical memory block does not fit into the available flash. */
-    Bootloader_HandshakeResponse_LogicalBlockNotInFlash = 25,
+    /* The specified address is not located within the address space reserved for the bootloader. */
+    Bootloader_HandshakeResponse_AddressNotInBootloader = 25,
     /* Received logical memory block's length exceeds remaining flash memory. */
     Bootloader_HandshakeResponse_LogicalBlockTooLong = 26,
+    /* Specified register does not accept value zero (number of bytes, number of pages or something similar). */
+    Bootloader_HandshakeResponse_MustBeNonZero = 27,
 };
 
 enum Bootloader_Register {

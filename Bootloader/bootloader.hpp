@@ -31,7 +31,15 @@ namespace boot {
 		//TODO implement FirmwareDump
 	};
 
-	class PhysicalMemoryMapTransmitter {
+	class Bootloader;
+
+	struct  BootloaderSubtransactionBase {
+		Bootloader const& bootloader_;
+
+		BootloaderSubtransactionBase(Bootloader const & bl) : bootloader_{bl} {}
+	};
+
+	class PhysicalMemoryMapTransmitter : public BootloaderSubtransactionBase {
 		enum class Status {
 			uninitialized,
 			pending,
@@ -47,22 +55,20 @@ namespace boot {
 
 		Status status_ = Status::uninitialized;
 		std::uint32_t blocks_sent_ = 0;
-		TransactionType transaction_ = TransactionType::Unknown;
 
 	public:
 		[[nodiscard]] bool done() const { return status_ == Status::done; }
 		[[nodiscard]] bool shouldYield() const { return status_ == Status::shouldYield; }
 		[[nodiscard]] bool error() const { return status_ == Status::error; }
-		void startSubtransaction(TransactionType const transaction) {
-			transaction_ = transaction;
-			status_ = Status::pending;
-		}
+		void startSubtransaction() { status_ = Status::pending; }
 		void endSubtransaction() { status_ = Status::done; }
 		void processYield() { status_ = Status::masterYielded; }
 		Bootloader_Handshake_t update();
+
+		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
 	};
 
-	class LogicalMemoryMapReceiver {
+	class LogicalMemoryMapReceiver : public BootloaderSubtransactionBase {
 		enum class Status {
 			uninitialized,
 			pending,
@@ -80,23 +86,21 @@ namespace boot {
 
 		std::uint32_t blocks_expected_ = 0;
 
-		TransactionType transaction_ = TransactionType::Unknown;
 		Status status_ = Status::uninitialized;
+
 	public:
-		void startSubtransaction(TransactionType const transaction) {
-			transaction_ = transaction;
-			status_ = Status::pending;
-			remaining_bytes_ = transaction == TransactionType::Flashing ? Flash::availableMemorySize : Flash::bootloaderMemorySize;
-		}
+		void startSubtransaction();
 
 		[[nodiscard]] bool done() const { return status_ == Status::done; }
 		[[nodiscard]] bool error() const { return status_ == Status::error; }
 
 		[[nodiscard]] std::span<MemoryBlock const> logicalMemoryBlocks() const { return std::span{blocks_.begin(), blocks_received_}; }
 		HandshakeResponse receive(Register reg, Command com, std::uint32_t value);
+
+		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
 	};
 
-	class PhysicalMemoryBlockEraser {
+	class PhysicalMemoryBlockEraser : public BootloaderSubtransactionBase {
 		enum class Status {
 			uninitialized,
 			pending,
@@ -118,9 +122,11 @@ namespace boot {
 
 		std::span<MemoryBlock const> erased_pages() const { return std::span{erased_pages_.begin(), erased_pages_count_}; }
 		HandshakeResponse tryErasePage(std::uint32_t address);
+
+		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
 	};
 
-	class FirmwareDownloader {
+	class FirmwareDownloader : public BootloaderSubtransactionBase {
 		enum class Status {
 			unitialized,
 			pending,
@@ -182,9 +188,11 @@ namespace boot {
 		[[nodiscard]] std::uint32_t expectedWriteLocation() const {
 			return firmwareBlocks_[current_block_index_].address + blockOffset_;
 		}
+
+		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
 	};
 
-	class MetadataReceiver {
+	class MetadataReceiver : public BootloaderSubtransactionBase {
 		enum class Status {
 			unitialized,
 			pending,
@@ -206,7 +214,9 @@ namespace boot {
 		[[nodiscard]] std::uint32_t entry_point() const { return entry_point_; }
 		[[nodiscard]] std::uint32_t isr_vector() const { return isr_vector_; }
 
+		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
 	};
+
 
 	class Bootloader {
 
@@ -230,7 +240,11 @@ namespace boot {
 		CanManager& can_;
 		static inline EntryReason entryReason_ = EntryReason::DontEnter;
 
+	public:
+		[[nodiscard]] bool updatingBootloader() const { return transactionType_ == TransactionType::BootloaderUpdate; }
+		[[nodiscard]] AddressSpace expectedAddressSpace() const { return updatingBootloader() ? AddressSpace::BootloaderFlash : AddressSpace::AvailableFlash; }
 
+	private:
 		//Sets the jumpTable
 		void finishFlashingTransaction() const;
 		FirmwareData summarizeFirmwareData() const;
@@ -265,13 +279,19 @@ namespace boot {
 		void processHandshakeAck(HandshakeResponse response);
 
 		Bootloader_Handshake_t processYield();
+		static HandshakeResponse validateVectorTable(AddressSpace expected_space, std::uint32_t address);
 
-		static HandshakeResponse validateVectorTable(std::uint32_t address);
 		static void setEntryReason(EntryReason);
 
 		static EntryReason entryReason() { return entryReason_; }
 
-		Bootloader(CanManager& can) : can_{can} {}
+		explicit Bootloader(CanManager& can) :
+			physicalMemoryMapTransmitter_{*this},
+			logicalMemoryMapReceiver_{*this},
+			physicalMemoryBlockEraser_{*this},
+			firmwareDownloader_{*this},
+			metadataReceiver_{*this},
+				can_{can} {}
 	};
 
 	static_assert(Bootloader::transactionMagic == 0x696c6548); //This value is stated in the protocol description
