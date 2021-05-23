@@ -24,6 +24,7 @@
 #endif
 
 #include <bit>
+#include <ufsel/assert.hpp>
 
 namespace boot {
 
@@ -74,7 +75,7 @@ namespace boot {
 
 	[[noreturn]]
 	void resetTo(std::uint16_t const code) {
-		//TODO assert that 'code'  has valid value. Needs ufsel::assert or something else portable
+		assert(code == BackupDomain::application_magic || code == BackupDomain::bootloader_magic || code == BackupDomain::app_fatal_error_magic);
 
 		BackupDomain::unlock();
 		BackupDomain::bootControlRegister = code;
