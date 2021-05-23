@@ -62,7 +62,7 @@ namespace boot {
 		Bootloader_Handshake_t update();
 	};
 
-	class FirmwareMemoryMapReceiver {
+	class LogicalMemoryMapReceiver {
 		enum class Status {
 			uninitialized,
 			pending,
@@ -219,7 +219,7 @@ namespace boot {
 		};
 
 		PhysicalMemoryMapTransmitter physicalMemoryMapTransmitter_;
-		FirmwareMemoryMapReceiver firmwareMemoryMapReceiver_;
+		LogicalMemoryMapReceiver logicalMemoryMapReceiver_;
 		PhysicalMemoryBlockEraser physicalMemoryBlockEraser_;
 		FirmwareDownloader firmwareDownloader_;
 		MetadataReceiver metadataReceiver_;

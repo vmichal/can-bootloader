@@ -93,7 +93,7 @@ namespace boot {
 		firmware.writtenBytes_ = firmwareDownloader_.actualSize();
 		firmware.entryPoint_ = metadataReceiver_.entry_point();
 		firmware.interruptVector_ = metadataReceiver_.isr_vector();
-		firmware.logical_memory_blocks_ = firmwareMemoryMapReceiver_.logicalMemoryBlocks();
+		firmware.logical_memory_blocks_ = logicalMemoryMapReceiver_.logicalMemoryBlocks();
 
 		return firmware;
 	}
@@ -102,7 +102,7 @@ namespace boot {
 	void Bootloader::finishFlashingTransaction() const {
 		//Make sure every subtransaction was carried out successfully
 		assert(physicalMemoryMapTransmitter_.done());
-		assert(firmwareMemoryMapReceiver_.done());
+		assert(logicalMemoryMapReceiver_.done());
 		assert(physicalMemoryBlockEraser_.done());
 		assert(firmwareDownloader_.done());
 		assert(metadataReceiver_.done());
@@ -171,7 +171,7 @@ namespace boot {
 		assert_unreachable();
 	}
 
-	HandshakeResponse FirmwareMemoryMapReceiver::receive(Register reg, Command com, std::uint32_t value) {
+	HandshakeResponse LogicalMemoryMapReceiver::receive(Register reg, Command com, std::uint32_t value) {
 		switch (status_) {
 		case Status::uninitialized:
 			status_ = Status::error;
@@ -533,8 +533,8 @@ namespace boot {
 
 		case Status::ReceivingFirmwareMemoryMap: {
 
-			auto const result = firmwareMemoryMapReceiver_.receive(reg, command, value);
-			if (firmwareMemoryMapReceiver_.done()) {
+			auto const result = logicalMemoryMapReceiver_.receive(reg, command, value);
+			if (logicalMemoryMapReceiver_.done()) {
 				status_ = Status::ErasingPhysicalBlocks;
 				physicalMemoryBlockEraser_.startSubtransaction();
 			}
@@ -545,7 +545,7 @@ namespace boot {
 			auto const result = physicalMemoryBlockEraser_.receive(reg, command, value);
 			if (physicalMemoryBlockEraser_.done()) {
 				status_ = Status::DownloadingFirmware;
-				firmwareDownloader_.startSubtransaction(physicalMemoryBlockEraser_.erased_pages(), firmwareMemoryMapReceiver_.logicalMemoryBlocks());
+				firmwareDownloader_.startSubtransaction(physicalMemoryBlockEraser_.erased_pages(), logicalMemoryMapReceiver_.logicalMemoryBlocks());
 			}
 			return result;
 
@@ -582,7 +582,7 @@ namespace boot {
 			if (physicalMemoryMapTransmitter_.shouldYield()) {
 				physicalMemoryMapTransmitter_.endSubtransaction();
 
-				firmwareMemoryMapReceiver_.startSubtransaction();
+				logicalMemoryMapReceiver_.startSubtransaction();
 				status_ = Status::ReceivingFirmwareMemoryMap;
 
 				can_.yieldCommunication();
