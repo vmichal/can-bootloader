@@ -298,7 +298,7 @@ namespace boot {
 				return HandshakeResponse::MustBeNonZero;
 
 			std::uint32_t const max_pages = bootloader_.updatingBootloader()
-					? PhysicalMemoryMap::availablePages() : PhysicalMemoryMap::bootloaderPages();
+					? PhysicalMemoryMap::bootloaderPages() : PhysicalMemoryMap::availablePages();
 
 			if (value > max_pages)
 				return HandshakeResponse::NotEnoughPages;
