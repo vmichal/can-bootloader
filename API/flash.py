@@ -288,9 +288,9 @@ class BootloaderListing:
 	def terminate(self):
 		self.exit = True
 
-		pingThread.join()
+		self.pingThread.join()
 		if self.terminal is not None:
-			printThread.join()
+			self.printThread.join()
 
 	def pause(self):
 		self.shall_sleep = True
@@ -349,7 +349,7 @@ class HexRecord:
 
 MemoryBlock = namedtuple('MemoryBlock', ['address', 'data'])
 
-class Firmware():
+class Firmware:
 
 	def __init__(self, path):
 		with open(path, 'r') as code:
@@ -379,7 +379,7 @@ class Firmware():
 	def identify_influenced_physical_blocks(self, physical_memory_map):
 		#self.logical_memory_map is certainly in increasing order
 		physical_memory_map.sort(key= lambda b: b.address)
-		self.influenced_physical_blocks = set()
+		influenced_physical_blocks = []
 
 		logical_index = 0
 		address,remaining_bytes = self.logical_memory_map[0]
@@ -389,18 +389,18 @@ class Firmware():
 
 		while True:
 			if physical_offset == len(physical_memory_map):
-				return False #We have run out of physical blocks without covering the whole firmware!
+				return None #We have run out of physical blocks without covering the whole firmware!
 			physical = physical_memory_map[physical_offset]
 
 			if physical.address + len(physical.data) <= address:
 				physical_offset += 1
-				continue #this physical block ends even berofe the logical starts
+				continue #this physical block ends even before the logical starts
 
 			if address < physical.address:
-				return False #we could not cover the beginning of this memory block
+				return None #we could not cover the beginning of this memory block
 
 			#as this point surely holds... physical.address <= logical.address and logical.address < physical.end
-			self.influenced_physical_blocks.add(physical)
+			influenced_physical_blocks.append(physical)
 
 			overlap_size = physical.address + len(physical.data) - address
 
@@ -411,7 +411,7 @@ class Firmware():
 			if remaining_bytes <= 0:
 				logical_index += 1
 				if logical_index == len(self.logical_memory_map):
-					return True #we have covered all logical blocks
+					return influenced_physical_blocks #we have covered all logical blocks
 
 				address, remaining_bytes = self.logical_memory_map[logical_index]
 				remaining_bytes = len(remaining_bytes)
@@ -419,13 +419,14 @@ class Firmware():
 				physical_offset += 1
 
 				if physical_offset == len(physical_memory_map):
-					return True #we have covered all logical blocks
+					return influenced_physical_blocks #we have covered all logical blocks
 
-		return False
+		return None
 
 	#takes a list of HexRecords and returns a list of MemoryBlocks
 	#returned list models the firmware's memory map
-	def process_hex_records(self, records : list):
+	@staticmethod
+	def process_hex_records(records : list):
 		if not records.pop().isEofRecord(): # EOF record must be the last thing in the file
 			raise Exception('Input file was not terminated by OEF hex record!')
 
@@ -449,7 +450,7 @@ class Firmware():
 				continue
 			elif record.isEofRecord():
 				raise Exception('There shall not be multiple eof records in a valid input file.')
-			
+
 			#We have data record
 			assert record.isDataRecord()
 
@@ -476,12 +477,12 @@ class Firmware():
 
 		assert current_block is not None #We sure had some data records, right?
 		#TODO entry point recognition my be implemented differently
-		assert entry_point is not None #We did find the entry point, right? 
+		assert entry_point is not None #We did find the entry point, right?
 		logical_memory_map.append(current_block)
 
-		return (logical_memory_map,	entry_point)
+		return logical_memory_map, entry_point
 
-class FlashMaster():
+class FlashMaster:
 
 	transactionMagicString = "Heli"
 	transactionMagic = sum(ord(char) << 8*index for index, char in enumerate(transactionMagicString))
@@ -691,7 +692,7 @@ class FlashMaster():
 
 	def print_header(self):
 		print('Desktop interface to CAN Bootloader', file=self.output_file)
-		print('Written by Vojtech Michal, (c) eForce FEE Prague Formula 2020\n', file=self.output_file)
+		print('Written by Vojtech Michal, (c) eForce FEE Prague Formula 2020, 2021\n', file=self.output_file)
 
 		if not args.verbose:
 			return
@@ -744,12 +745,14 @@ class FlashMaster():
 
 	def receive_handshake(self, register_name):
 		register = enumerator_by_name(register_name, self.RegisterEnum)
-		while True: 
+		SeqError = enumerator_by_name('HandshakeSequenceError', self.HandshakeResponseEnum)
+
+		while True:
 			self.get_next_message(self.Handshake.identifier)
 			reg, command, target, value = map(lambda f: f.value[0], self.Handshake.fields)
 
 			if target != self.target:
-				print(f'Ignoring handshake from {tagret}.')
+				print(f'Ignoring handshake from {target}.')
 				continue
 
 			if reg != register:
@@ -765,7 +768,7 @@ class FlashMaster():
 			reg, command, target, value = map(lambda f: f.value[0], self.Handshake.fields)
 
 			if target != self.target:
-				print(f'Ignoring transaction magic from {tagret}.')
+				print(f'Ignoring transaction magic from {target}.')
 				continue
 
 			res = self.checkMagic(reg, command, value)
@@ -895,7 +898,7 @@ class FlashMaster():
 		if args.verbose:
 			print('Bootloader sent initial magic.', file=self.output_file)
 		#receive the number of physical memory blocks
-		physical_memory_map = [0] * int(self.receive_handshake('NumPhysicalMemoryBlocks'))
+		physical_memory_map = [None] * int(self.receive_handshake('NumPhysicalMemoryBlocks'))
 		
 		if args.verbose:
 			print(f'Available memory consists of {len(physical_memory_map)} blocks. ', file=self.output_file)
@@ -927,11 +930,19 @@ class FlashMaster():
 		if args.verbose:
 			print('OK\n\n', file=self.output_file)
 
-		if not self.firmware.identify_influenced_physical_blocks(physical_memory_map):
-			print('Available physcial memory cannot cover all address ranges required by firmware! Exiting.', file=self.output_file)
+		used_physical_memory = self.firmware.identify_influenced_physical_blocks(physical_memory_map)
+		if used_physical_memory is None:
+			print('Available physical memory cannot cover all address ranges required by firmware! Exiting.', file=self.output_file)
 			return
-		if args.verbose:
-			print('Firmware fits into available physical memory.')
+		else:
+			print(f'Will use {len(used_physical_memory)} physical pages in total to fit the firmware. That is')
+			start_address = used_physical_memory[0].address
+			consecutive_block_start = 0
+			for index, (prev, this) in enumerate(zip(used_physical_memory[:-1], used_physical_memory[1:]), 1):
+				if this.address != prev.address + len(prev.data): #we have found a hole
+					print(f'\t{index - consecutive_block_start} pages in range [{hex(start_address)}, {hex(prev.address + len(prev.data))}] ({(prev.address + len(prev.data) - start_address)/1024:.2f} KiB)')
+					start_address = this.address
+					consecutive_block_start = index
 
 		##Transmission of logical memory map
 
@@ -965,12 +976,12 @@ class FlashMaster():
 		##Physical block erassure
 
 		if args.verbose:
-			print(f'Sending {len(self.firmware.influenced_physical_blocks)} page addresses ... ', file=self.output_file)
+			print(f'Sending {len(used_physical_memory)} page addresses ... ', file=self.output_file)
 		self.report_handshake_response(self.send_transaction_magic()) #initial magic
-		self.report_handshake_response(self.send_handshake('NumPhysicalBlocksToErase', 'None', len(self.firmware.influenced_physical_blocks)))
+		self.report_handshake_response(self.send_handshake('NumPhysicalBlocksToErase', 'None', len(used_physical_memory)))
 		erassureStart = time.time()
-		for index, page in enumerate(self.firmware.influenced_physical_blocks, 1):
-			print(f'\r\tErasing page {index:2}/{len(self.firmware.influenced_physical_blocks):2} @ 0x{page.address:08x} ... ', end = '', file=self.output_file)
+		for index, page in enumerate(used_physical_memory, 1):
+			print(f'\r\tErasing page {index:2}/{len(used_physical_memory):2} @ 0x{page.address:08x} ... ', end = '', file=self.output_file)
 			result = self.send_handshake('PhysicalBlockToErase', "None", page.address)
 			if result != enumerator_by_name('OK', self.HandshakeResponseEnum):
 				print(f"Page {index} erassure returned result {self.HandshakeResponseEnum.enum[result].name}", file = sys.stderr)
@@ -1039,9 +1050,9 @@ class FlashMaster():
 			if self.currentDataOffset/totalSentBytes < 0.9: #introduce a delay if the BL has problems catching up
 				time.sleep(0.00023)
 		self.dataTransmissionInProgress = False
-		self.dataEfficiency = self.currentDataOffset/totalSentBytes
+		dataEfficiency = self.currentDataOffset/totalSentBytes
 
-		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*self.dataEfficiency:3.3f}%, {1000*self.totalTimeStalled:5.2f} ms stalled))           ', file=self.output_file)
+		print(f'\r\tProgress ... {100:5.2f}% (avg {self.firmware.length/1024/(time.time()-start):2.2f} KiBps, efficiency {100*dataEfficiency:3.3f}%, {1000*self.totalTimeStalled:5.2f} ms stalled))           ', file=self.output_file)
 		duration = (time.time() - start)
 		print(f'Took {duration*1000:.2f} ms, stalled {100*self.totalTimeStalled/duration:4.2f}% of time.')
 
@@ -1091,8 +1102,8 @@ class FlashMaster():
 		if self.totalTimeStalled:
 			print('NOTE: Stalls occured during the transaction, which may indicate that BL clock is too slow.')
 			print('Increasing BL clock frequency is suggested.')
-		if self.dataEfficiency < 1:
-			print(f'NOTE: Data transmission has been only {self.dataEfficiency*100:5.2f}% efficient due to low bus baudrate or high communication traffic.')
+		if dataEfficiency < 1:
+			print(f'NOTE: Data transmission has been only {dataEfficiency*100:5.2f}% efficient due to low bus baudrate or high communication traffic.')
 			print('Suggested selecting a different bus with higher possible throughput.')
 		self.terminate()
 
