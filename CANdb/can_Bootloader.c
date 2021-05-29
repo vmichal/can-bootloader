@@ -487,7 +487,7 @@ int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo, enum Bo
 }
 
 int Bootloader_SoftwareBuild_need_to_send(void) {
-    return (Bootloader_SoftwareBuild_last_sent == -1) || (txGetTimeMillis() >= (uint32_t)(Bootloader_SoftwareBuild_last_sent + 10000));
+    return (Bootloader_SoftwareBuild_last_sent == -1) || (txGetTimeMillis() >= (uint32_t)(Bootloader_SoftwareBuild_last_sent + 1000));
 }
 
 int CarDiagnostics_send_RecoveryModeBeacon_s(const CarDiagnostics_RecoveryModeBeacon_t* data) {
