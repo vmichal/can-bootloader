@@ -21,10 +21,13 @@ List all bootloader aware units present on the bus:
 	python3.8 flash.py -j path_to_json -f list /dev/ttyS4
 
 Flash an ECU with new firmware in the simplest way possible
-	python3.8 flash.py -j path_to_json -f flash -u AMS -x build/AMS.hex /dev/ttyS4
+	python3.8 flash.py -j path_to_json -f flash -u AMS -x path_to_hex /dev/ttyS4
 
-Flash an ECU with new firmware with fancy UI, terminating al previous transactions
-	python3.8 flash.py -j path_to_json -f flash -x path_to_hex -u AMS -t /dev/tty7 --force --verbose /dev/ttyS4
+Flash an ECU with new firmware with fancy UI, terminating all previous transactions
+	python3.8 flash.py -j path_to_json -f flash -u AMS -x path_to_hex -t /dev/tty7 --force --verbose /dev/ttyS4
+
+Update the bootloader itself (optionally using fancy UI and terminating previous transactions):
+	python3.8 flash.py -j path_to_json -f update_bootloader -u AMS -x path_to_hex --force --verbose /dev/ttyS3
 
 Make the BL accept already flashed firmware with isr vector located at 0x0800'3000
 	python3.8 flash.py -j path_to_json -f set_vector_table --address 0x08003000 -u AMS /dev/ttyS3     
@@ -37,7 +40,7 @@ Request the application to enter the bootloader.
 	formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('-j', metavar="file", dest='json_files', type=str, action='append', help='add candb json file to parse')
-parser.add_argument('-f', dest='feature', type=str, choices=["list", "flash", "set_vector_table", "enter", "exit"], default="list", help='choose feature - list bootloader aware units or flash new firmware')
+parser.add_argument('-f', dest='feature', type=str, choices=["list", "flash", "set_vector_table", "enter", "exit", "update_bootloader"], default="list", help='choose feature - list bootloader aware units or flash new firmware')
 parser.add_argument('--address', dest='address', type=str, help='absolute memory address to use (address of vector table to store when using -f set_vector_table)')
 parser.add_argument('-u', dest='unit', type=str, help='Unit to flash.')
 parser.add_argument('-x', dest='firmware', type=str, help='Path to hex file for flashing')
@@ -703,14 +706,14 @@ class FlashMaster:
 		else:
 			print(f"Targetable units are {{{', '.join(targets)}}}", file=self.output_file)
 
-	def parseFirmware(self, firmwarePath):
+	def parseFirmware(self, firmwarePath, parsing_bootloader):
 		if args.verbose:
 			print(f'Parsing hex file {firmwarePath}', file=self.output_file)
 		self.firmware = Firmware(firmwarePath)
 		if args.verbose:
 			print(f'Input consists of {len(self.firmware.records)} hex records.', file=self.output_file)
 
-		print(f'Firmware logical memory map ({self.firmware.length} B in total, {len(self.firmware.flattened_map)} B flattened):', file=self.output_file)
+		print(f'{"New bootloader" if parsing_bootloader else "Firmware"} logical memory map ({self.firmware.length} B in total, {len(self.firmware.flattened_map)} B flattened):', file=self.output_file)
 		for block in self.firmware.logical_memory_map:
 			print(f'\t[0x{block.address:08x} - 0x{block.address + len(block.data) - 1:08x}] ... {len(block.data):8} B ({len(block.data)/1024:.2f} KiB)', file=self.output_file)
 
@@ -878,16 +881,16 @@ class FlashMaster:
 		result = self.request_bootloader_exit(self.target, force = False, toApp = True)
 		print('Confirmed' if result else 'Declined', file=self.output_file)
 
-	def flash(self, force = False):
+	def flash(self, update_bootloader, force):
 		if args.verbose:
-			print(f"Initiating flash process for {self.targetName} (target ID {self.target})\n", file=self.output_file)
+			print(f"Initiating {'bootloader update' if update_bootloader else 'flash process'} for {self.targetName} (target ID {self.target})\n", file=self.output_file)
 
 		self.estabilish_connection_to_slave(force)
 		self.send_initial_transaction_magic()
 
 		if args.verbose:
-			print('Initiating flashing transaction ... ', end = '', file=self.output_file)
-		self.report_handshake_response(self.send_command('StartTransactionFlashing'))
+			print('Initiating flashing transaction ... ' if not update_bootloader else 'Initiating bootloader update ... ', end = '', file=self.output_file)
+		self.report_handshake_response(self.send_command('StartBootloaderUpdate' if update_bootloader else 'StartTransactionFlashing'))
 		
 		if args.verbose:
 			print('Communication yields...', file=self.output_file)
@@ -935,7 +938,7 @@ class FlashMaster:
 			print('Available physical memory cannot cover all address ranges required by firmware! Exiting.', file=self.output_file)
 			return
 		else:
-			print(f'Will use {len(used_physical_memory)} physical pages in total to fit the firmware. That is')
+			print(f'Will use {len(used_physical_memory)} physical pages in total to fit the {"new bootloader" if update_bootloader else "firmware"}. That is')
 			start_address = used_physical_memory[0].address
 			consecutive_block_start = 0
 			for index, (prev, this) in enumerate(zip(used_physical_memory[:-1], used_physical_memory[1:]), 1):
@@ -943,6 +946,9 @@ class FlashMaster:
 					print(f'\t{index - consecutive_block_start} pages in range [{hex(start_address)}, {hex(prev.address + len(prev.data))}] ({(prev.address + len(prev.data) - start_address)/1024:.2f} KiB)')
 					start_address = this.address
 					consecutive_block_start = index
+
+			last_block = used_physical_memory[-1]
+			print(f'\t{len(used_physical_memory) - consecutive_block_start} pages in range [{hex(start_address)}, {hex(last_block.address + len(last_block.data))}] ({(last_block.address + len(last_block.data) - start_address)/1024:.2f} KiB)')
 
 		##Transmission of logical memory map
 
@@ -1005,7 +1011,7 @@ class FlashMaster:
 			print(f'Sending firmware size ({self.firmware.length} B)', end = '... ' if args.verbose else '\n', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('FirmwareSize', 'None', self.firmware.length))
 
-		print(f'Sending {self.firmware.length/1024:.2f} KiB of firmware...', file=self.output_file)
+		print(f'Sending {self.firmware.length/1024:.2f} KiB of {"new bootloader" if update_bootloader else "firmware"}...', file=self.output_file)
 		print(f'\tProgress ... {0:05}%', end='', file=self.output_file)
 		start = time.time()
 		last_print = time.time()
@@ -1125,14 +1131,20 @@ if args.feature == 'list':
 
 	listing.terminate()
 
-elif args.feature == 'flash':
-	#TODO add error checking if there is no -u or -f
-	assert args.unit is not None
-	assert args.firmware is not None
+elif args.feature == 'flash' or args.feature == 'update_bootloader':
 
+	if args.unit is None:
+		print('You must specify the unit to flash using "-u name"')
+		sys.exit(1)
+
+	if args.firmware is None:
+		print('You must specify the binary to flash using "-x path"')
+		sys.exit(1)
+
+	update_bootloader = args.feature == 'update_bootloader'
 	master = FlashMaster(args.unit, args.terminal, args.quiet)
-	master.parseFirmware(args.firmware)
-	master.flash(args.force)
+	master.parseFirmware(args.firmware, update_bootloader)
+	master.flash(update_bootloader, args.force)
 
 elif args.feature == 'set_vector_table':
 
