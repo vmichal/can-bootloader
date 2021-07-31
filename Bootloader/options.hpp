@@ -190,13 +190,28 @@ namespace boot {
 #error "This MCU is not supported"
 #endif
 
+		/////////////////////////////////////////////////////////////////////
+		//                  CUSTOMIZATION POINT
+		/////////////////////////////////////////////////////////////////////
+		/*
+		 * List of HSE frequencies:
+		 * AMS (FSE09, FSE10, DV01) - 8MHz
+		 * STW (FSE10 assembled into the steering wheel) - 8 MHz
+		 * STW (FSE10 testing, naked board) - 12 MHz
+		 * PDL (DV01) - 12 MHz
+		 * PDL (FSE10) - 8 MHz
+		 * DSH (FSE10) - 12 MHz
+		 */
+
+		// FSE10 DSH has remaped CAN2!
+
 
 		//Bootloader target identification
 		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_STW;
 		//Frequency of used external oscillator
 		constexpr Frequency HSE = 12_MHz;
 #ifdef BOOT_STM32F1 //currently supprted only in STM32F1 mode
-		constexpr bool remapCAN2 = false; //Govenrs whether the CAN2 is remapped
+		constexpr bool remapCAN2 = false; //Govenrs whether the CAN2 is remapped. Only in FSE10 DSH
 #endif
 	}
 
