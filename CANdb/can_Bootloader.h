@@ -120,6 +120,8 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_FSB = 4,
     /* Steering wheel */
     Bootloader_BootTarget_STW = 5,
+    /* Emergency Brake System Supervisor (DV only) */
+    Bootloader_BootTarget_EBSS = 6,
 };
 
 enum Bootloader_Command {
