@@ -25,11 +25,11 @@ namespace ufsel {
 		constexpr bool enableAssert = true;
 		constexpr bool breakInFailedAssert = false;
 
-		[[noreturn]] inline void assertionFailedHandler() {
+		[[noreturn]] inline void assertionFailedHandler(char const * const, char const * const, int) {
 			EverythingsFuckedUpHandler(true);
 		}
 
-		[[noreturn]] inline void unreachableCodeHandler() {
+		[[noreturn]] inline void unreachableCodeHandler(char const * const, char const * const, int) {
 			EverythingsFuckedUpHandler(true);
 		}
 	}
