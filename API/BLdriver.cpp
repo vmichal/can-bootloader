@@ -25,6 +25,7 @@
 
 #include <bit>
 #include <ufsel/assert.hpp>
+#include <ufsel/bit_operations.hpp>
 
 namespace boot {
 

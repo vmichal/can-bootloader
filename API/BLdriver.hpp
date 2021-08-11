@@ -13,7 +13,6 @@
 #pragma once
 
 #include <cstdint>
-#include <ufsel/bit_operations.hpp>
 
 #if !defined(BOOT_STM32F1) && !defined(BOOT_STM32F4) && !defined(BOOT_STM32F7)
 #error "You must specify the platform to build for!"
