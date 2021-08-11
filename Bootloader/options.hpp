@@ -201,6 +201,8 @@ namespace boot {
 		 * PDL (DV01) - 12 MHz
 		 * PDL (FSE10) - 8 MHz
 		 * DSH (FSE10) - 12 MHz
+		 * FSB (FSE10) - 8 MHz
+		 * EBSS (DV01) - 12 MHz
 		 */
 
 		// FSE10 DSH has remaped CAN2!
