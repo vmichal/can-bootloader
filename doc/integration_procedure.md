@@ -12,7 +12,7 @@ Supported MCUs currently include ST Microelectronics F1, F4, F7.
 Make sure you meet these requirements:
   - C++20 toolchain (GCC 10 and higher)
   - Ability to modify your linker script
-  - UFSEL is already a submodule of yours and you use `UFSEL/Assertion`
+  - UFSEL is already a submodule of yours and you use `UFSEL/Assertion` and `UFSEL/BitOperations`.
 
 
 ## Detailed procedure guide
@@ -64,7 +64,8 @@ Make sure you meet these requirements:
            using `#include <bootloader/API/BLdriver.hpp>`.
     2. Modify your CMake toolchain file(s), i.e. files with extension `xxxxxxx.cmake`.
         1. You need to specify a define `BOOT_STM32Fx`, where x is one of {1,2,4,7} and correspondsto the MCU family
-           you use. This macro need not have a value as only its presence/absence is tested.
+           you use. This macro need not have a value as only its presence/absence is tested. The recommended way of defining
+           this macro is by adding `add_definitions(-DBOOT_STM32F_)` to `CMakeLists.txt`
         2. You may need to add defines to satisfy the requirements of peripheral drivers used by the bootloader.
            TODO This step should be more concrete when more experience is gathered. Errors originating from this point
            have had vastly different causes so far, therefore it is best to consult with someone when you get stuck.
