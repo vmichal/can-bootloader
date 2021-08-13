@@ -103,4 +103,5 @@ Make sure you meet these requirements:
            They may interfere with bootloader's operation. Consult any occurrence with another experienced programmer.
     5. **CHECKPOINT**: You should be able to build the project now. After successful compilation, disassemble the binary
        and check that the isr vector is not located at `0x0800'0000` but rather several KiB above the start of flash memory.
-       STM32F1 bootloader reserves 12 KiB of memory, bootloaders for f4 and f7 reserve two pages (32 KiB of flash). TODO add f2 BL.
+       STM32F1 bootloader reserves 12 KiB of memory (therefore the application isr vector should be located at 0x0800'3000),
+       bootloaders for f2, f4 and f7 reserve two pages (32 KiB of flash, therefore the application's isr vector starts at 0x0800'8000).

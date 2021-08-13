@@ -3,7 +3,7 @@
  *
  * Written by Vojtěch Michal
  *
- * Copyright (c) 2020 eforce FEE Prague Formula
+ * Copyright (c) 2020, 2021 eForce FEE Prague Formula
  *
  * Contains functions and variables that constitute the firmware's interface to bootloader
  * Example code showing, what is necessary in order to integrate BL into your project,
