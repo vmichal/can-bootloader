@@ -14,7 +14,7 @@
 
 #include <cstdint>
 
-#if !defined(BOOT_STM32F1) && !defined(BOOT_STM32F4) && !defined(BOOT_STM32F7)
+#if !defined(BOOT_STM32F1) && !defined(BOOT_STM32F4) && !defined(BOOT_STM32F7) && !defined(BOOT_STM32F2)
 #error "You must specify the platform to build for!"
 #endif
 

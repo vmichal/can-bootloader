@@ -26,7 +26,7 @@ namespace boot {
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
 #ifdef BOOT_STM32F1
 		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
-#elif defined BOOT_STM32F4 || defined STM32F7
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
 		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_SER);
 #endif
 	}
@@ -42,7 +42,7 @@ namespace boot {
 		FLASH->AR = pageAddress;
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_STRT);
 		return true;
-#elif defined BOOT_STM32F4 || defined BOOT_STM32F7
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
 
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY)); //wait for previous operation to end
 
@@ -81,7 +81,7 @@ namespace boot {
 		assert(ufsel::bit::all_cleared(cachedResult, FLASH_SR_WRPRTERR));
 
 		return ufsel::bit::all_set(cachedResult, FLASH_SR_PGERR) ? WriteStatus::AlreadyWritten : WriteStatus::Ok;
-#elif defined BOOT_STM32F4
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F2
 		static_assert(std::is_same_v<writeableType, std::uint32_t>, "STM32F4 flash is currently hardcoded to use 32bit writes.");
 		std::uint32_t const cachedResult = FLASH->SR;
 		//select x32 programming paralelism

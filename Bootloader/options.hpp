@@ -28,6 +28,9 @@
 #elif defined(BOOT_STM32F7)
 #include "../Drivers/stm32f767xx.h"
 #include "../Drivers/core_cm7.h"
+#elif defined(BOOT_STM32F2)
+#include "../Drivers/stm32f205xx.h"
+#include "../Drivers/core_cm3.h"
 #else
 #error "This MCU is not supported!"
 #endif
@@ -186,6 +189,40 @@ namespace boot {
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
 		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{ };
+#elif defined BOOT_STM32F2
+		//Governs the width of programming acesses to the flash memory
+		constexpr unsigned flashProgrammingParallelism = 32;
+
+		//The number of physical blocks available on the target chip
+		constexpr std::uint32_t physicalBlockCount = 12;
+
+		//Used only iff the flash memory consists of blocks of the same size
+		constexpr InformationSize physicalBlockSize = 0_B;
+
+		//Controls, whether the flash memory consists of blocks of the same size (f1xx flash pages) or different sizes (f4xx sectors)
+		constexpr PhysicalBlockSizes physicalBlockSizePolicy = PhysicalBlockSizes::different;
+
+		//In case of AMS/DSH, the bootloader occupies 10K of flash and the application jump table occupies two more.
+		//Hence the application can not start at lower address as the start of n-th block
+		//TODO this must be checked once in a while, whether it is correct...
+		constexpr std::uint32_t firstBlockAvailableToApplication = 2;
+		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
+
+		//Fill this array with memory blocks iff the memory blocks have unequal sizes
+		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal {
+				MemoryBlock{0x0800'0000, ( 16_KiB).toBytes()},
+				MemoryBlock{0x0800'4000, ( 16_KiB).toBytes()},
+				MemoryBlock{0x0800'8000, ( 16_KiB).toBytes()},
+				MemoryBlock{0x0800'C000, ( 16_KiB).toBytes()},
+				MemoryBlock{0x0801'0000, ( 64_KiB).toBytes()},
+				MemoryBlock{0x0802'0000, (128_KiB).toBytes()},
+				MemoryBlock{0x0804'0000, (128_KiB).toBytes()},
+				MemoryBlock{0x0806'0000, (128_KiB).toBytes()},
+				MemoryBlock{0x0808'0000, (128_KiB).toBytes()},
+				MemoryBlock{0x080A'0000, (128_KiB).toBytes()},
+				MemoryBlock{0x080C'0000, (128_KiB).toBytes()},
+				MemoryBlock{0x080E'0000, (128_KiB).toBytes()}
+		};
 #else
 #error "This MCU is not supported"
 #endif
@@ -209,11 +246,11 @@ namespace boot {
 
 
 		//Bootloader target identification
-		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_STW;
+		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_EBSS;
 		//Frequency of used external oscillator
 		constexpr Frequency HSE = 12_MHz;
 #ifdef BOOT_STM32F1 //currently supprted only in STM32F1 mode
-		constexpr bool remapCAN2 = false; //Govenrs whether the CAN2 is remapped. Only in FSE10 DSH
+		constexpr bool remapCAN2 = false; //Governs whether the CAN2 is remapped. Only in FSE10 DSH
 #endif
 	}
 
@@ -226,7 +263,7 @@ namespace boot {
 	constexpr auto physicalMemoryBlocks = getMemoryBlocks();
 #ifdef BOOT_STM32F1
 	static_assert(physicalMemoryBlocks.size() == 128); //sanity check that this template magic works
-#elif defined BOOT_STM32F4
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F2
 	static_assert(physicalMemoryBlocks.size() == 12); //sanity check that this template magic works
 #elif defined BOOT_STM32F7
 	static_assert(physicalMemoryBlocks.size() == 8); //sanity check that this template magic works

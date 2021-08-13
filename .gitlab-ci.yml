@@ -8,7 +8,9 @@ build:
 
   script:
     - bash ./compile.sh 1
+    - bash ./compile.sh 2
     - bash ./compile.sh 4
+    - bash ./compile.sh 7
 
   artifacts:
     paths:

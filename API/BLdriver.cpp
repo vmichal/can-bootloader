@@ -15,6 +15,9 @@
 #ifdef BOOT_STM32F1
 #include "../Drivers/stm32f10x.h"
 #include "../Drivers/core_cm3.h"
+#elif defined(BOOT_STM32F2)
+#include "../Drivers/stm32f205xx.h"
+#include "../Drivers/core_cm3.h"
 #elif defined(BOOT_STM32F4)
 #include "../Drivers/stm32f4xx.h"
 #include "../Drivers/core_cm4.h"
@@ -34,7 +37,7 @@ namespace boot {
 #ifdef BOOT_STM32F1
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN); //Enable clock to backup domain, as wee need to access the backup reg D1
 		bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable write protection of Backup domain
-#elif defined BOOT_STM32F4
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F2
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
 		bit::set(std::ref(PWR->CR), PWR_CR_DBP); //Disable backup domain protection
 
@@ -56,7 +59,7 @@ namespace boot {
 #ifdef BOOT_STM32F1
 		bit::clear(std::ref(PWR->CR), PWR_CR_DBP); //Enable write protection of Backup domain
 		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN, RCC_APB1ENR_BKPEN);
-#elif defined BOOT_STM32F4
+#elif defined BOOT_STM32F4  || defined BOOT_STM32F2
 		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
 		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCSEL); //deactivate RTC clock
 

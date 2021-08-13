@@ -136,7 +136,7 @@ namespace {
 
 		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_0 | RCC_CFGR_SW_1, RCC_CFGR_SW_PLL); //Set PLL as system clock
 		while (bit::sliceable_value{ RCC->CFGR } [3_to, 2].unshifted() != RCC_CFGR_SWS_PLL); //wait for it settle.
-#elif defined BOOT_STM32F4 || defined BOOT_STM32F7
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
 		using namespace ufsel;
 
 		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //Start and wait for HSE stabilization
@@ -147,7 +147,9 @@ namespace {
 		constexpr int PLLN = 6*12; //We want to achieve SYSCLK 12 MHz, so lets set P = 6 and N = 12*6
 
 		RCC->PLLCFGR = bit::set(
+#ifdef RCC_PLLCFGR_PLLR
 			7 << POS_FROM_MASK(RCC_PLLCFGR_PLLR), //Probably irrelevant, not used
+#endif
 			15 << POS_FROM_MASK(RCC_PLLCFGR_PLLQ), //Probably irrelevant, not used
 			RCC_PLLCFGR_PLLSRC, //HSE used as source
 			//Divide PLL output (72MHz) by 6 in order to get 12MHz on AHB
