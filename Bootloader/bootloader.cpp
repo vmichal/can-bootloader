@@ -36,7 +36,7 @@ namespace boot {
 		AddressSpace const origin = Flash::addressOrigin(address);
 		switch (origin) {
 
-		case AddressSpace::AvailableFlash:
+		case AddressSpace::ApplicationFlash:
 		case AddressSpace::BootloaderFlash:
 			if (origin == bootloader_.expectedAddressSpace())
 				break;
@@ -69,7 +69,7 @@ namespace boot {
 
 		AddressSpace const space = Flash::addressOrigin(address);
 		switch (space) {
-		case AddressSpace::AvailableFlash:
+		case AddressSpace::ApplicationFlash:
 		case AddressSpace::BootloaderFlash:
 			// If the address lies in memory we want to update, continue with other checks.
 			// Otherwise fail right away
@@ -121,8 +121,8 @@ namespace boot {
 
 		//Sanity checks of internal state
 		assert(firmware.expectedBytes_ == firmware.writtenBytes_);
-		assert(Flash::addressOrigin(firmware.interruptVector_) == AddressSpace::AvailableFlash);
-		assert(Flash::addressOrigin(firmware.entryPoint_) == AddressSpace::AvailableFlash);
+		assert(Flash::addressOrigin(firmware.interruptVector_) == AddressSpace::ApplicationFlash);
+		assert(Flash::addressOrigin(firmware.entryPoint_) == AddressSpace::ApplicationFlash);
 		assert(ufsel::bit::all_cleared(firmware.interruptVector_, isrVectorAlignmentMask));
 
 		//The page must have been cleared before
@@ -139,7 +139,7 @@ namespace boot {
 	Bootloader_Handshake_t PhysicalMemoryMapTransmitter::update() {
 		//the first "available" block. Bootloader is located in preceding memory pages.
 		std::uint32_t const firstBlockIndex = bootloader_.updatingBootloader() ? customization::firstBlockAvailableToBootloader : customization::firstBlockAvailableToApplication;
-		std::uint32_t const pagesToSend = bootloader_.updatingBootloader() ? PhysicalMemoryMap::bootloaderPages() : PhysicalMemoryMap::availablePages();
+		std::uint32_t const pagesToSend = bootloader_.updatingBootloader() ? PhysicalMemoryMap::bootloaderPages() : PhysicalMemoryMap::applicationPages();
 
 		switch (status_) {
 		case Status::uninitialized:
@@ -183,7 +183,7 @@ namespace boot {
 
 	void LogicalMemoryMapReceiver::startSubtransaction() {
 		status_ = Status::pending;
-		remaining_bytes_ = bootloader_.updatingBootloader() ? Flash::bootloaderMemorySize : Flash::availableMemorySize;
+		remaining_bytes_ = bootloader_.updatingBootloader() ? Flash::bootloaderMemorySize : Flash::applicationMemorySize;
 	}
 
 	HandshakeResponse LogicalMemoryMapReceiver::receive(Register reg, Command com, std::uint32_t value) {
@@ -298,7 +298,7 @@ namespace boot {
 				return HandshakeResponse::MustBeNonZero;
 
 			std::uint32_t const max_pages = bootloader_.updatingBootloader()
-					? PhysicalMemoryMap::bootloaderPages() : PhysicalMemoryMap::availablePages();
+					? PhysicalMemoryMap::bootloaderPages() : PhysicalMemoryMap::applicationPages();
 
 			if (value > max_pages)
 				return HandshakeResponse::NotEnoughPages;
@@ -375,7 +375,7 @@ namespace boot {
 			if (value == 0)
 				return HandshakeResponse::MustBeNonZero;
 
-			if (value > Flash::availableMemorySize)
+			if (value > Flash::applicationMemorySize)
 				return HandshakeResponse::BinaryTooBig;
 
 			firmware_size_ = InformationSize::fromBytes(value);
@@ -497,7 +497,7 @@ namespace boot {
 		//or fill it with empty metadata to make it valid. When this function returns, the jump table
 		//must be in a valid state (and the application bootable)
 
-		if (auto const response = validateVectorTable(AddressSpace::AvailableFlash, isr_vector); response != HandshakeResponse::Ok)
+		if (auto const response = validateVectorTable(AddressSpace::ApplicationFlash, isr_vector); response != HandshakeResponse::Ok)
 			return response; //Ignore this write if the given address does not fulfill requirements on vector table
 
 		bool const metadata_valid = jumpTable.has_valid_metadata();

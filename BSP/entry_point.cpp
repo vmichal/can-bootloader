@@ -95,17 +95,17 @@ namespace {
 		if (!bit::all_cleared(boot::jumpTable.interruptVector_, boot::isrVectorAlignmentMask))
 			return boot::EntryReason::UnalignedInterruptVector; //The interrupt table is not properly aligned to the 512 B boundary
 
-		if (boot::Flash::addressOrigin_located_in_flash(boot::jumpTable.interruptVector_) != boot::AddressSpace::AvailableFlash)
+		if (boot::Flash::addressOrigin_located_in_flash(boot::jumpTable.interruptVector_) != boot::AddressSpace::ApplicationFlash)
 			return boot::EntryReason::InvalidInterruptVector;
 
 		//Application entry point is saved as the second word of the interrupt table. Initial stack pointer is the first word
 		std::uint32_t const* const interruptVector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
 
-		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[1]) != boot::AddressSpace::AvailableFlash)
+		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[1]) != boot::AddressSpace::ApplicationFlash)
 			return boot::EntryReason::InvalidEntryPoint;
 
 		//Application initial stack pointer is saved as the first word of the interrupt table
-		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[0]) == boot::AddressSpace::AvailableFlash)
+		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[0]) == boot::AddressSpace::ApplicationFlash)
 			return boot::EntryReason::InvalidTopOfStack;
 
 		return boot::EntryReason::DontEnter;

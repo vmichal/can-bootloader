@@ -25,7 +25,7 @@ namespace boot {
 	enum class AddressSpace {
 		BootloaderFlash,
 		JumpTable,
-		AvailableFlash,
+		ApplicationFlash,
 		RAM,
 		Unknown
 	};
@@ -49,7 +49,7 @@ namespace boot {
 
 		constexpr static bool pagesHaveSameSize() { return customization::physicalBlockSizePolicy == PhysicalBlockSizes::same; };
 
-		static std::size_t const availableMemorySize;
+		static std::size_t const applicationMemorySize;
 		static std::size_t const bootloaderMemorySize;
 		static std::uint32_t const jumpTableAddress;
 		static std::uint32_t const applicationAddress;
@@ -102,8 +102,8 @@ namespace boot {
 			}
 		}
 
-		static bool isAvailableAddress(std::uint32_t address) {
-			return addressOrigin(address) == AddressSpace::AvailableFlash;
+		static bool isApplicationAddress(std::uint32_t address) {
+			return addressOrigin(address) == AddressSpace::ApplicationFlash;
 		}
 		static bool isBootloaderAddress(std::uint32_t address) {
 			return addressOrigin(address) == AddressSpace::BootloaderFlash;
@@ -148,7 +148,7 @@ namespace boot {
 
 	struct PhysicalMemoryMap {
 
-		constexpr static unsigned availablePages() {return customization::physicalBlockCount - customization::firstBlockAvailableToApplication;}
+		constexpr static unsigned applicationPages() {return customization::physicalBlockCount - customization::firstBlockAvailableToApplication;}
 		constexpr static unsigned bootloaderPages() {return customization::firstBlockAvailableToApplication - customization::firstBlockAvailableToBootloader;}
 
 		static MemoryBlock block(std::uint32_t const index) {

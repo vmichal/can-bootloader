@@ -242,7 +242,7 @@ namespace boot {
 
 	public:
 		[[nodiscard]] bool updatingBootloader() const { return transactionType_ == TransactionType::BootloaderUpdate; }
-		[[nodiscard]] AddressSpace expectedAddressSpace() const { return updatingBootloader() ? AddressSpace::BootloaderFlash : AddressSpace::AvailableFlash; }
+		[[nodiscard]] AddressSpace expectedAddressSpace() const { return updatingBootloader() ? AddressSpace::BootloaderFlash : AddressSpace::ApplicationFlash; }
 
 	private:
 		//Sets the jumpTable

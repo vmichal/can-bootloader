@@ -244,8 +244,8 @@ teprve po dokončení zápisu firmwaru se zapíše jumpTable
 takže budeš mít prázdnou jumpTable
     void Bootloader::finishTransaction() const {
         assert(firmware_.expectedBytes_ == firmware_.writtenBytes_);
-        assert(Flash::addressOrigin(firmware_.interruptVector_) == AddressSpace::AvailableFlash);
-        assert(Flash::addressOrigin(firmware_.entryPoint_) == AddressSpace::AvailableFlash);
+        assert(Flash::addressOrigin(firmware_.interruptVector_) == AddressSpace::ApplicationFlash);
+        assert(Flash::addressOrigin(firmware_.entryPoint_) == AddressSpace::ApplicationFlash);
         assert(ufsel::bit::all_cleared(firmware_.interruptVector_, ufsel::bit::bitmask_of_width(9))); //TODO replace by named constant
 
         //The page must have been cleared before
@@ -294,7 +294,7 @@ ale ono to stejně nevadí, protože jsem tři paralelní vesmíry před námi o
         if (boot::jumpTable.entryPoint_ != interruptVector[1]) //If they do not match, enter the bootloader
             return boot::EntryReason::EntryPointMismatch;
 
-        if (boot::Flash::addressOrigin(boot::jumpTable.entryPoint_) != boot::AddressSpace::AvailableFlash)
+        if (boot::Flash::addressOrigin(boot::jumpTable.entryPoint_) != boot::AddressSpace::ApplicationFlash)
             return boot::EntryReason::InvalidEntryPoint;
 
 

@@ -21,8 +21,8 @@ bootloader_flash_end = ORIGIN(BootloaderFlash) + LENGTH(BootloaderFlash);
 jumpTable_start = ORIGIN(JumpTableFlash);
 jumpTable_end = ORIGIN(JumpTableFlash) + LENGTH(JumpTableFlash);
 
-available_flash_start = ORIGIN(ApplicationFlash);
-available_flash_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
+application_flash_start = ORIGIN(ApplicationFlash);
+application_flash_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
 
 ram_start = ORIGIN(RAM);
 ram_end = ORIGIN(RAM) + LENGTH(RAM);
