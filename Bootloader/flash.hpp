@@ -1,9 +1,10 @@
 /*
  * eForce CAN Bootloader
  *
+ *
  * Written by Vojtech Michal
  *
- * Copyright (c) 2020 eforce FEE Prague Formula
+ * Copyright (c) 2020, 2021 eforce FEE Prague Formula
  */
 
 
@@ -45,7 +46,8 @@ namespace boot {
 
 	struct Flash {
 
-		using writeableType = std::conditional_t<customization::flashProgrammingParallelism == 16, std::uint16_t, std::uint32_t>;
+		using nativeType = std::conditional_t<customization::flashProgrammingParallelism == 16, std::uint16_t, std::uint32_t>;
+		static_assert(std::is_unsigned_v<nativeType>, "Flash native type shall be unsigned to prevent problems with signed overflow.");
 
 		constexpr static bool pagesHaveSameSize() { return customization::physicalBlockSizePolicy == PhysicalBlockSizes::same; };
 
@@ -68,27 +70,27 @@ namespace boot {
 
 		static void AwaitEndOfErasure();
 		static bool ErasePage(std::uint32_t pageAddress);
-		static WriteStatus do_write(std::uint32_t flashAddress, writeableType data);
+		static WriteStatus do_write(std::uint32_t flashAddress, nativeType data);
 
 		//Chooses the most appropriate programming parallelism to write the specified data. Actual work is delegated to do_write
 		static WriteStatus Write(std::uint32_t address, WriteableIntegral auto data) {
-			if constexpr (std::is_same_v<writeableType, decltype(data)>) {
+			if constexpr (std::is_same_v<nativeType, decltype(data)>) {
 				//it is possible to use the native parallelism
 				return Flash::do_write(address, data);
 			}
-			else if constexpr (sizeof(data) < sizeof(writeableType)) {
+			else if constexpr (sizeof(data) < sizeof(nativeType)) {
 				//a smaller portion of data is to be written. Since only transitions from 1 to 0 are allowed, the data must be extended
 				static_assert(std::is_same_v<decltype(data), std::uint16_t> && customization::flashProgrammingParallelism == 32);
+				constexpr int alignment_bits = std::countr_zero(sizeof(nativeType));
 
 				//Read the currently stored word
-				std::uint32_t const aligned_address = ufsel::bit::clear(address, ufsel::bit::bitmask_of_width(2));
-				std::uint32_t const current_data = ufsel::bit::access_register<std::uint32_t>(aligned_address);
+				std::uint32_t const aligned_address = ufsel::bit::clear(address, ufsel::bit::bitmask_of_width(alignment_bits));
+				nativeType const current_data = ufsel::bit::access_register<nativeType>(aligned_address);
 				//since it is only possible to go from 1 to 0, we need to and the current data and the new data
-				bool const is_higher_half = address != aligned_address;
-				std::uint32_t const shifted_data = data << (is_higher_half ? 16 : 0);
-				std::uint32_t const fill = ufsel::bit::bitmask_of_width(16) << (is_higher_half ? 0 : 16);
+				std::uint32_t const bit_offset_in_word = 8 * (address - aligned_address);
+				nativeType const fill_with_data = ufsel::bit::modify(nativeType(-1), ufsel::bit::bitmask_of_width(8*sizeof(data)), data, bit_offset_in_word);
 
-				std::uint32_t const to_write = current_data & (shifted_data | fill);
+				std::uint32_t const to_write = current_data & fill_with_data;
 
 				return Flash::do_write(aligned_address, to_write);
 			}
@@ -222,7 +224,9 @@ namespace boot {
 		std::array<MemoryBlock, (smallestPageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
 
 		//Returns true iff all magics are valid
+		[[nodiscard]]
 		bool magicValid() const __attribute__((section(".executed_from_flash")));
+		[[nodiscard]]
 		bool has_valid_metadata() const;
 
 		//Clear the memory location with jump table
