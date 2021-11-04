@@ -20,11 +20,14 @@ typedef struct {
 } ringbuf_t;
 
 /* returns boolean */
-int ringbufCanRead(volatile ringbuf_t* rb, size_t length);
-int ringbufCanWrite(volatile ringbuf_t* rb, size_t length);
+int ringbufCanRead(volatile const ringbuf_t* rb, size_t length);
+int ringbufCanWrite(volatile const ringbuf_t* rb, size_t length);
+
+size_t ringbufSize(volatile const ringbuf_t * rb);
+size_t ringbufFreeSpace(volatile const ringbuf_t * rb);
 
 /* returns number of bytes read */
-size_t ringbufTryRead(volatile ringbuf_t* rb, uint8_t* data, size_t length, size_t* readpos_inout);
+size_t ringbufTryRead(volatile const ringbuf_t* rb, uint8_t* data, size_t length, size_t* readpos_inout);
 
 /* returns boolean */
 int ringbufWrite(volatile ringbuf_t* rb, const uint8_t* data, size_t length);
