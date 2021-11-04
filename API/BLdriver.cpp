@@ -71,9 +71,9 @@ namespace boot {
 		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
 		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCSEL); //deactivate RTC clock
 		
-		bit::clear(std::ref(PWR->CR1), PWR_CR1_DBP);	//Disable backup domain protection
+		bit::clear(std::ref(PWR->CR1), PWR_CR1_DBP);	//Enable backup domain protection
 		
-		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Enable clock to power controleer
+		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Disable clock to power controleer
 #endif
 	}
 
