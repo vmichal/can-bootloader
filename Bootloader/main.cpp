@@ -148,7 +148,8 @@ namespace boot {
 
 			txProcess();
 
-			if (bootloader.status() == Status::DownloadingFirmware && lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s) && !bootloader.stalled()) {
+			bool const some_data_received_long_time_ago = lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s);
+			if (bootloader.status() == Status::DownloadingFirmware && some_data_received_long_time_ago && !bootloader.stalled()) {
 				if (static SysTickTimer lastRequest; lastRequest.RestartIfTimeElapsed(500_ms)) { //limit the frequency of requests
 					auto const expectedAddress = bootloader.expectedWriteLocation();
 					assert(expectedAddress.has_value());
