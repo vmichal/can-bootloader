@@ -68,7 +68,8 @@ namespace boot {
 #endif
 }
 
-	WriteStatus Flash::do_write(std::uint32_t address, nativeType data) {
+	WriteStatus Flash::Write(std::uint32_t address, nativeType data) {
+		assert(address % sizeof(nativeType) == 0 && "Attempt to perform unaligned write!");
 #if defined BOOT_STM32F1
 		static_assert(std::is_same_v<nativeType, std::uint16_t>, "STM32F1 flash is unable to perform write access other than 16bits wide.");
 		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY); //wait for previous operation to end
@@ -191,40 +192,42 @@ namespace boot {
 		return metadata_valid_magic_ == metadata_valid_magic_value;
 	}
 
-	void ApplicationJumpTable::write_magics() {
-		//This vv better hold if we want to preserve data integrity
-		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
-		assert(this == &jumpTable);
-
-		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic1_), expected_magic1_value) == WriteStatus::Ok);
-		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic2_), expected_magic2_value) == WriteStatus::Ok);
-		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic3_), expected_magic3_value) == WriteStatus::Ok);
-		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic4_), expected_magic4_value) == WriteStatus::Ok);
-		assert(Flash::Write(reinterpret_cast<std::uint32_t>(&magic5_), expected_magic5_value) == WriteStatus::Ok);
+	void ApplicationJumpTable::set_magics() {
+		magic1_ = expected_magic1_value;
+		magic2_ = expected_magic2_value;
+		magic3_ = expected_magic3_value;
+		magic4_ = expected_magic4_value;
+		magic5_ = expected_magic5_value;
 	}
 
-	void ApplicationJumpTable::write_metadata(InformationSize const firmware_size, std::span<MemoryBlock const> const logical_memory_blocks) {
-		//This vv better hold if we want to preserve data integrity
-		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
-		assert(this == &jumpTable);
+	void ApplicationJumpTable::set_metadata(InformationSize const firmware_size, std::span<MemoryBlock const> const logical_memory_blocks) {
+		firmwareSize_ = static_cast<std::uint32_t>(firmware_size.toBytes());
+		logical_memory_block_count_ = size(logical_memory_blocks);
 
-		Flash::Write(reinterpret_cast<std::uint32_t>(&firmwareSize_), static_cast<std::uint32_t>(firmware_size.toBytes()));
-		std::uint32_t const logicalMemoryBlockCount = size(logical_memory_blocks_);
-		Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_block_count_), logicalMemoryBlockCount);
-
-		for (std::uint32_t i = 0; i < logicalMemoryBlockCount; ++i) {
-			Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_blocks_[i].address), logical_memory_blocks[i].address);
-			Flash::Write(reinterpret_cast<std::uint32_t>(&logical_memory_blocks_[i].length), logical_memory_blocks[i].length);
+		for (int block_index = 0; block_index < ssize(logical_memory_blocks); ++block_index) {
+			logical_memory_blocks_[block_index].address = logical_memory_blocks[block_index].address;
+			logical_memory_blocks_[block_index].length = logical_memory_blocks[block_index].length;
 		}
-		Flash::Write(reinterpret_cast<std::uint32_t>(&metadata_valid_magic_), metadata_valid_magic_value);
+		metadata_valid_magic_ = metadata_valid_magic_value;
 	}
 
-	void ApplicationJumpTable::write_interrupt_vector(std::uint32_t const isr_vector) {
-		//This vv better hold if we want to preserve data integrity
-		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
-		assert(this == &jumpTable);
+	void ApplicationJumpTable::set_interrupt_vector(std::uint32_t const isr_vector) {
+		interruptVector_ = isr_vector;
+	}
 
-		Flash::Write(reinterpret_cast<std::uint32_t>(&interruptVector_), isr_vector);
+	void ApplicationJumpTable::writeToFlash() {
+		assert(reinterpret_cast<std::uint32_t>(&jumpTable) == Flash::jumpTableAddress && "Sanity check of consistent addresses.");
+		assert(this != &jumpTable && "Jump table in flash must not be initialized from itself.");
+
+		// Go from the end, since magics are in the front of jump table and we want them written last
+		// Metadata shall be written iff they are valid.
+		std::size_t const valid_data_length = has_valid_metadata() ? sizeof(MemoryBlock) * logical_memory_block_count_ : 0;
+		std::size_t const length_in_bytes = bytes_before_segment_array + valid_data_length;
+		assert(length_in_bytes % sizeof(Flash::nativeType) == 0 && "The application jump table must span a whole number of flash native types.");
+		Flash::nativeType const * data_array = reinterpret_cast<Flash::nativeType *>(this);
+
+		for (int offset = length_in_bytes / sizeof(Flash::nativeType) - 1; offset >= 0; --offset)
+			Flash::Write(Flash::jumpTableAddress + offset * sizeof(Flash::nativeType), data_array[offset]);
 	}
 
 }

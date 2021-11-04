@@ -15,13 +15,29 @@
 #include "options.hpp"
 
 #include <span>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
+
+#include <CANdb/tx2/ringbuf.h>
 
 namespace boot {
 
 	constexpr std::uint32_t end(MemoryBlock const & block) { return block.address + block.length; }
 
+	template<std::size_t bits>
+	auto deduce_int_type_of_size() {
+		static_assert(bits == 8 || bits == 16 || bits == 32 || bits == 64, "Can't deduce any integer type of this width!");
+
+		if constexpr (bits == 8)
+			return std::uint8_t{0};
+		else if constexpr (bits == 16)
+			return std::uint16_t{0};
+		else if constexpr (bits == 32)
+			return std::uint32_t{0};
+		else if constexpr (bits == 64)
+			return std::uint64_t{0};
+	}
 
 	enum class AddressSpace {
 		BootloaderFlash,
@@ -38,15 +54,60 @@ namespace boot {
 		NotInFlash,
 		AlreadyWritten,
 		NotReady,
-		DiscontinuousWriteAccess
+		DiscontinuousWriteAccess,
+		InsufficientData
 	};
 
 	template<typename T>
-	concept WriteableIntegral = std::is_same_v<T, std::uint16_t> || std::is_same_v<T, std::uint32_t>;
+	concept WriteableIntegral = std::is_same_v<T, std::uint16_t> || std::is_same_v<T, std::uint32_t> || std::is_same_v<T, std::uint64_t>;
+
+	template<std::size_t CAPACITY>
+	struct FlashWriteBuffer {
+		constexpr static std::size_t capacity = CAPACITY;
+		std::uint8_t buffer[capacity];
+		ringbuf_t ringbuf {.data = buffer, .size = CAPACITY, .readpos = 0, .writepos = 0};
+
+		struct record {
+			std::uint32_t address_;
+			std::uint8_t size_;
+			std::uint64_t data_;
+		};
+
+		void push(std::uint32_t address, WriteableIntegral auto data, std::size_t const length) {
+			assert(ringbufCanWrite(&ringbuf, sizeof(record)));
+			record const new_record {.address_ = address, .size_ = length, .data_ = data};
+			ringbufWrite(&ringbuf, reinterpret_cast<std::uint8_t const*>(&new_record), sizeof(record));
+		}
+
+		[[nodiscard]]
+		record peek(int offset) const {
+			//cannot read anything, since there is not that many elements
+			assert(ringbufSize(&ringbuf) >= (offset + 1) * sizeof(record));
+
+			size_t readpos = (ringbuf.readpos + offset * sizeof(record)) % capacity;
+			record result;
+			ringbufTryRead(&ringbuf, reinterpret_cast<std::uint8_t *>(&result), sizeof(record), &readpos);
+			return result;
+		}
+
+		void pop(int count) {
+			//cannot read anything, since there is not that many elements
+			assert(ringbufSize(&ringbuf) >= count * sizeof(record));
+
+			//advance the read index.
+			ringbuf.readpos = (ringbuf.readpos + count * sizeof(record)) % capacity;
+		}
+
+		[[nodiscard]] std::size_t size() const { return ringbufSize(&ringbuf) / sizeof(record); }
+		[[nodiscard]] bool is_full() const { return !ringbufCanWrite(&ringbuf, sizeof(record)); }
+		[[nodiscard]] bool empty() const { return size() != 0; }
+	};
 
 	struct Flash {
+		friend struct ApplicationJumpTable;
+		static inline FlashWriteBuffer<flash_write_buffer_size.toBytes()> writeBuffer_;
 
-		using nativeType = std::conditional_t<customization::flashProgrammingParallelism == 16, std::uint16_t, std::uint32_t>;
+		using nativeType = decltype(deduce_int_type_of_size<customization::flashProgrammingParallelism>());
 		static_assert(std::is_unsigned_v<nativeType>, "Flash native type shall be unsigned to prevent problems with signed overflow.");
 
 		constexpr static bool pagesHaveSameSize() { return customization::physicalBlockSizePolicy == PhysicalBlockSizes::same; };
@@ -70,39 +131,48 @@ namespace boot {
 
 		static void AwaitEndOfErasure();
 		static bool ErasePage(std::uint32_t pageAddress);
-		static WriteStatus do_write(std::uint32_t flashAddress, nativeType data);
 
-		//Chooses the most appropriate programming parallelism to write the specified data. Actual work is delegated to do_write
-		static WriteStatus Write(std::uint32_t address, WriteableIntegral auto data) {
-			if constexpr (std::is_same_v<nativeType, decltype(data)>) {
-				//it is possible to use the native parallelism
-				return Flash::do_write(address, data);
+		static WriteStatus Write(std::uint32_t address, nativeType data);
+
+	public:
+		template<WriteableIntegral T>
+		static bool ScheduleBufferedWrite(std::uint32_t address, T data, std::size_t length = sizeof(T)) {
+			if (writeBuffer_.is_full())
+				return false;
+			writeBuffer_.push(address, data, length);
+			return true;
+		}
+
+		static WriteStatus tryPerformingBufferedWrite() {
+			auto const shift_data = [](std::uint64_t data, std::size_t width, std::size_t shift) {
+				return (data & ufsel::bit::bitmask_of_width(width * 8)) << (shift * 8);
+			};
+
+			auto prev_record = writeBuffer_.peek(0);
+			std::uint32_t const address = prev_record.address_;
+			std::size_t num_bytes_to_write = prev_record.size_;
+			nativeType data_to_write = shift_data(prev_record.data_, prev_record.size_, 0);
+
+			int records_consumed = 1;
+			for (; num_bytes_to_write <= sizeof(nativeType) && records_consumed < writeBuffer_.size(); ++records_consumed) {
+				auto const record = writeBuffer_.peek(records_consumed);
+				num_bytes_to_write += record.size_;
+				data_to_write |= shift_data(record.data_, record.size_, num_bytes_to_write);
+
+				assert(record.address_ == prev_record.address_ + prev_record.size_); // records must be contiguous
+				prev_record = record;
 			}
-			else if constexpr (sizeof(data) < sizeof(nativeType)) {
-				//a smaller portion of data is to be written. Since only transitions from 1 to 0 are allowed, the data must be extended
-				static_assert(std::is_same_v<decltype(data), std::uint16_t> && customization::flashProgrammingParallelism == 32);
-				constexpr int alignment_bits = std::countr_zero(sizeof(nativeType));
-
-				//Read the currently stored word
-				std::uint32_t const aligned_address = ufsel::bit::clear(address, ufsel::bit::bitmask_of_width(alignment_bits));
-				nativeType const current_data = ufsel::bit::access_register<nativeType>(aligned_address);
-				//since it is only possible to go from 1 to 0, we need to and the current data and the new data
-				std::uint32_t const bit_offset_in_word = 8 * (address - aligned_address);
-				nativeType const fill_with_data = ufsel::bit::modify(nativeType(-1), ufsel::bit::bitmask_of_width(8*sizeof(data)), data, bit_offset_in_word);
-
-				std::uint32_t const to_write = current_data & fill_with_data;
-
-				return Flash::do_write(aligned_address, to_write);
-			}
-			else {
-				//There is more data to program than the flash supports by default
-				static_assert(std::is_same_v<decltype(data), std::uint32_t> && customization::flashProgrammingParallelism == 16);
-				std::uint16_t const lower_half = data, upper_half = data >> customization::flashProgrammingParallelism;
-				if (WriteStatus const ret = Flash::do_write(address, lower_half); ret != WriteStatus::Ok)
-					return ret;
-				return Flash::do_write(address + customization::flashProgrammingParallelism / 8, upper_half);
+			assert(num_bytes_to_write <= sizeof(nativeType));
+			if (num_bytes_to_write < sizeof(nativeType))
+				return WriteStatus::InsufficientData;
+			else { // we can perform the write!
+				writeBuffer_.pop(records_consumed);
+				return Write(address, data_to_write);
 			}
 		}
+
+		[[nodiscard]]
+		static bool writeBufferIsEmpty() { return writeBuffer_.empty(); }
 
 		static bool isApplicationAddress(std::uint32_t address) {
 			return addressOrigin(address) == AddressSpace::ApplicationFlash;
@@ -205,9 +275,8 @@ namespace boot {
 
 		constexpr static std::uint32_t metadata_valid_magic_value = 0x0f0c'd150;
 
-	private:
-		constexpr static int members_before_segment_array = 9;
-	public:
+		constexpr static int members_before_segment_array = 10;
+		constexpr static std::size_t bytes_before_segment_array = sizeof(std::uint32_t)*members_before_segment_array;
 
 		std::uint32_t magic1_;
 		//If this contains the magic value, the rest of firmware metadata is valid. It is not necessary for the bootloader,
@@ -221,7 +290,8 @@ namespace boot {
 		std::uint32_t magic4_;
 		std::uint32_t logical_memory_block_count_;
 		std::uint32_t magic5_;
-		std::array<MemoryBlock, (smallestPageSize - sizeof(std::uint32_t)*members_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
+		std::uint32_t padding_dont_care_; // means of aligning the following array to 8 byte boundary
+		std::array<MemoryBlock, (smallestPageSize - bytes_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
 
 		//Returns true iff all magics are valid
 		[[nodiscard]]
@@ -232,11 +302,14 @@ namespace boot {
 		//Clear the memory location with jump table
 		void invalidate();
 
-		void write_magics();
-		void write_metadata(InformationSize firmware_size, std::span<MemoryBlock const> logical_memory_blocks);
+		void set_magics();
+		void set_metadata(InformationSize firmware_size, std::span<MemoryBlock const> logical_memory_blocks);
 
-		void write_interrupt_vector(std::uint32_t isr_vector);
+		void set_interrupt_vector(std::uint32_t isr_vector);
+
+		void writeToFlash();
 	};
+	static_assert(offsetof(ApplicationJumpTable, logical_memory_blocks_) == ApplicationJumpTable::bytes_before_segment_array);
 
 	static_assert(sizeof(ApplicationJumpTable) <= smallestPageSize, "The application jump table must fit within one page of flash.");
 

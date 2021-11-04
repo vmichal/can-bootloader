@@ -271,7 +271,7 @@ namespace boot {
 #error "This MCU is not supported"
 #endif
 
-	static_assert(customization::flashProgrammingParallelism == 16 || customization::flashProgrammingParallelism == 32, "Unsupported flash programming parallelism!");
+	static_assert(customization::flashProgrammingParallelism == 16 || customization::flashProgrammingParallelism == 32 || customization::flashProgrammingParallelism == 64, "Unsupported flash programming parallelism!");
 
 	constexpr bool rebootAfterHardfault = true;
 	constexpr auto rebootDelayHardfault = 10_s;
@@ -279,8 +279,7 @@ namespace boot {
 	constexpr std::uint32_t isrVectorAlignmentMask = ufsel::bit::bitmask_of_width(customization::isrVectorAlignmentBits);
 
 	constexpr std::uint32_t smallestPageSize = (*std::min_element(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(),[](auto const &a, auto const &b) {return a.length < b.length;} )).length;
-
-
+	constexpr static auto flash_write_buffer_size = 24_KiB;
 }
 
 

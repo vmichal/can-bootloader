@@ -129,11 +129,14 @@ namespace boot {
 		constexpr auto empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
 		assert(jumpTable.magic1_ == empty && jumpTable.magic2_ == empty && jumpTable.magic3_ == empty && jumpTable.magic4_ == empty && jumpTable.magic5_ == empty);
 
-		Flash::RAII_unlock const _;
 		//entry point is not stored as it can be derived from the isr vector
-		jumpTable.write_interrupt_vector(firmware.interruptVector_);
-		jumpTable.write_metadata(firmware.writtenBytes_, firmware.logical_memory_blocks_);
-		jumpTable.write_magics();
+		ApplicationJumpTable table;
+		table.set_metadata(firmware.writtenBytes_, firmware.logical_memory_blocks_);
+		table.set_interrupt_vector(firmware.interruptVector_);
+		table.set_magics();
+
+		Flash::RAII_unlock const _;
+		table.writeToFlash();
 	}
 
 	Bootloader_Handshake_t PhysicalMemoryMapTransmitter::update() {
@@ -500,30 +503,16 @@ namespace boot {
 		if (auto const response = validateVectorTable(AddressSpace::ApplicationFlash, isr_vector); response != HandshakeResponse::Ok)
 			return response; //Ignore this write if the given address does not fulfill requirements on vector table
 
-		bool const metadata_valid = jumpTable.has_valid_metadata();
-
-		decltype(ApplicationJumpTable::logical_memory_blocks_) logical_memory_blocks {{{0,0}}};
-		std::uint32_t logical_memory_blocks_count = 0;
-		InformationSize firmware_size = 0_B;
-
-		if (metadata_valid) {
-			//If the jump table is valid, we have to preserve its state. Otherwise, make it valid.
-			firmware_size = InformationSize::fromBytes(jumpTable.firmwareSize_);
-			logical_memory_blocks_count = jumpTable.logical_memory_block_count_;
-			auto const &source = jumpTable.logical_memory_blocks_;
-			std::copy(cbegin(source), cbegin(source) + logical_memory_blocks_count, begin(logical_memory_blocks));
-		}
+		//TODO make sure there is enough stack space (in linker scripts)
+		ApplicationJumpTable table_copy = jumpTable; //copy the old jump table to RAM
+		table_copy.interruptVector_ = isr_vector;
 
 		Flash::RAII_unlock const _;
 
 		jumpTable.invalidate();
 		Flash::AwaitEndOfErasure(); //Make sure the page erasure has finished and exit erase mode.
 
-		jumpTable.write_interrupt_vector(isr_vector);
-		jumpTable.write_magics();
-
-		if (metadata_valid)
-			jumpTable.write_metadata(firmware_size, std::span{logical_memory_blocks.data(), logical_memory_blocks_count});
+		table_copy.writeToFlash();
 		return HandshakeResponse::Ok;
 	}
 

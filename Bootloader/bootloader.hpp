@@ -147,18 +147,60 @@ namespace boot {
 		std::size_t current_block_index_ = 0;
 		std::uint32_t blockOffset_ = 0;
 
+		void add_to_checksum(WriteableIntegral auto data) {
+			int const half_words = sizeof(data) / sizeof(std::uint16_t);
+			for (int half = 0; half < half_words; ++half) {
+				int const shift = std::numeric_limits<std::uint16_t>::digits * half;
+				checksum_ += (data >> shift) & std::numeric_limits<std::uint16_t>::max();
+			}
+		}
+
 		WriteStatus do_write(std::uint32_t address, WriteableIntegral auto data) {
-			checksum_ += (data & 0xff'ff) + (data >> 16);
+			assert(address % sizeof(data) == 0 && "Address not aligned.");
+			add_to_checksum(data);
 			written_bytes_ += InformationSize::fromBytes(sizeof(data));
 
 			blockOffset_ += sizeof(data);
-			if (blockOffset_ == firmwareBlocks_[current_block_index_].length) {
+			MemoryBlock const & current_block = firmwareBlocks_[current_block_index_];
+			bool const is_last_write_in_logical_block = blockOffset_ == current_block.length;
+
+			Flash::nativeType data_to_write = data;
+			std::size_t num_bytes_to_write = sizeof(data);
+			if (is_last_write_in_logical_block) {
+				// We are writing the last data of current logical memory block -> extend it to native flash type
+				std::uint32_t const block_end_address = end(current_block);
+				std::uint32_t const bytes_in_this_doubleword = block_end_address % sizeof(Flash::nativeType);
+				std::uint32_t const distance_to_aligned = sizeof(Flash::nativeType) - bytes_in_this_doubleword;
+
+				bool const next_block_exists = current_block_index_ + 1 < size(firmwareBlocks_);
+				std::uint32_t const padding_needed = [&]() {
+					if (!next_block_exists)
+						return distance_to_aligned;
+
+					std::uint32_t const distance_to_next = end(firmwareBlocks_[current_block_index_ + 1]) - block_end_address;
+					return std::min(distance_to_next, distance_to_aligned);
+
+				}();
+				// Append bytes 0xff to given data
+				int const padding_start = sizeof(data);
+				Flash::nativeType const padding = ufsel::bit::bitmask_of_width(padding_needed * 8) << (padding_start * 8);
+				data_to_write |= padding;
+				num_bytes_to_write += padding_needed;
+
 				blockOffset_ = 0;
-				if (++current_block_index_ == size(firmwareBlocks_))
+				if (!next_block_exists)
 					status_ = Status::noMoreDataExpected;
 			}
 
-			return Flash::Write(address, data);
+			bool const data_pushed_ok = Flash::ScheduleBufferedWrite(address, data_to_write, num_bytes_to_write);
+			assert(data_pushed_ok);
+
+			WriteStatus const writeStatus = Flash::tryPerformingBufferedWrite();
+			if (is_last_write_in_logical_block) {
+				assert(writeStatus != WriteStatus::InsufficientData);
+				assert(Flash::writeBufferIsEmpty());
+			}
+			return writeStatus;
 		}
 
 	public:
@@ -268,6 +310,7 @@ namespace boot {
 		bool transactionInProgress() const { return transactionType_ != TransactionType::Unknown && status_ != Status::Error && status_ != Status::Ready; }
 
 		WriteStatus write(std::uint32_t address, WriteableIntegral auto data) {
+			assert(firmwareDownloader_.data_expected());
 			auto const ret = firmwareDownloader_.write(address, data);
 			if (firmwareDownloader_.expectedSize() == firmwareDownloader_.actualSize())
 				can_.SendDataAck(address, boot::WriteStatus::Ok);

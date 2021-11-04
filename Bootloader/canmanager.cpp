@@ -24,6 +24,7 @@ namespace {
 			return Bootloader_WriteResult_InvalidMemory;
 
 		case boot::WriteStatus::Ok:
+		case boot::WriteStatus::InsufficientData:
 			return Bootloader_WriteResult_Ok;
 
 		case boot::WriteStatus::DiscontinuousWriteAccess:
