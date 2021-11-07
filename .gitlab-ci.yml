@@ -7,10 +7,10 @@ build:
     GIT_SUBMODULE_STRATEGY: recursive
 
   script:
-    - bash ./compile.sh 1
-    - bash ./compile.sh 2
-    - bash ./compile.sh 4
-    - bash ./compile.sh 7
+    - bash ./compile.sh f1
+    - bash ./compile.sh f2
+    - bash ./compile.sh f4
+    - bash ./compile.sh f7
 
   artifacts:
     paths:
