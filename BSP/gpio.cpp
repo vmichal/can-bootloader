@@ -48,16 +48,23 @@ namespace bsp::gpio {
 			RCC_APB2ENR_AFIOEN
 		);
 	}
-#elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2 || defined STM32G4
 
 	void Initialize(void)
 	{
 		using namespace ufsel;
 		//Enable clock to GPIOA, GPIOB
+#if defined STM32G4
+	bit::set(std::ref(RCC->AHB2ENR),
+				RCC_AHB2ENR_GPIOAEN,
+				RCC_AHB2ENR_GPIOBEN);
+
+#else
 		bit::set(std::ref(RCC->AHB1ENR),
 			RCC_AHB1ENR_GPIOAEN,
 			RCC_AHB1ENR_GPIOBEN);
 
+#endif
 		for (Pin const& p : { CAN1_RX, CAN2_RX, CAN1_TX, CAN2_TX }) {
 			auto volatile & gpio = *p.gpio();
 

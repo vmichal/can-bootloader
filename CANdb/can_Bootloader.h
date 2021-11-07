@@ -122,6 +122,8 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_STW = 5,
     /* Emergency Brake System Supervisor (DV only) */
     Bootloader_BootTarget_EBSS = 6,
+    /* SiC motor controller */
+    Bootloader_BootTarget_Disruptor = 7,
 };
 
 enum Bootloader_Command {

@@ -31,6 +31,9 @@
 #elif defined(BOOT_STM32F2)
 #include "../Drivers/stm32f205xx.h"
 #include "../Drivers/core_cm3.h"
+#elif defined(BOOT_STM32G4)
+#include "../Drivers/stm32g4xx.h"
+#include "../Drivers/core_cm4.h"
 #else
 #error "This MCU is not supported!"
 #endif
@@ -189,6 +192,26 @@ namespace boot {
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
 		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{ };
+#elif defined BOOT_STM32G4
+		//Governs the width of programming acesses to the flash memory
+		constexpr unsigned flashProgrammingParallelism = 64;
+
+		//The number of physical blocks available on the target chip
+		constexpr std::uint32_t physicalBlockCount = 128;
+
+		//Used only iff the flash memory consists of blocks of the same size
+		constexpr InformationSize physicalBlockSize = 4096_B;
+
+		//Controls, whether the flash memory consists of blocks of the same size (f1xx or g4xx flash pages) or different sizes (f4xx/f7xx/f2xx sectors)
+		constexpr PhysicalBlockSizes physicalBlockSizePolicy = PhysicalBlockSizes::same;
+
+		// In case of Disruptor, the bootloader occupies 12K and 4K for jump table
+		//TODO this must be checked once in a while, whether it is correct...
+		constexpr std::uint32_t firstBlockAvailableToApplication = 4;
+		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
+
+		//Fill this array with memory blocks iff the memory blocks have unequal sizes
+		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{ };
 #elif defined BOOT_STM32F2
 		//Governs the width of programming acesses to the flash memory
 		constexpr unsigned flashProgrammingParallelism = 32;
@@ -240,13 +263,14 @@ namespace boot {
 		 * DSH (FSE10) - 12 MHz
 		 * FSB (FSE10) - 8 MHz
 		 * EBSS (DV01) - 12 MHz
+		 * Disruptor () - 12 MHz
 		 */
 
 		// FSE10 DSH has remaped CAN2!
 
 
 		//Bootloader target identification
-		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_EBSS;
+		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_Disruptor;
 		//Frequency of used external oscillator
 		constexpr Frequency HSE = 12_MHz;
 #ifdef BOOT_STM32F1 //currently supprted only in STM32F1 mode
@@ -261,7 +285,7 @@ namespace boot {
 			return customization::blocksWhenSizesAreUnequal;
 	}
 	constexpr auto physicalMemoryBlocks = getMemoryBlocks();
-#ifdef BOOT_STM32F1
+#if defined BOOT_STM32F1 || defined BOOT_STM32G4
 	static_assert(physicalMemoryBlocks.size() == 128); //sanity check that this template magic works
 #elif defined BOOT_STM32F4 || defined BOOT_STM32F2
 	static_assert(physicalMemoryBlocks.size() == 12); //sanity check that this template magic works
@@ -281,6 +305,8 @@ namespace boot {
 	constexpr std::uint32_t smallestPageSize = (*std::min_element(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(),[](auto const &a, auto const &b) {return a.length < b.length;} )).length;
 	constexpr static auto flash_write_buffer_size = 24_KiB;
 }
+
+//TODO update compile.sh to support G4
 
 
 

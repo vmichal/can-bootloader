@@ -10,7 +10,7 @@ enum class PinMode { //These two mode are sufficient to control CAN peripheral.
 #ifdef BOOT_STM32F1
 	input_floating = 0b0100,
 	af_pushpull = 0b1010
-#elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2 || defined BOOT_STM32G4
 	alternate_function
 #else
 #error MCU not specified!

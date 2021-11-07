@@ -175,6 +175,52 @@ namespace {
 		while (bit::sliceable_reference{ RCC->CFGR } [3_to, 2].unshifted()!=RCC_CFGR_SWS_PLL);
 
 		bit::clear(std::ref(RCC->CR), RCC_CR_HSION); //Kill power to HSI
+#elif defined BOOT_STM32G4
+
+		// By default, the core voltage regulator is configured to range 1, normal mode (up to 150 MHz),
+		// so no changes need to be done there. That is 0 WS up to 30 MHz, which is enough.
+
+		bit::set(std::ref(RCC->CR), RCC_CR_HSEON); //start HSE
+		bit::wait_until_set(RCC->CR, RCC_CR_HSERDY);
+		// we want 12 MHz SYSCLK, APBx and AHBx run at max frequency. Therefore output of VCO shall be 24 MHz
+		// and SYSCLK (VCO / PLLR) will run at 12 MHz
+
+		constexpr auto PLL_input = 1_MHz;
+		constexpr auto desired_VCO = 24_MHz;
+		constexpr auto desired_SYSCLK = 12_MHz;
+
+		constexpr unsigned PLLM = boot::customization::HSE / PLL_input; //pre PLL divisor
+		constexpr unsigned PLLN = desired_VCO / PLL_input; // multiply PLL input to VCO clock.
+		constexpr unsigned PLLR = desired_VCO / desired_SYSCLK; // divides VCO freq to SYSCLK
+		// Static asserts based on information in device reference manual.
+		// See section 7.4.4 - description of RCC_PLLCFGR register
+		static_assert(PLLR * desired_SYSCLK == desired_VCO, "Frequency prescalers must be natural numbers!");
+		static_assert(PLL_input * PLLM == boot::customization::HSE, "This PLL input frequency cannot be achieved using supplied HSE frequency.");
+		static_assert(PLLN >= 8 && PLLN <= 127);
+		static_assert(PLLM >= 1 && PLLM <= 16);
+
+		static_assert(PLLR % 2 == 0 && 2 <= PLLR && PLLR <= 8);
+
+		// Keep RCC->CFGR at reset state - no dividers before AHB and APBx buses.
+
+		RCC->PLLCFGR = bit::bitmask(
+				//PLLP does not matter - it supplies clock to ADC
+				//disable PLLP and PLLQ (EN bits low)
+				//PLLR is the prescaler for system clock, can be 2,4,6,8
+				(PLLR / 2 - 1) << RCC_PLLCFGR_PLLR_Pos, //PLLR divides by 2 from 24 to 12 MHz
+				RCC_PLLCFGR_PLLREN, //enable PLLR output
+				PLLN << RCC_PLLCFGR_PLLN_Pos, //set VCO output to desired frequency
+				PLLM << RCC_PLLCFGR_PLLM_Pos, // configure the divider on PLL input
+				RCC_PLLCFGR_PLLSRC_HSE // connect HSE to PLL input
+				);
+
+		bit::set(std::ref(RCC->CR), RCC_CR_PLLON); //start PLL
+		bit::wait_until_set(RCC->CR, RCC_CR_PLLRDY);
+
+		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SWS_Msk, RCC_CFGR_SWS_PLL); // set PLL as system clock
+		while (bit::get(RCC->CFGR, RCC_CFGR_SW_Msk) != RCC_CFGR_SW_PLL); // wait for the SYSCLK to switch to PLL
+
+		bit::clear(std::ref(RCC->CR), RCC_CR_HSION); //disable internal oscillator
 #else
 #error "This MCU is not supported"
 #endif

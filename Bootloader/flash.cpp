@@ -23,8 +23,8 @@ namespace boot {
 
 	void Flash::AwaitEndOfErasure() {
 		//wait for all operations to finish and lock flash
-		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY));
-#ifdef BOOT_STM32F1
+		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY);
+#if defined BOOT_STM32F1 || defined BOOT_STM32G4
 		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_PER);
 #elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
 		ufsel::bit::clear(std::ref(FLASH->CR), FLASH_CR_SER);
@@ -32,8 +32,9 @@ namespace boot {
 	}
 
 	bool Flash::ErasePage(std::uint32_t pageAddress) {
-#ifdef BOOT_STM32F1
+#if defined BOOT_STM32F1
 
+		// Clear programming error and write protection error
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_WRPRTERR, FLASH_SR_PGERR);
 
 		while (ufsel::bit::all_set(FLASH->SR, FLASH_SR_BSY)); //wait for previous operation to end
@@ -41,6 +42,16 @@ namespace boot {
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PER);
 		FLASH->AR = pageAddress;
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_STRT);
+		return true;
+#elif defined BOOT_STM32G4
+
+		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY); //wait for previous operation to end
+		// Clear programming error and write protection error
+		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_WRPERR, FLASH_SR_PROGERR, FLASH_SR_PGSERR);
+
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PER);
+		ufsel::bit::modify(std::ref(FLASH->CR), FLASH_CR_PNB_Msk, getEnclosingBlockIndex(pageAddress) << FLASH_CR_PNB_Pos);
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_STRT); // start page erase
 		return true;
 #elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
 
@@ -92,6 +103,22 @@ namespace boot {
 		ufsel::bit::access_register<nativeType>(address) = data; //Write one word of data
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
+#elif defined BOOT_STM32G4
+		static_assert(std::is_same_v<nativeType, std::uint64_t>, "STM32G4 flash must be written with 64 bit granularoty.");
+		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY);
+		std::uint32_t const cachedResult = FLASH->SR;
+
+		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_SIZERR, FLASH_SR_PGSERR, FLASH_SR_PROGERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR); // clear errors
+		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PG); //Start flash programming
+
+		//TODO maybe disable interrupt to write 8 bytes atomically?
+		ufsel::bit::access_register<std::uint32_t>(address) = data; //Write lower word of data
+		ufsel::bit::access_register<std::uint32_t>(address + 4) = data >> 32; //Write higher word of data
+
+		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY);
+
+		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_SIZERR, FLASH_SR_PGSERR, FLASH_SR_PROGERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
+
 #elif defined BOOT_STM32F7
 		static_assert(std::is_same_v<nativeType, std::uint32_t>, "STM32F7 flash is currently hardcoded to use 32bit writes.");
 		ufsel::bit::wait_until_cleared(FLASH->SR, FLASH_SR_BSY);
