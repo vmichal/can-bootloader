@@ -75,7 +75,7 @@ namespace boot {
 
 		void push(std::uint32_t address, WriteableIntegral auto data, std::size_t const length) {
 			assert(ringbufCanWrite(&ringbuf, sizeof(record)));
-			record const new_record {.address_ = address, .size_ = length, .data_ = data};
+			record const new_record {.address_ = address, .size_ = static_cast<std::uint8_t>(length), .data_ = data};
 			ringbufWrite(&ringbuf, reinterpret_cast<std::uint8_t const*>(&new_record), sizeof(record));
 		}
 
@@ -153,7 +153,7 @@ namespace boot {
 			std::size_t num_bytes_to_write = prev_record.size_;
 			nativeType data_to_write = shift_data(prev_record.data_, prev_record.size_, 0);
 
-			int records_consumed = 1;
+			std::size_t records_consumed = 1;
 			for (; num_bytes_to_write <= sizeof(nativeType) && records_consumed < writeBuffer_.size(); ++records_consumed) {
 				auto const record = writeBuffer_.peek(records_consumed);
 				num_bytes_to_write += record.size_;

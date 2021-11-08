@@ -173,7 +173,7 @@ namespace boot {
 				std::uint32_t const distance_to_aligned = sizeof(Flash::nativeType) - bytes_in_this_doubleword;
 
 				bool const next_block_exists = current_block_index_ + 1 < size(firmwareBlocks_);
-				std::uint32_t const padding_needed = [&]() {
+				std::uint32_t const padding_bytes_needed = [&]() {
 					if (!next_block_exists)
 						return distance_to_aligned;
 
@@ -182,10 +182,10 @@ namespace boot {
 
 				}();
 				// Append bytes 0xff to given data
-				int const padding_start = sizeof(data);
-				Flash::nativeType const padding = ufsel::bit::bitmask_of_width(padding_needed * 8) << (padding_start * 8);
+				int const padding_start_offset = sizeof(data) * 8;
+				Flash::nativeType const padding = ufsel::bit::bitmask_of_width<Flash::nativeType>(padding_bytes_needed * 8) << padding_start_offset;
 				data_to_write |= padding;
-				num_bytes_to_write += padding_needed;
+				num_bytes_to_write += padding_bytes_needed;
 
 				blockOffset_ = 0;
 				if (!next_block_exists)
