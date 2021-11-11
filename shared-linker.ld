@@ -13,14 +13,14 @@ _Min_Heap_Size = 0;      /* required amount of heap. None is required right now*
 _Min_Stack_Size = 8K; /* required amount of stack, at least 8 KiB */
 
 /* Whole address space used by the bootloader - includes ISR, Metadata and bootloader firmware */
-bootloader_flash_start = ORIGIN(BootloaderISR);
-bootloader_flash_end = ORIGIN(BootloaderFlash) + LENGTH(BootloaderFlash);
+bootloader_start = ORIGIN(BootloaderISR);
+bootloader_end = ORIGIN(BootloaderFlash) + LENGTH(BootloaderFlash);
 
 jumpTable_start = ORIGIN(JumpTableFlash);
 jumpTable_end = ORIGIN(JumpTableFlash) + LENGTH(JumpTableFlash);
 
-application_flash_start = ORIGIN(ApplicationFlash);
-application_flash_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
+application_start = ORIGIN(ApplicationFlash);
+application_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
 
 ram_start = ORIGIN(RAM);
 ram_end = ORIGIN(RAM) + LENGTH(RAM);
