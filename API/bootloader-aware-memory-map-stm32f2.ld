@@ -16,16 +16,13 @@ between BL and application during system resets.*/
 BootControlBackupRegisterAddress = 0x40002800 + 0x50; /* BKP domain (in RTC), reg one used.*/
 
 /* BL's requirements. 16K for BL code and 16k for firmware jump table (each is a separate sector).*/
-BootloaderSize = 16K;
+CompleteBootloaderSize = 16K;
 JumpTableSize = 16K;
 
-
+INCLUDE ../../API/bootloader-aware-memory-map-shared.ld
 
 /* Specify the memory areas */
 MEMORY
 {
-BootloaderFlash(rx)      : ORIGIN = FlashStart, LENGTH = BootloaderSize
-JumpTableFlash(rx)       : ORIGIN = FlashStart + BootloaderSize, LENGTH = JumpTableSize
-ApplicationFlash(rx)     : ORIGIN = FlashStart + BootloaderSize + JumpTableSize, LENGTH = FlashSize - BootloaderSize - JumpTableSize
 RAM (xrw)                : ORIGIN = 0x20000000, LENGTH = 128K
 }
