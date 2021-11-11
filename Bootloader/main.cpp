@@ -104,7 +104,7 @@ namespace boot {
 					? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
 					: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
 
-				if (ret == WriteStatus::Ok)
+				if (ret == WriteStatus::Ok || ret == WriteStatus::InsufficientData)
 					return 0;
 				else if (ret == WriteStatus::DiscontinuousWriteAccess) {
 					auto const expectedWriteLocation = bootloader.expectedWriteLocation();

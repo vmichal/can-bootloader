@@ -101,7 +101,7 @@ namespace boot {
 
 		[[nodiscard]] std::size_t size() const { return ringbufSize(&ringbuf) / sizeof(record); }
 		[[nodiscard]] bool is_full() const { return !ringbufCanWrite(&ringbuf, sizeof(record)); }
-		[[nodiscard]] bool empty() const { return size() != 0; }
+		[[nodiscard]] bool empty() const { return size() == 0; }
 	};
 
 	struct Flash {
@@ -145,6 +145,8 @@ namespace boot {
 		}
 
 		static WriteStatus tryPerformingBufferedWrite() {
+			if (writeBuffer_.empty())
+				return WriteStatus::InsufficientData;
 			auto const shift_data = [](std::uint64_t data, std::size_t width, std::size_t shift) {
 				return (data & ufsel::bit::bitmask_of_width(width * 8)) << (shift * 8);
 			};
@@ -155,7 +157,7 @@ namespace boot {
 			nativeType data_to_write = shift_data(prev_record.data_, prev_record.size_, 0);
 
 			std::size_t records_consumed = 1;
-			for (; num_bytes_to_write <= sizeof(nativeType) && records_consumed < writeBuffer_.size(); ++records_consumed) {
+			for (; num_bytes_to_write < sizeof(nativeType) && records_consumed < writeBuffer_.size(); ++records_consumed) {
 				auto const record = writeBuffer_.peek(records_consumed);
 				num_bytes_to_write += record.size_;
 				data_to_write |= shift_data(record.data_, record.size_, num_bytes_to_write);
