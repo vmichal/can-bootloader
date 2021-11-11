@@ -139,6 +139,11 @@ extern "C" {
 
 	int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
 		using namespace ufsel;
+		if (bus == bus_BOTH) {
+			int rc1 = txSendCANMessage(bus_connected_to_CAN1, id, data, length);
+			int rc2 = txSendCANMessage(bus_connected_to_CAN2, id, data, length);
+			return rc1 && rc2;
+		}
 		assert(bus == bus_connected_to_CAN1 || bus == bus_connected_to_CAN2);
 
 		CAN_TypeDef *const peripheral = bus == bus_connected_to_CAN1 ? CAN1 : CAN2;
