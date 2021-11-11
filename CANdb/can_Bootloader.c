@@ -494,7 +494,7 @@ int CarDiagnostics_send_RecoveryModeBeacon_s(const CarDiagnostics_RecoveryModeBe
     uint8_t buffer[2];
     buffer[0] = (data->ECU & 0x07) | ((data->ClockState & 0x07) << 3) | ((data->NumFatalFirmwareErrors & 0x03) << 6);
     buffer[1] = (data->FirmwareState & 0x0F) | (data->WillEnterBootloader ? 16 : 0) | ((data->SEQ & 0x07) << 5);
-    int rc = txSendCANMessage(bus_UNDEFINED, CarDiagnostics_RecoveryModeBeacon_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_BOTH, CarDiagnostics_RecoveryModeBeacon_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         CarDiagnostics_RecoveryModeBeacon_last_sent = txGetTimeMillis();
@@ -507,7 +507,7 @@ int CarDiagnostics_send_RecoveryModeBeacon(enum CarDiagnostics_ECU ECU, enum Car
     uint8_t buffer[2];
     buffer[0] = (ECU & 0x07) | ((ClockState & 0x07) << 3) | ((NumFatalFirmwareErrors & 0x03) << 6);
     buffer[1] = (FirmwareState & 0x0F) | (WillEnterBootloader ? 16 : 0) | ((SEQ & 0x07) << 5);
-    int rc = txSendCANMessage(bus_UNDEFINED, CarDiagnostics_RecoveryModeBeacon_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(bus_BOTH, CarDiagnostics_RecoveryModeBeacon_id, buffer, sizeof(buffer));
 
     if (rc == 0) {
         CarDiagnostics_RecoveryModeBeacon_last_sent = txGetTimeMillis();

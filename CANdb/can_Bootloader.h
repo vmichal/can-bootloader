@@ -11,6 +11,7 @@ extern "C" {
         bus_CAN1 = 0,
         bus_CAN2 = 1,
         bus_UNDEFINED = 2,
+        bus_BOTH = 3,
     };
 
     extern CAN_msg_status_t Bootloader_Beacon_status;
