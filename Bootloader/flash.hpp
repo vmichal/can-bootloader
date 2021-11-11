@@ -63,15 +63,16 @@ namespace boot {
 
 	template<std::size_t CAPACITY>
 	struct FlashWriteBuffer {
-		constexpr static std::size_t capacity = CAPACITY;
-		std::uint8_t buffer[capacity];
-		ringbuf_t ringbuf {.data = buffer, .size = CAPACITY, .readpos = 0, .writepos = 0};
-
 		struct record {
 			std::uint32_t address_;
 			std::uint8_t size_;
 			std::uint64_t data_;
 		};
+
+		constexpr static std::size_t capacity = CAPACITY;
+		record buffer[capacity];
+		ringbuf_t ringbuf {.data = reinterpret_cast<std::uint8_t*>(buffer), .size = CAPACITY, .readpos = 0, .writepos = 0};
+
 
 		void push(std::uint32_t address, WriteableIntegral auto data, std::size_t const length) {
 			assert(ringbufCanWrite(&ringbuf, sizeof(record)));
@@ -105,7 +106,7 @@ namespace boot {
 
 	struct Flash {
 		friend struct ApplicationJumpTable;
-		static inline FlashWriteBuffer<flash_write_buffer_size.toBytes()> writeBuffer_;
+		static inline FlashWriteBuffer<flash_write_buffer_size> writeBuffer_;
 
 		using nativeType = decltype(deduce_int_type_of_size<customization::flashProgrammingParallelism>());
 		static_assert(std::is_unsigned_v<nativeType>, "Flash native type shall be unsigned to prevent problems with signed overflow.");
