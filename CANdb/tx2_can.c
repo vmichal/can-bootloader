@@ -78,19 +78,19 @@ void txProcess(void) {
 	}
 }
 
-void canInitMsgStatus(CAN_msg_status_t* status, int timeout) {
+void canInitMsgStatus(CAN_msg_status_t* status, int default_bus, int timeout) {
 	status->flags = 0;
 	status->timeout = timeout;
 	status->timestamp = -1;
 	status->on_receive = NULL;
-	status->bus = bus_UNDEFINED;
+	status->rx_bus = default_bus;
 }
 
-void canUpdateMsgStatusOnReceive(CAN_msg_status_t* status, uint32_t timestamp, int bus) {
+void canUpdateMsgStatusOnReceive(CAN_msg_status_t* status, int bus_origin, uint32_t timestamp) {
 	if (status->flags & CAN_MSG_PENDING)
 		status->flags |= CAN_MSG_MISSED;
 
 	status->flags |= CAN_MSG_RECEIVED | CAN_MSG_PENDING;
 	status->timestamp = timestamp;
-	status->bus = bus;
+	status->rx_bus = bus_origin;
 }

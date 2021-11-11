@@ -51,7 +51,7 @@ namespace boot {
 
 				if (data->Force) { //We want to abort any ongoing transaction
 					canManager.SendExitAck(true);
-					flushCAN(Bootloader_ExitReq_status.bus, 500_ms);
+					flushCAN(get_rx_bus<Bootloader_ExitReq_t>(), 500_ms);
 
 					resetTo(destination);
 				}
@@ -61,7 +61,7 @@ namespace boot {
 					return 1;
 				}
 				canManager.SendExitAck(true);
-				flushCAN(Bootloader_ExitReq_status.bus, 500_ms);
+				flushCAN(get_rx_bus<Bootloader_ExitReq_t>(), 500_ms);
 
 				resetTo(destination);
 				});
@@ -132,6 +132,8 @@ namespace boot {
 
 	[[noreturn]]
 	void main() {
+
+		candbInit();
 
 		setupCanCallbacks();
 

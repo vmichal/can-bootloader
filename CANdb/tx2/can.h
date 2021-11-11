@@ -25,7 +25,7 @@ typedef struct {
 	uint32_t flags;
 	int32_t timeout;
 	int32_t timestamp;
-	int bus;
+	int rx_bus;
 
 	void (*on_receive)(void);
 } CAN_msg_status_t;
@@ -36,8 +36,8 @@ enum {
 	CAN_MSG_MISSED = 4,
 };
 
-void canInitMsgStatus(CAN_msg_status_t*, int timeout);
-void canUpdateMsgStatusOnReceive(CAN_msg_status_t*, uint32_t timestamp, int bus);
+void canInitMsgStatus(CAN_msg_status_t*, int default_bus, int timeout);
+void canUpdateMsgStatusOnReceive(CAN_msg_status_t*, int bus_origin, uint32_t timestamp);
 
 #ifdef __cplusplus
 }

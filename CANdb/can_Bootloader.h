@@ -5,34 +5,45 @@
 
 #ifdef __cplusplus
 extern "C" {
+#else
+#include <stdbool.h>
 #endif
 
-    enum {
-        bus_CAN1 = 0,
-        bus_CAN2 = 1,
-        bus_UNDEFINED = 2,
-        bus_BOTH = 3,
-    };
+//CANdb code model v2 (enhanced) generated for Bootloader on 11. 11. 2021 (dd. mm. yyyy) at 13.50.55 (hh.mm.ss)
 
-    extern CAN_msg_status_t Bootloader_Beacon_status;
-    extern CAN_msg_status_t Bootloader_Data_status;
-    extern CAN_msg_status_t Bootloader_DataAck_status;
-    extern CAN_msg_status_t Bootloader_ExitReq_status;
-    extern CAN_msg_status_t Bootloader_Handshake_status;
-    extern CAN_msg_status_t Bootloader_HandshakeAck_status;
-    extern CAN_msg_status_t Bootloader_CommunicationYield_status;
+typedef enum {
+    bus_CAN1 = 0,
+    bus_CAN2 = 1,
+    bus_BOTH = 3,
+    bus_UNDEFINED = 4,
+    } candb_bus_t;
 
 enum { Bootloader_Handshake_id          = STD_ID(0x620) };
+enum { Bootloader_Handshake_tx_bus      = bus_UNDEFINED };
 enum { Bootloader_HandshakeAck_id       = STD_ID(0x621) };
+enum { Bootloader_HandshakeAck_tx_bus   = bus_UNDEFINED };
 enum { Bootloader_CommunicationYield_id = STD_ID(0x622) };
+enum { Bootloader_CommunicationYield_tx_bus = bus_UNDEFINED };
 enum { Bootloader_Data_id               = STD_ID(0x623) };
+enum { Bootloader_Data_tx_bus           = bus_UNDEFINED };
 enum { Bootloader_DataAck_id            = STD_ID(0x624) };
+enum { Bootloader_DataAck_tx_bus        = bus_UNDEFINED };
 enum { Bootloader_ExitReq_id            = STD_ID(0x625) };
 enum { Bootloader_ExitAck_id            = STD_ID(0x626) };
+enum { Bootloader_ExitAck_tx_bus        = bus_UNDEFINED };
 enum { Bootloader_Beacon_id             = STD_ID(0x627) };
-enum { Bootloader_Beacon_timeout = 1000 };
+enum { Bootloader_Beacon_timeout        = 1000 };
+enum { Bootloader_Beacon_period         = 500 };
+enum { Bootloader_Beacon_tx_bus         = bus_BOTH };
 enum { Bootloader_SoftwareBuild_id      = STD_ID(0x62D) };
+enum { Bootloader_SoftwareBuild_period  = 1000 };
+enum { Bootloader_SoftwareBuild_tx_bus  = bus_BOTH };
 enum { CarDiagnostics_RecoveryModeBeacon_id = STD_ID(0x023) };
+enum { CarDiagnostics_RecoveryModeBeacon_period = 100 };
+enum { CarDiagnostics_RecoveryModeBeacon_tx_bus = bus_BOTH };
+
+extern CAN_ID_t const candb_sent_messages[9];
+extern CAN_ID_t const candb_received_messages[7];
 
 enum CarDiagnostics_BusName {
     /* Fse09 bus 1 */
@@ -123,6 +134,8 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_STW = 5,
     /* Emergency Brake System Supervisor (DV only) */
     Bootloader_BootTarget_EBSS = 6,
+    /* SiC motor controller */
+    Bootloader_BootTarget_Disruptor = 7,
 };
 
 enum Bootloader_Command {
@@ -465,47 +478,59 @@ typedef struct CarDiagnostics_RecoveryModeBeacon_t {
 #define CarDiagnostics_RecoveryModeBeacon_SEQ_MIN	((float)0)
 #define CarDiagnostics_RecoveryModeBeacon_SEQ_MAX	((float)15)
 
-void candbInit(void);
+void        candbInit              (void);
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
 int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, enum Bootloader_BootTarget* Target_out, uint32_t* Value_out);
 int Bootloader_send_Handshake_s(const Bootloader_Handshake_t* data);
 int Bootloader_get_Handshake(Bootloader_Handshake_t* data_out);
+uint32_t Bootloader_Handshake_get_flags(void);
 void Bootloader_Handshake_on_receive(int (*callback)(Bootloader_Handshake_t* data));
+candb_bus_t Bootloader_Handshake_get_rx_bus(void);
 int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, enum Bootloader_BootTarget Target, uint32_t Value);
 
 int Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootloader_HandshakeAck_t* data_out);
 int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_BootTarget* Target_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out);
 int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data);
 int Bootloader_get_HandshakeAck(Bootloader_HandshakeAck_t* data_out);
+uint32_t Bootloader_HandshakeAck_get_flags(void);
 void Bootloader_HandshakeAck_on_receive(int (*callback)(Bootloader_HandshakeAck_t* data));
+candb_bus_t Bootloader_HandshakeAck_get_rx_bus(void);
 int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_BootTarget Target, enum Bootloader_HandshakeResponse Response, uint32_t Value);
 
 int Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out);
 int Bootloader_decode_CommunicationYield(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
 int Bootloader_send_CommunicationYield_s(const Bootloader_CommunicationYield_t* data);
 int Bootloader_get_CommunicationYield(Bootloader_CommunicationYield_t* data_out);
+uint32_t Bootloader_CommunicationYield_get_flags(void);
 void Bootloader_CommunicationYield_on_receive(int (*callback)(Bootloader_CommunicationYield_t* data));
+candb_bus_t Bootloader_CommunicationYield_get_rx_bus(void);
 int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
 int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint8_t* HalfwordAccess_out, uint32_t* Word_out);
 int Bootloader_send_Data_s(const Bootloader_Data_t* data);
 int Bootloader_get_Data(Bootloader_Data_t* data_out);
+uint32_t Bootloader_Data_get_flags(void);
 void Bootloader_Data_on_receive(int (*callback)(Bootloader_Data_t* data));
+candb_bus_t Bootloader_Data_get_rx_bus(void);
 int Bootloader_send_Data(uint32_t Address, uint8_t HalfwordAccess, uint32_t Word);
 
 int Bootloader_decode_DataAck_s(const uint8_t* bytes, size_t length, Bootloader_DataAck_t* data_out);
 int Bootloader_decode_DataAck(const uint8_t* bytes, size_t length, uint32_t* Address_out, enum Bootloader_WriteResult* Result_out);
 int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data);
 int Bootloader_get_DataAck(Bootloader_DataAck_t* data_out);
+uint32_t Bootloader_DataAck_get_flags(void);
 void Bootloader_DataAck_on_receive(int (*callback)(Bootloader_DataAck_t* data));
+candb_bus_t Bootloader_DataAck_get_rx_bus(void);
 int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result);
 
 int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out);
 int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* Force_out, uint8_t* InitializeApplication_out);
 int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
+uint32_t Bootloader_ExitReq_get_flags(void);
 void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
+candb_bus_t Bootloader_ExitReq_get_rx_bus(void);
 
 int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
 int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
@@ -514,42 +539,76 @@ int Bootloader_decode_Beacon_s(const uint8_t* bytes, size_t length, Bootloader_B
 int Bootloader_decode_Beacon(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, enum Bootloader_State* State_out, enum Bootloader_EntryReason* EntryReason_out, uint16_t* FlashSize_out);
 int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
 int Bootloader_get_Beacon(Bootloader_Beacon_t* data_out);
+uint32_t Bootloader_Beacon_get_flags(void);
 void Bootloader_Beacon_on_receive(int (*callback)(Bootloader_Beacon_t* data));
+candb_bus_t Bootloader_Beacon_get_rx_bus(void);
+bool Bootloader_Beacon_has_timed_out(void);
 int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, enum Bootloader_EntryReason EntryReason, uint16_t FlashSize);
-int Bootloader_Beacon_need_to_send(void);
+bool Bootloader_Beacon_need_to_send(void);
 
 int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data);
 int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo, enum Bootloader_BootTarget Target);
-int Bootloader_SoftwareBuild_need_to_send(void);
+bool Bootloader_SoftwareBuild_need_to_send(void);
 
 int CarDiagnostics_send_RecoveryModeBeacon_s(const CarDiagnostics_RecoveryModeBeacon_t* data);
 int CarDiagnostics_send_RecoveryModeBeacon(enum CarDiagnostics_ECU ECU, enum CarDiagnostics_ClockState ClockState, uint8_t NumFatalFirmwareErrors, enum CarDiagnostics_FirmwareState FirmwareState, uint8_t WillEnterBootloader, uint8_t SEQ);
-int CarDiagnostics_RecoveryModeBeacon_need_to_send(void);
+bool CarDiagnostics_RecoveryModeBeacon_need_to_send(void);
 
 #ifdef __cplusplus
 }
 
-template <typename T>
-bool need_to_send();
+template <typename T> bool        need_to_send   ();
+template <typename T> candb_bus_t get_rx_bus     ();
+template <typename T> bool        has_timed_out  ();
 
 inline int send(const Bootloader_Handshake_t& data) {
     return Bootloader_send_Handshake_s(&data);
+}
+
+template <>
+inline candb_bus_t get_rx_bus<Bootloader_Handshake_t>() {
+    return Bootloader_Handshake_get_rx_bus();
 }
 
 inline int send(const Bootloader_HandshakeAck_t& data) {
     return Bootloader_send_HandshakeAck_s(&data);
 }
 
+template <>
+inline candb_bus_t get_rx_bus<Bootloader_HandshakeAck_t>() {
+    return Bootloader_HandshakeAck_get_rx_bus();
+}
+
 inline int send(const Bootloader_CommunicationYield_t& data) {
     return Bootloader_send_CommunicationYield_s(&data);
+}
+
+template <>
+inline candb_bus_t get_rx_bus<Bootloader_CommunicationYield_t>() {
+    return Bootloader_CommunicationYield_get_rx_bus();
 }
 
 inline int send(const Bootloader_Data_t& data) {
     return Bootloader_send_Data_s(&data);
 }
 
+template <>
+inline candb_bus_t get_rx_bus<Bootloader_Data_t>() {
+    return Bootloader_Data_get_rx_bus();
+}
+
 inline int send(const Bootloader_DataAck_t& data) {
     return Bootloader_send_DataAck_s(&data);
+}
+
+template <>
+inline candb_bus_t get_rx_bus<Bootloader_DataAck_t>() {
+    return Bootloader_DataAck_get_rx_bus();
+}
+
+template <>
+inline candb_bus_t get_rx_bus<Bootloader_ExitReq_t>() {
+    return Bootloader_ExitReq_get_rx_bus();
 }
 
 inline int send(const Bootloader_ExitAck_t& data) {
@@ -563,6 +622,16 @@ inline bool need_to_send<Bootloader_Beacon_t>() {
 
 inline int send(const Bootloader_Beacon_t& data) {
     return Bootloader_send_Beacon_s(&data);
+}
+
+template <>
+inline bool has_timed_out<Bootloader_Beacon_t>() {
+    return Bootloader_Beacon_has_timed_out();
+}
+
+template <>
+inline candb_bus_t get_rx_bus<Bootloader_Beacon_t>() {
+    return Bootloader_Beacon_get_rx_bus();
 }
 
 template <>
