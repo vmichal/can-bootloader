@@ -193,7 +193,7 @@ namespace boot {
 					// We are writing a smaller integral type and no more data is comming... Padding should be added to data_to_write
 					MemoryBlock const * next_block = current_block_index_ + 1 < size(firmwareBlocks_) ? &firmwareBlocks_[current_block_index_ + 1] : nullptr;
 
-					int const padding_width = calculate_padding(address, data, next_block);
+					int const padding_width = calculate_padding_width(address, data, next_block);
 					int const padding_offset = sizeof(data) * 8;
 
 					Flash::nativeType const padding = ufsel::bit::bitmask_of_width<Flash::nativeType>(padding_width * 8) << padding_offset;
