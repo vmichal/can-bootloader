@@ -49,17 +49,12 @@ namespace boot {
 				std::uint16_t const destination = data->InitializeApplication
 					? BackupDomain::application_magic : BackupDomain::bootloader_magic;
 
-				if (data->Force) { //We want to abort any ongoing transaction
-					canManager.SendExitAck(true);
-					flushCAN(get_rx_bus<Bootloader_ExitReq_t>(), 500_ms);
-
-					resetTo(destination);
-				}
-
-				if (bootloader.transactionInProgress()) {
+				if (!data->Force && bootloader.transactionInProgress()) {
 					canManager.SendExitAck(false);
 					return 1;
 				}
+				//We want to abort any ongoing transaction or no transaction in progress
+
 				canManager.SendExitAck(true);
 				flushCAN(get_rx_bus<Bootloader_ExitReq_t>(), 500_ms);
 
