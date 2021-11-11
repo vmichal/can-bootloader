@@ -158,12 +158,19 @@ namespace boot {
 		}
 
 		static bool do_schedule_write(std::uint32_t const address, WriteableIntegral auto data) {
-			for (std::size_t offset = 0; offset < sizeof(data); offset += sizeof(Flash::nativeType)) {
-				if (bool const ret = Flash::ScheduleBufferedWrite<Flash::nativeType>(address + offset, data); !ret)
-					return false;
-				data >>= sizeof(Flash::nativeType) * 8;
+			static_assert(sizeof(data) >= sizeof(Flash::nativeType));
+			if constexpr (sizeof(data) == sizeof(Flash::nativeType)) {
+				// No need to go through the for loop since only one element is written.
+				return Flash::ScheduleBufferedWrite(address, data);
 			}
-			return true;
+			else {
+				for (std::size_t offset = 0; offset < sizeof(data); offset += sizeof(Flash::nativeType)) {
+					if (bool const ret = Flash::ScheduleBufferedWrite<Flash::nativeType>(address + offset, data); !ret)
+						return false;
+					data >>= sizeof(Flash::nativeType) * 8;
+				}
+				return true;
+			}
 		}
 
 		static constexpr int calculate_padding_width(std::uint32_t address, WriteableIntegral auto const data, MemoryBlock const * next_block) {
