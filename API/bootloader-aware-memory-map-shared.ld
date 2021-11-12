@@ -28,4 +28,4 @@ JumpTableFlash(rx)       : ORIGIN = BootloaderFlashStart + BootloaderSize, LENGT
 ApplicationFlash(rx)     : ORIGIN = BootloaderFlashStart + BootloaderSize + JumpTableSize, LENGTH = FlashSize - BootloaderSize - JumpTableSize
 }
 
-bootloader_metadata_address = ORIGIN(BootloaderMetadata)
+bootloader_metadata_address = ORIGIN(BootloaderMetadata);
