@@ -44,7 +44,7 @@ SECTIONS
     . = ALIGN(4);
   } > RAM AT> BootloaderISR
 
-    .bootloaderMetadataSection(NOLOAD) :
+    .bootloaderMetadataSection :
     {
      . = ALIGN(4);
      KEEP(*(bootloaderMetadataSection))
