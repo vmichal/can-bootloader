@@ -192,7 +192,7 @@ namespace boot {
 			else {
 				// sizeof(data) < sizeof(Flash::nativeType)
 				if (!is_last_write_in_logical_block) {// more data to go, don't bother calculating padding yet
-					bool const scheduled = do_schedule_write(address, data);
+					bool const scheduled = Flash::ScheduleBufferedWrite(address, data);
 					assert(scheduled);
 				}
 					// We are writing the last data of current logical memory block -> extend it to native flash type
