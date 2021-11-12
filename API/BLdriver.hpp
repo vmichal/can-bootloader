@@ -74,12 +74,12 @@ namespace boot {
 		;
 		std::uint32_t commit_hash
 #ifdef BUILDING_BOOTLOADER
-				= ufsel::git::commit_hash();
+				= ufsel::git::commit_hash()
 #endif
 		;
 		std::uint32_t has_dirty_working_tree
 #ifdef BUILDING_BOOTLOADER
-				= ufsel::git::has_dirty_working_tree();
+				= ufsel::git::has_dirty_working_tree()
 #endif
 		;
 
