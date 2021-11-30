@@ -64,6 +64,7 @@ namespace boot {
 	};
 
 
+	/* Memory mapped structure exposing useful data about the bootloader (e.g. the software build) to the application. */
 	struct BootloaderMetadata {
 		constexpr static std::uint32_t expected_magics[] {0xcafe'babe, 0xb16'b00b5, 0xface'b00c};
 
@@ -88,6 +89,12 @@ namespace boot {
 				= expected_magics[1]
 #endif
 		;
+
+		char build_date[32]
+#ifdef BUILDING_BOOTLOADER
+				= __DATE__ " at " __TIME__
+#endif
+		;
 		std::uint32_t magic2
 #ifdef BUILDING_BOOTLOADER
 				= expected_magics[2]
@@ -105,7 +112,7 @@ namespace boot {
 	inline constexpr BootloaderMetadata bootloaderMetadata __attribute__((section("bootloaderMetadataSection"))) {};
 #else
 	// Define only a reference for reading. No object is created, so the compiler does not attempt to initialize it
-	inline BootloaderMetadata const& BootloaderMetadata = *bootloader_metadata_address;
+	inline BootloaderMetadata const& bootloaderMetadata = *bootloader_metadata_address;
 #endif
 
 	[[noreturn]]
