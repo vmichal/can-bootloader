@@ -117,7 +117,7 @@ namespace boot {
 	__attribute__((section("bootloaderMetadataSection"))) extern const BootloaderMetadata bootloaderMetadata;
 #else
 	// Define only a reference for reading. No object is created, so the compiler does not attempt to initialize it
-	inline BootloaderMetadata const& bootloaderMetadata = *bootloader_metadata_address;
+	inline BootloaderMetadata const& bootloaderMetadata = *impl::bootloader_metadata_address;
 #endif
 
 	[[noreturn]]
