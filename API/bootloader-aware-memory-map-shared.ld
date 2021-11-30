@@ -13,6 +13,7 @@ BootloaderMetadataSize = 512;
 BootloaderVectorSize = 512;
 
 BootloaderSize = CompleteBootloaderSize - BootloaderMetadataSize - BootloaderVectorSize;
+LeftForApplication = FlashSize - CompleteBootloaderSize - JumpTableSize;
 
 /* FlashStart should already be defined by the including script. */
 BootloaderFlashStart = FlashStart + BootloaderVectorSize + BootloaderMetadataSize;
@@ -25,7 +26,7 @@ BootloaderMetadata(r)    : ORIGIN = FlashStart + BootloaderVectorSize, LENGTH = 
 
 BootloaderFlash(rx)      : ORIGIN = BootloaderFlashStart, LENGTH = BootloaderSize
 JumpTableFlash(rx)       : ORIGIN = BootloaderFlashStart + BootloaderSize, LENGTH = JumpTableSize
-ApplicationFlash(rx)     : ORIGIN = BootloaderFlashStart + BootloaderSize + JumpTableSize, LENGTH = FlashSize - BootloaderSize - JumpTableSize
+ApplicationFlash(rx)     : ORIGIN = BootloaderFlashStart + BootloaderSize + JumpTableSize, LENGTH = LeftForApplication
 }
 
 bootloader_metadata_address = ORIGIN(BootloaderMetadata);
