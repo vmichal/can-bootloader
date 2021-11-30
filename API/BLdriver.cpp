@@ -89,4 +89,9 @@ namespace boot {
 		for (;;);
 	}
 
+
+#ifdef BUILDING_BOOTLOADER
+	BootloaderMetadata const bootloaderMetadata{};
+#endif
+
 }

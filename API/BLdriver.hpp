@@ -90,9 +90,14 @@ namespace boot {
 #endif
 		;
 
-		char build_date[32]
+		char build_date[16]
 #ifdef BUILDING_BOOTLOADER
-				= __DATE__ " at " __TIME__
+				= __DATE__
+#endif
+		;
+		char build_time[16]
+#ifdef BUILDING_BOOTLOADER
+				= __TIME__
 #endif
 		;
 		std::uint32_t magic2
@@ -109,7 +114,7 @@ namespace boot {
 
 #ifdef  BUILDING_BOOTLOADER
 	// Define a whole object with constant initializer to be stored in the memory
-	inline constexpr BootloaderMetadata bootloaderMetadata __attribute__((section("bootloaderMetadataSection"))) {};
+	__attribute__((section("bootloaderMetadataSection"))) extern const BootloaderMetadata bootloaderMetadata;
 #else
 	// Define only a reference for reading. No object is created, so the compiler does not attempt to initialize it
 	inline BootloaderMetadata const& bootloaderMetadata = *bootloader_metadata_address;
