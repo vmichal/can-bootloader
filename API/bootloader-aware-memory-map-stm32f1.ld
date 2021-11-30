@@ -1,5 +1,5 @@
 
-/* Memory map for bootloader aware firmware
+/* Memory map for bootloader aware firmware running on STM32F1
 
 * Written by Vojtech Michal
 * Copyright (c) eForce FEE Prague Formula, 2020, 2021
@@ -18,8 +18,6 @@ BootControlBackupRegisterAddress = 0x40006c00 + 4; /* BKP domain, reg one used.*
 /* BL's requirements. 14K for BL code and 2k for firmware jump table.*/
 CompleteBootloaderSize = 14K;
 JumpTableSize = 2K;
-
-INCLUDE ../../API/bootloader-aware-memory-map-shared.ld
 
 /* Specify the memory areas */
 MEMORY

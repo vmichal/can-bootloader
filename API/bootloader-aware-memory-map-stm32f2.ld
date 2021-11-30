@@ -19,8 +19,6 @@ BootControlBackupRegisterAddress = 0x40002800 + 0x50; /* BKP domain (in RTC), re
 CompleteBootloaderSize = 16K;
 JumpTableSize = 16K;
 
-INCLUDE ../../API/bootloader-aware-memory-map-shared.ld
-
 /* Specify the memory areas */
 MEMORY
 {

@@ -7,6 +7,7 @@
 
 /*Includes a MEMORY command defining address space available to the application*/
 INCLUDE ../../API/bootloader-aware-memory-map-stm32f4.ld
+INCLUDE ../../API/bootloader-aware-memory-map-shared.ld
 
 /* Contains SECTIONS command etc */
 INCLUDE ../../shared-linker.ld
