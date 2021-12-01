@@ -2,10 +2,10 @@
 
 if [ $1 == 'all' ] || [ $1 == 'ALL' ]
 then
-  ./compile.sh F1
-  ./compile.sh F2
-  ./compile.sh F4
-  ./compile.sh F7
+  ./compile.sh f1
+  ./compile.sh f2
+  ./compile.sh f4
+  ./compile.sh f7
 else
   mkdir -p build
   mkdir -p build/STM32$1
