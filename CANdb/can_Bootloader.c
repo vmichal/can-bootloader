@@ -1,28 +1,30 @@
 #include "can_Bootloader.h"
 #include <string.h>
 
-//CANdb code model v2 (enhanced) generated for Bootloader on 02. 12. 2021 (dd. mm. yyyy) at 23.44.28 (hh.mm.ss)
+//CANdb code model v2 (enhanced) generated for Bootloader on 03. 12. 2021 (dd. mm. yyyy) at 10.30.31 (hh.mm.ss)
 
 
-CAN_ID_t const candb_sent_messages[9] = {
+CAN_ID_t const candb_sent_messages[10] = {
    Bootloader_Handshake_id,
    Bootloader_HandshakeAck_id,
    Bootloader_CommunicationYield_id,
    Bootloader_Data_id,
    Bootloader_DataAck_id,
-   Bootloader_ExitAck_id,
    Bootloader_Beacon_id,
+   Bootloader_PingResponse_id,
+   Bootloader_ExitAck_id,
    Bootloader_SoftwareBuild_id,
    CarDiagnostics_RecoveryModeBeacon_id,
 };
 
-CAN_ID_t const candb_received_messages[7] = {
+CAN_ID_t const candb_received_messages[8] = {
    Bootloader_Handshake_id,
    Bootloader_HandshakeAck_id,
    Bootloader_CommunicationYield_id,
    Bootloader_Data_id,
    Bootloader_DataAck_id,
    Bootloader_ExitReq_id,
+   Bootloader_Ping_id,
    Bootloader_Beacon_id,
 };
 
@@ -38,6 +40,8 @@ CAN_msg_status_t Bootloader_DataAck_status;
 Bootloader_DataAck_t Bootloader_DataAck_data;
 CAN_msg_status_t Bootloader_ExitReq_status;
 Bootloader_ExitReq_t Bootloader_ExitReq_data;
+CAN_msg_status_t Bootloader_Ping_status;
+Bootloader_Ping_t Bootloader_Ping_data;
 CAN_msg_status_t Bootloader_Beacon_status;
 Bootloader_Beacon_t Bootloader_Beacon_data;
 int32_t Bootloader_Beacon_last_sent;
@@ -51,6 +55,7 @@ void candbInit(void) {
     canInitMsgStatus(&Bootloader_Data_status, bus_UNDEFINED, -1);
     canInitMsgStatus(&Bootloader_DataAck_status, bus_UNDEFINED, -1);
     canInitMsgStatus(&Bootloader_ExitReq_status, bus_UNDEFINED, -1);
+    canInitMsgStatus(&Bootloader_Ping_status, bus_UNDEFINED, -1);
     canInitMsgStatus(&Bootloader_Beacon_status, bus_UNDEFINED, Bootloader_Beacon_timeout);
     Bootloader_Beacon_last_sent = -1;
     Bootloader_SoftwareBuild_last_sent = -1;
@@ -429,18 +434,46 @@ candb_bus_t Bootloader_ExitReq_get_rx_bus(void) {
     return Bootloader_ExitReq_status.rx_bus;
 }
 
-int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data) {
-    uint8_t buffer[1];
-    buffer[0] = (data->Target & 0x0F) | (data->Confirmed ? 16 : 0);
-    int rc = txSendCANMessage(Bootloader_ExitReq_status.rx_bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
-    return rc;
+int Bootloader_decode_Ping_s(const uint8_t* bytes, size_t length, Bootloader_Ping_t* data_out) {
+    if (length < 1)
+        return 0;
+
+    data_out->Target = (enum Bootloader_BootTarget) ((bytes[0] & 0x0F));
+    data_out->BootloaderRequested = ((bytes[0] >> 4) & 0x01);
+    return 1;
 }
 
-int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed) {
-    uint8_t buffer[1];
-    buffer[0] = (Target & 0x0F) | (Confirmed ? 16 : 0);
-    int rc = txSendCANMessage(Bootloader_ExitReq_status.rx_bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
-    return rc;
+int Bootloader_decode_Ping(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* BootloaderRequested_out) {
+    if (length < 1)
+        return 0;
+
+    *Target_out = (enum Bootloader_BootTarget) ((bytes[0] & 0x0F));
+    *BootloaderRequested_out = ((bytes[0] >> 4) & 0x01);
+    return 1;
+}
+
+int Bootloader_get_Ping(Bootloader_Ping_t* data_out) {
+    if (!(Bootloader_Ping_status.flags & CAN_MSG_RECEIVED))
+        return 0;
+
+    if (data_out)
+        memcpy(data_out, &Bootloader_Ping_data, sizeof(Bootloader_Ping_t));
+
+    int flags = Bootloader_Ping_status.flags;
+    Bootloader_Ping_status.flags &= ~CAN_MSG_PENDING;
+    return flags;
+}
+
+uint32_t Bootloader_Ping_get_flags(void) {
+    return Bootloader_Ping_status.flags;
+}
+
+void Bootloader_Ping_on_receive(int (*callback)(Bootloader_Ping_t* data)) {
+    Bootloader_Ping_status.on_receive = (void (*)(void)) callback;
+}
+
+candb_bus_t Bootloader_Ping_get_rx_bus(void) {
+    return Bootloader_Ping_status.rx_bus;
 }
 
 int Bootloader_decode_Beacon_s(const uint8_t* bytes, size_t length, Bootloader_Beacon_t* data_out) {
@@ -528,6 +561,34 @@ candb_bus_t Bootloader_Beacon_get_rx_bus(void) {
 
 bool Bootloader_Beacon_has_timed_out(void) {
     return Bootloader_Beacon_status.timeout != -1 && (txGetTimeMillis() - (uint32_t)Bootloader_Beacon_status.timestamp) > (uint32_t)Bootloader_Beacon_timeout;
+}
+
+int Bootloader_send_PingResponse_s(const Bootloader_PingResponse_t* data) {
+    uint8_t buffer[1];
+    buffer[0] = (data->Target & 0x0F) | (data->BootloaderPending ? 16 : 0);
+    int rc = txSendCANMessage(Bootloader_Ping_status.rx_bus, Bootloader_PingResponse_id, buffer, sizeof(buffer));
+    return rc;
+}
+
+int Bootloader_send_PingResponse(enum Bootloader_BootTarget Target, uint8_t BootloaderPending) {
+    uint8_t buffer[1];
+    buffer[0] = (Target & 0x0F) | (BootloaderPending ? 16 : 0);
+    int rc = txSendCANMessage(Bootloader_Ping_status.rx_bus, Bootloader_PingResponse_id, buffer, sizeof(buffer));
+    return rc;
+}
+
+int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data) {
+    uint8_t buffer[1];
+    buffer[0] = (data->Target & 0x0F) | (data->Confirmed ? 16 : 0);
+    int rc = txSendCANMessage(Bootloader_ExitReq_status.rx_bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
+    return rc;
+}
+
+int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed) {
+    uint8_t buffer[1];
+    buffer[0] = (Target & 0x0F) | (Confirmed ? 16 : 0);
+    int rc = txSendCANMessage(Bootloader_ExitReq_status.rx_bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
+    return rc;
 }
 
 int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data) {
@@ -661,6 +722,17 @@ void candbHandleMessage(uint32_t timestamp, int bus, CAN_ID_t id, const uint8_t*
 
         if (Bootloader_ExitReq_status.on_receive)
             ((int (*)(Bootloader_ExitReq_t*)) Bootloader_ExitReq_status.on_receive)(&Bootloader_ExitReq_data);
+
+        break;
+    }
+    case Bootloader_Ping_id: {
+        if (!Bootloader_decode_Ping_s(payload, payload_length, &Bootloader_Ping_data))
+            break;
+
+        canUpdateMsgStatusOnReceive(&Bootloader_Ping_status, bus, timestamp);
+
+        if (Bootloader_Ping_status.on_receive)
+            ((int (*)(Bootloader_Ping_t*)) Bootloader_Ping_status.on_receive)(&Bootloader_Ping_data);
 
         break;
     }
