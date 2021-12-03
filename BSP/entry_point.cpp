@@ -76,14 +76,15 @@ namespace {
 	boot::EntryReason determineApplicationAvailability()  __attribute__((section(".executed_from_flash")));
 	boot::EntryReason determineApplicationAvailability() {
 
-		switch (boot::BackupDomain::bootControlRegister) {
-		case boot::BackupDomain::bootloader_magic:
+		auto const destination = static_cast<boot::BackupDomain::magic>(boot::BackupDomain::bootControlRegister);
+		switch (destination) {
+		case boot::BackupDomain::magic::bootloader:
 			return boot::EntryReason::Requested; //return to enter the bootloader
-		case boot::BackupDomain::app_fatal_error_magic:
+		case boot::BackupDomain::magic::app_fatal_error:
 			return boot::EntryReason::ApplicationFailure;
 
-		case boot::BackupDomain::reset_value:
-		case boot::BackupDomain::application_magic:
+		case boot::BackupDomain::magic::reset_value:
+		case boot::BackupDomain::magic::application:
 			break; //these two options must still be validated
 		default: //the backup domain contains unknown value
 			return boot::EntryReason::BackupRegisterCorrupted;

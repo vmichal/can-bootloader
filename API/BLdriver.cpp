@@ -78,11 +78,12 @@ namespace boot {
 	}
 
 	[[noreturn]]
-	void resetTo(std::uint16_t const code) {
-		UFSEL_ASSERT_INTERNAL(code == BackupDomain::application_magic || code == BackupDomain::bootloader_magic || code == BackupDomain::app_fatal_error_magic);
+	void resetTo(BackupDomain::magic const where) {
+		UFSEL_ASSERT_INTERNAL(where == BackupDomain::magic::application
+		                      || where == BackupDomain::magic::bootloader || where == BackupDomain::magic::app_fatal_error);
 
 		BackupDomain::unlock();
-		BackupDomain::bootControlRegister = code;
+		BackupDomain::bootControlRegister = static_cast<std::uint16_t>(where);
 
 		NVIC_SystemReset();
 		for (;;);

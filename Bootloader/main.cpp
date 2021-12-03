@@ -49,8 +49,8 @@ namespace boot {
 				if (data->Target != customization::thisUnit)
 					return 2;
 
-				std::uint16_t const destination = data->InitializeApplication
-					? BackupDomain::application_magic : BackupDomain::bootloader_magic;
+				BackupDomain::magic const destination = data->InitializeApplication
+					? BackupDomain::magic::application : BackupDomain::magic::bootloader;
 
 				if (!data->Force && bootloader.transactionInProgress()) {
 					canManager.SendExitAck(false);
@@ -177,7 +177,7 @@ namespace boot {
 		for (;;) {
 			if constexpr (boot::rebootAfterHardfault) {
 				if (hardfaultEntryTime.TimeElapsed(boot::rebootDelayHardfault))
-					resetTo(BackupDomain::bootloader_magic);
+					resetTo(BackupDomain::magic::bootloader);
 			}
 
 			if (need_to_send<CarDiagnostics_RecoveryModeBeacon_t>()) {
