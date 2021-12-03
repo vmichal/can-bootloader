@@ -93,7 +93,7 @@ def find_enum(owner, name, database):
 	except:
 		raise Exception(f"Enum {owner}::{name} does not exist!")
 
-TargetData = namedtuple('TargetData', ['state', 'flash_size', 'last_response', 'entry_reason'])
+TargetBootloaderData = namedtuple('TargetBootloaderData', ['state', 'flash_size', 'last_response', 'entry_reason'])
 TargetSoftwareBuild = namedtuple('TargetSoftwareBuild', ['CommitSHA', 'DirtyRepo'])
 ApplicationData = namedtuple('ApplicationData', ['BLpending', 'last_response'])
 
@@ -130,8 +130,8 @@ class BootloaderListing:
 			raise Exception("ERROR: Message 'SoftwareBuild' does not include fields 'Target', 'CommitSHA', 'DirtyRepo'")
 
 		self.targetable_units = self.beacon["Target"].linked_enum.enum
-		self.active_bootloaders  = { }
-		self.bootloader_versions = { }
+		self.active_bootloaders  = { } # dictionary BootTarget : TargetBootloaderData
+		self.bootloader_builds = { } # dictionary BootTarget : TargetSoftwareBuild
 		self.aware_applications  = { unit : ApplicationData(None, None) for unit in self.targetable_units }
 
 		self.exit = False
@@ -149,6 +149,17 @@ class BootloaderListing:
 		self.pingCyclePeriod = self.pingCyclePeriodFast # Start fast by default to catch the bootloader during BL startup CAN bus check
 		self.pingThread = threading.Thread(target = BootloaderListing._do_ping_bootloader_aware_units, args = (self,), daemon=True)
 		self.pingThread.start()
+
+	def _generate_sw_build_string_for(self, unit):
+		if unit in self.bootloader_builds:
+			commit = self.bootloader_builds[unit]
+
+			if commit.CommitSHA is not None:
+				return f'0x{commit.CommitSHA:08x}{"(dirty)" if commit.DirtyRepo else ""}'
+		return 'N/A'
+
+	def _get_unit_name(self, unit):
+		return self.beacon["Target"].linked_enum.enum[unit].name
 
 	def _do_print(self):
 		while not self.exit:
@@ -170,28 +181,23 @@ class BootloaderListing:
 			states = []
 			flash_sizes = []
 			entry_reasons = []
-			commits = []
+			builds = []
 			last_response = []
-	
+
 			#copy data to separate lists
 			for unit, data in self.active_bootloaders.items():
-				commits.append('N/A')
-				if unit in self.bootloader_versions:
-					commit = self.bootloader_versions[unit]
+				builds.append(self._generate_sw_build_string_for(unit))
 
-					if commit.CommitSHA is not None:
-						commits[-1] = f'0x{commit.CommitSHA:08x}{"(dirty)" if commit.DirtyRepo else ""}'
-
-				targets.append(self.beacon["Target"].linked_enum.enum[unit].name)
+				targets.append(self._get_unit_name(unit))
 				states.append(self.beacon["State"].linked_enum.enum[data.state].name)
 				entry_reasons.append(self.beacon["EntryReason"].linked_enum.enum[data.entry_reason].name)
 				flash_sizes.append(str(data.flash_size))
 				last_response.append("yep" if time.time() - data.last_response < 2.0 else "connection lost")
-	
+
 			for unit, data in self.aware_applications.items():
-				targets.append(self.beacon["Target"].linked_enum.enum[unit].name)
+				targets.append(self._get_unit_name(unit))
 				flash_sizes.append('')
-				commits.append('')
+				builds.append(self._generate_sw_build_string_for(unit))
 				entry_reasons.append('')
 
 				if data.last_response is not None:
@@ -210,12 +216,12 @@ class BootloaderListing:
 			length_state     = space_width + max(max(map(lambda s:len(s), states))          , len("State"))
 			length_reason    = space_width + max(max(map(lambda s:len(s), entry_reasons))   , len("Activation reason"))
 			length_flash     = space_width + len("Flash [KiB]")
-			length_commit    = space_width + max(max(map(lambda s:len(s), commits))         , len("Bootloader build"))
+			length_commit    = space_width + max(max(map(lambda s:len(s), builds))         , len("Bootloader build"))
 			length_connected = len("connection lost")
 	
 			print(f'{"Target":{length_target}}{"State":{length_state}}{"Flash [KiB]":{length_flash}}{"Activation reason":{length_reason}}{"Bootloader build":{length_commit}}{"Responding?":{length_connected}}', file = self.terminal)
 			print('-' * (length_target + length_state + length_reason + length_flash + length_connected + length_commit), file = self.terminal)
-			for target, state, reason, flash_size, commit, response in zip(targets, states, entry_reasons, flash_sizes, commits, last_response):
+			for target, state, reason, flash_size, commit, response in zip(targets, states, entry_reasons, flash_sizes, builds, last_response):
 				print(f'{target:{length_target}}{state:{length_state}}{flash_size:{length_flash}}{reason:{length_reason}}{commit:{length_commit}}{response:{length_connected}}', file = self.terminal)
 		
 	def _do_ping_bootloader_aware_units(self):
@@ -268,7 +274,7 @@ class BootloaderListing:
 			entry_reason = self.beacon["EntryReason"].value[0]
 
 
-			self.active_bootloaders[target] = TargetData(state, flash_size, time.time(), entry_reason)
+			self.active_bootloaders[target] = TargetBootloaderData(state, flash_size, time.time(), entry_reason)
 			if target in self.aware_applications:
 				del self.aware_applications[target] #target has entered bootloader -> remove it from list of aware applications
 	
@@ -291,7 +297,7 @@ class BootloaderListing:
 			sha = int(self.SoftwareBuild["CommitSHA"].value[0])
 			dirty = bool(self.SoftwareBuild["DirtyRepo"].value[0])
 
-			self.bootloader_versions[target] = TargetSoftwareBuild(sha, dirty)
+			self.bootloader_builds[target] = TargetSoftwareBuild(sha, dirty)
 
 	def terminate(self):
 		self.exit = True
