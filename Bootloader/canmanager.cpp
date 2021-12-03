@@ -89,11 +89,11 @@ namespace boot {
 		for (;send(msg););
 	}
 
-	void CanManager::sendPingResponse(bool entering_bl) const {
+	void CanManager::SendPingResponse(bool entering_bl) const {
 		Bootloader_PingResponse_t msg;
 
 		msg.Target = customization::thisUnit;
-		msg.Confirmed = entering_bl;
+		msg.BootloaderPending = entering_bl;
 
 		for (;send(msg););
 	}
