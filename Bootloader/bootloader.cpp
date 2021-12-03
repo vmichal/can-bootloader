@@ -628,8 +628,8 @@ namespace boot {
 
 
 	void Bootloader::setEntryReason(EntryReason reason) {
-		assert(entryReason_ == EntryReason::DontEnter); //Make sure this is called only once
-		assert(reason != EntryReason::DontEnter); //Sanity check
+		assert(entryReason_ == EntryReason::Unknown); //Make sure this is called only once
+		assert(reason != EntryReason::Unknown); //Sanity check
 
 		entryReason_ = reason;
 	}

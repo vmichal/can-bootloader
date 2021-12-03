@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced) generated for Bootloader on 11. 11. 2021 (dd. mm. yyyy) at 13.50.55 (hh.mm.ss)
+//CANdb code model v2 (enhanced) generated for Bootloader on 02. 12. 2021 (dd. mm. yyyy) at 23.44.28 (hh.mm.ss)
 
 typedef enum {
     bus_CAN1 = 0,
@@ -158,24 +158,30 @@ enum Bootloader_Command {
 };
 
 enum Bootloader_EntryReason {
-    /* Bootloader will not be entered (jump straight to application) */
-    Bootloader_EntryReason_DontEnter = 0,
-    /* Either no firmware is flashed, or there has been a memory corruption */
-    Bootloader_EntryReason_InvalidMagic = 1,
+    /* The bootloader has verified that the flashed binary is valid and is initiating the startup check of CAN bus to make sure he is allowed to enter the application. */
+    Bootloader_EntryReason_StartupCanBusCheck = 0,
+    /* Bootloader has performed startup CAN bus check without receiving any activation request. It is therefore safe to initialize the application. */
+    Bootloader_EntryReason_DontEnter = 1,
     /* The application's interrupt vector is not aligned properly */
-    Bootloader_EntryReason_UnalignedInterruptVector = 2,
+    Bootloader_EntryReason_InterruptVectorNotAligned = 2,
     /* The entry point pointer does not point into flash */
-    Bootloader_EntryReason_InvalidEntryPoint = 3,
+    Bootloader_EntryReason_EntryPointNotInFlash = 3,
     /* The vector table pointer not point into flash */
-    Bootloader_EntryReason_InvalidInterruptVector = 4,
-    /* The specified top of stack points to flash */
-    Bootloader_EntryReason_InvalidTopOfStack = 5,
-    /* The backup register contained value different from 0 (reset value) or application_magic */
+    Bootloader_EntryReason_InterruptVectorNotInFlash = 4,
+    /* The specified top of stack does not point to RAM */
+    Bootloader_EntryReason_TopOfStackInvalid = 5,
+    /* The value contained in the boot control register was not recognized */
     Bootloader_EntryReason_BackupRegisterCorrupted = 6,
-    /* The bootloader was requested by the flash master via message Ping */
+    /* The bootloader was requested by the flash master via message Ping either during normal application operation or during startup CAN bus check*/
     Bootloader_EntryReason_Requested = 7,
-    /* The application repeatedly crashed (it was unable to properly initialize or encountered fatal error like a failed assertion) */
+    /* The application repeatedly crashed and cannot continue (it was unable to properly initialize or encountered fatal error like a failed assertion) */
     Bootloader_EntryReason_ApplicationFailure = 8,
+    /* The entry reason is not known */
+    Bootloader_EntryReason_Unknown = 9,
+    /* No firmware is flashed, the jump table is erased */
+    Bootloader_EntryReason_ApplicationMissing = 10,
+    /* The jump table contains some data but is not valid */
+    Bootloader_EntryReason_JumpTableCorrupted = 11,
 };
 
 enum Bootloader_HandshakeResponse {

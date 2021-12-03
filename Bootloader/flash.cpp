@@ -180,6 +180,15 @@ namespace boot {
 		Flash::ErasePage(Flash::jumpTableAddress);
 	}
 
+	bool ApplicationJumpTable::isErased() const {
+		constexpr decltype(magic1_) erased_value = -1;
+		return magic1_ == erased_value
+			&& magic2_ == erased_value
+			&& magic3_ == erased_value
+			&& magic4_ == erased_value
+			&& magic5_ == erased_value;
+	}
+
 	bool ApplicationJumpTable::magicValid() const {
 		return magic1_ == expected_magic1_value
 			&& magic2_ == expected_magic2_value

@@ -322,7 +322,7 @@ namespace boot {
 		bool stall_ = false;
 		TransactionType transactionType_ = TransactionType::Unknown;
 		CanManager& can_;
-		static inline EntryReason entryReason_ = EntryReason::DontEnter;
+		static inline EntryReason entryReason_ = EntryReason::Unknown;
 
 	public:
 		[[nodiscard]] bool updatingBootloader() const { return transactionType_ == TransactionType::BootloaderUpdate; }

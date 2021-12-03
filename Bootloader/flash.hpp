@@ -299,6 +299,9 @@ namespace boot {
 		//Returns true iff all magics are valid
 		[[nodiscard]]
 		bool magicValid() const __attribute__((section(".executed_from_flash")));
+		// Returns true if the jump table is filled with value corresponding to erased flash page (all ones)
+		[[nodiscard]]
+		bool isErased() const __attribute__((section(".executed_from_flash")));;
 		[[nodiscard]]
 		bool has_valid_metadata() const;
 

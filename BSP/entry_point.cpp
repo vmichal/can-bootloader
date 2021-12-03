@@ -89,24 +89,29 @@ namespace {
 			return boot::EntryReason::BackupRegisterCorrupted;
 		}
 
+		if (boot::jumpTable.isErased()) // The jump table is completely empty
+			return boot::EntryReason::ApplicationMissing;
+
 		if (!boot::jumpTable.magicValid())
-			return boot::EntryReason::InvalidMagic; //Magics do not match. Enter the bootloader
+			return boot::EntryReason::JumpTableCorrupted; //Magics do not match. Enter the bootloader
 
 		if (!bit::all_cleared(boot::jumpTable.interruptVector_, boot::isrVectorAlignmentMask))
-			return boot::EntryReason::UnalignedInterruptVector; //The interrupt table is not properly aligned to the 512 B boundary
+			return boot::EntryReason::InterruptVectorNotAligned; //The interrupt table is not properly aligned to the 512 B boundary
 
 		if (boot::Flash::addressOrigin_located_in_flash(boot::jumpTable.interruptVector_) != boot::AddressSpace::ApplicationFlash)
-			return boot::EntryReason::InvalidInterruptVector;
+			return boot::EntryReason::InterruptVectorNotInFlash;
 
 		//Application entry point is saved as the second word of the interrupt table. Initial stack pointer is the first word
 		std::uint32_t const* const interruptVector = reinterpret_cast<std::uint32_t const*>(boot::jumpTable.interruptVector_);
 
 		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[1]) != boot::AddressSpace::ApplicationFlash)
-			return boot::EntryReason::InvalidEntryPoint;
+			return boot::EntryReason::EntryPointNotInFlash;
 
+		boot::AddressSpace const entry_space = boot::Flash::addressOrigin_located_in_flash(interruptVector[0]);
+		using Space = boot::AddressSpace;
 		//Application initial stack pointer is saved as the first word of the interrupt table
-		if (boot::Flash::addressOrigin_located_in_flash(interruptVector[0]) == boot::AddressSpace::ApplicationFlash)
-			return boot::EntryReason::InvalidTopOfStack;
+		if (entry_space == Space::ApplicationFlash || entry_space == Space::JumpTable || entry_space == Space::BootloaderFlash)
+			return boot::EntryReason::TopOfStackInvalid;
 
 		return boot::EntryReason::DontEnter;
 	}
