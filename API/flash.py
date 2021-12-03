@@ -163,7 +163,7 @@ class BootloaderListing:
 
 			if commit.CommitSHA is not None:
 				return f'0x{commit.CommitSHA:08x}{"(dirty)" if commit.DirtyRepo else ""}'
-		return 'N/A'
+		return ''
 
 	def _get_unit_name(self, unit):
 		return self.beacon["Target"].linked_enum.enum[unit].name
@@ -192,7 +192,7 @@ class BootloaderListing:
 
 			#copy data to separate lists
 			for unit, data in self.active_bootloaders.items():
-				targets.append(self._get_unit_name(unit))
+				targets.append(unit)
 
 				flash_sizes.append(str(data.flash_size))
 				entry_reasons.append(self.beacon["EntryReason"].linked_enum.enum[data.entry_reason].name)
@@ -201,7 +201,7 @@ class BootloaderListing:
 				states.append(self.beacon["State"].linked_enum.enum[data.state].name)
 
 			for unit, data in self.aware_applications.items():
-				targets.append(self._get_unit_name(unit))
+				targets.append(unit)
 
 				flash_sizes.append('')
 				entry_reasons.append('')
@@ -217,6 +217,7 @@ class BootloaderListing:
 
 			bl_builds = [self._generate_sw_build_string_for(target, True) for target in targets]
 			app_builds = [self._generate_sw_build_string_for(target, False) for target in targets]
+			targets = [self._get_unit_name(unit) for unit in targets]
 
 			#find longest strings in each list
 			space_width = 6
@@ -228,10 +229,10 @@ class BootloaderListing:
 			length_app_build  = space_width + max(max(map(lambda s:len(s), app_builds))         , len("APP build"))
 			length_connected = len("connection lost")
 	
-			print(f'{"Target":{length_target}}{"State":{length_state}}{"Flash [KiB]":{length_flash}}{"Activation reason":{length_reason}}{"BL build":{length_bl_build}}{"APP build":{length_app_build}}{"Responding?":{length_connected}}', file = self.terminal)
+			print(f'{"Target":{length_target}}{"State":{length_state}}{"BL build":{length_bl_build}}{"APP build":{length_app_build}}{"Flash [KiB]":{length_flash}}{"Activation reason":{length_reason}}{"Responding?":{length_connected}}', file = self.terminal)
 			print('-' * (length_target + length_state + length_reason + length_flash + length_connected + length_bl_build + length_app_build), file = self.terminal)
 			for target, state, reason, flash_size, bl_build, app_build, response in zip(targets, states, entry_reasons, flash_sizes, bl_builds, app_builds, last_response):
-				print(f'{target:{length_target}}{state:{length_state}}{flash_size:{length_flash}}{reason:{length_reason}}{bl_build:{length_bl_build}}{app_build:{length_app_build}}{response:{length_connected}}', file = self.terminal)
+				print(f'{target:{length_target}}{state:{length_state}}{bl_build:{length_bl_build}}{app_build:{length_app_build}}{flash_size:{length_flash}}{reason:{length_reason}}{response:{length_connected}}', file = self.terminal)
 		
 	def _do_ping_bootloader_aware_units(self):
 		#cycle through all possible boot targets and ping them
@@ -292,8 +293,13 @@ class BootloaderListing:
 			self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
 			BLpending = self.pingResponse["BootloaderPending"].value[0]
 			target = self.pingResponse["Target"].value[0]
-
 			self.aware_applications[target] = ApplicationData(BLpending, time.time())
+
+			if self.pingResponse['BootloaderMetadataValid'].value[0]:
+				bl_build = int(self.pingResponse['BL_SoftwareBuild'].value[0])
+				bl_dirty = bool(self.pingResponse['BL_DirtyRepo'].value[0])
+				self.bootloader_builds[target] = TargetSoftwareBuild(bl_build, bl_dirty)
+
 			if target in self.active_bootloaders: #remove the target from list of active bootloaders
 				del self.active_bootloaders[target]
 
