@@ -1,7 +1,7 @@
 #include "can_Bootloader.h"
 #include <string.h>
 
-//CANdb code model v2 (enhanced) generated for Bootloader on 03. 12. 2021 (dd. mm. yyyy) at 10.30.31 (hh.mm.ss)
+//CANdb code model v2 (enhanced) generated for Bootloader on 03. 12. 2021 (dd. mm. yyyy) at 13.51.38 (hh.mm.ss)
 
 
 CAN_ID_t const candb_sent_messages[10] = {
@@ -564,15 +564,23 @@ bool Bootloader_Beacon_has_timed_out(void) {
 }
 
 int Bootloader_send_PingResponse_s(const Bootloader_PingResponse_t* data) {
-    uint8_t buffer[1];
-    buffer[0] = (data->Target & 0x0F) | (data->BootloaderPending ? 16 : 0);
+    uint8_t buffer[5];
+    buffer[0] = (data->Target & 0x0F) | (data->BootloaderPending ? 16 : 0) | (data->BootloaderMetadataValid ? 64 : 0) | (data->BL_DirtyRepo ? 128 : 0);
+    buffer[1] = data->BL_SoftwareBuild;
+    buffer[2] = (data->BL_SoftwareBuild >> 8);
+    buffer[3] = (data->BL_SoftwareBuild >> 16);
+    buffer[4] = (data->BL_SoftwareBuild >> 24);
     int rc = txSendCANMessage(Bootloader_Ping_status.rx_bus, Bootloader_PingResponse_id, buffer, sizeof(buffer));
     return rc;
 }
 
-int Bootloader_send_PingResponse(enum Bootloader_BootTarget Target, uint8_t BootloaderPending) {
-    uint8_t buffer[1];
-    buffer[0] = (Target & 0x0F) | (BootloaderPending ? 16 : 0);
+int Bootloader_send_PingResponse(enum Bootloader_BootTarget Target, uint8_t BootloaderPending, uint8_t BootloaderMetadataValid, uint8_t BL_DirtyRepo, uint32_t BL_SoftwareBuild) {
+    uint8_t buffer[5];
+    buffer[0] = (Target & 0x0F) | (BootloaderPending ? 16 : 0) | (BootloaderMetadataValid ? 64 : 0) | (BL_DirtyRepo ? 128 : 0);
+    buffer[1] = BL_SoftwareBuild;
+    buffer[2] = (BL_SoftwareBuild >> 8);
+    buffer[3] = (BL_SoftwareBuild >> 16);
+    buffer[4] = (BL_SoftwareBuild >> 24);
     int rc = txSendCANMessage(Bootloader_Ping_status.rx_bus, Bootloader_PingResponse_id, buffer, sizeof(buffer));
     return rc;
 }

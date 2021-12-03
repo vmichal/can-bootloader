@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced) generated for Bootloader on 03. 12. 2021 (dd. mm. yyyy) at 10.30.31 (hh.mm.ss)
+//CANdb code model v2 (enhanced) generated for Bootloader on 03. 12. 2021 (dd. mm. yyyy) at 13.51.38 (hh.mm.ss)
 
 typedef enum {
     bus_CAN1 = 0,
@@ -89,7 +89,7 @@ enum Bootloader_Command {
 enum Bootloader_EntryReason {
     /* The bootloader is listening for pings over CAN messages to determine, whether it is allowed to start the application */
     Bootloader_EntryReason_StartupCanBusCheck = 0,
-    /* Bootloader has performed startup CAN bus check without receiving any activation request. It is therefore safe to initialize the application. */
+    /* The bootloader will not be initialized, application is started right away */
     Bootloader_EntryReason_DontEnter = 1,
     /* The application's interrupt vector is not aligned properly */
     Bootloader_EntryReason_InterruptVectorNotAligned = 2,
@@ -447,6 +447,15 @@ typedef struct Bootloader_PingResponse_t {
 
 	/* Targeted unit confirms entry request and schedules system reset. */
 	uint8_t	BootloaderPending;
+
+	/* True iff the application knows the bootloader metadata and hence the field BL_SoftwareBuild and BL_DirtyRepo contain valid values */
+	uint8_t	BootloaderMetadataValid;
+
+	/* True iff the bootloader has been flashed with dirty working tree */
+	uint8_t	BL_DirtyRepo;
+
+	/* First 8 hex digits of bootloader software build */
+	uint32_t	BL_SoftwareBuild;
 } Bootloader_PingResponse_t;
 
 
@@ -584,7 +593,7 @@ int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_St
 bool Bootloader_Beacon_need_to_send(void);
 
 int Bootloader_send_PingResponse_s(const Bootloader_PingResponse_t* data);
-int Bootloader_send_PingResponse(enum Bootloader_BootTarget Target, uint8_t BootloaderPending);
+int Bootloader_send_PingResponse(enum Bootloader_BootTarget Target, uint8_t BootloaderPending, uint8_t BootloaderMetadataValid, uint8_t BL_DirtyRepo, uint32_t BL_SoftwareBuild);
 
 int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
 int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
