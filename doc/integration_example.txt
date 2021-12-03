@@ -3,7 +3,7 @@
  *
  * Written by Vojtěch Michal
  *
- * Copyright (c) 2020 eforce FEE Prague Formula
+ * Copyright (c) 2020, 2021 eforce FEE Prague Formula
  *
  * This file contains an example code showing the reference integration of the bootloader into your project.
  * It is based on code from FSE10::AMS, which may be used as a reference (uses BL since october 2020).
@@ -51,7 +51,7 @@ struct BootloaderDriver {
 		can.FlushSerialOutput();
 		can.FlushBuses(/*timeout=*/100_ms);
 
-		boot::resetTo(boot::BackupDomain::bootloader_magic);
+		boot::resetTo(boot::BackupDomain::magic::bootloader);
 	}
 };
 

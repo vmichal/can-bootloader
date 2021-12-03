@@ -142,6 +142,11 @@ class BootloaderListing:
 		if self.terminal is not None:
 			self.printThread = threading.Thread(target = BootloaderListing._do_print, args = (self,), daemon=True)
 			self.printThread.start()
+
+		self.pingCyclePeriodSlow = 1.0
+		self.pingCyclePeriodFast = 0.05
+
+		self.pingCyclePeriod = self.pingCyclePeriodFast # Start fast by default to catch the bootloader during BL startup CAN bus check
 		self.pingThread = threading.Thread(target = BootloaderListing._do_ping_bootloader_aware_units, args = (self,), daemon=True)
 		self.pingThread.start()
 
@@ -228,7 +233,7 @@ class BootloaderListing:
 	
 				if self.receiving_acks: #there is some other node on the bus
 					self.oc.send_message_std(self.ping.identifier, buffer)
-				time.sleep(1.0 / len(targets))
+				time.sleep(self.pingCyclePeriod / len(targets))
 
 	def process_event(self, ev):
 		if isinstance(ev, ocarina.CANErrorEvent): #there is some error on CAN
@@ -804,14 +809,14 @@ class FlashMaster:
 	def estabilish_connection_to_slave(self, force):
 		self.ocarinaReadingThread.start()
 
-		print('Searching bootloader aware units present on the bus...', file=self.output_file)
+		print('Searching for bootloader aware units present on the bus...', file=self.output_file)
 
 		is_bootloader_active = lambda target: target in self.listing.active_bootloaders
 		is_application_active = lambda target: target in self.listing.aware_applications and self.listing.aware_applications[target].last_response is not None
 
 		#wait for the target unit to show up
 		while not is_bootloader_active(self.target) and not is_application_active(self.target):
-			time.sleep(0.01)
+			time.sleep(0.05)
 		
 		if args.verbose:
 			print("Target's presence on the CAN bus confirmed.", file=self.output_file)
@@ -886,6 +891,8 @@ class FlashMaster:
 			print(f"Initiating {'bootloader update' if update_bootloader else 'flash process'} for {self.targetName} (target ID {self.target})\n", file=self.output_file)
 
 		self.estabilish_connection_to_slave(force)
+		# make the listing ping slowly from now. The connection has been established and hence we're not in hurry anymore
+		self.listing.pingCyclePeriod = self.listing.pingCyclePeriodSlow
 		self.send_initial_transaction_magic()
 
 		if args.verbose:

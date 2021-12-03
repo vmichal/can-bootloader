@@ -98,8 +98,13 @@ Make sure you meet these requirements:
            ignore the mesage, Oterwise if the bootloader is not requested, transmit a response with `BootloaderPending == false`.
            Otherwise check whether there are no critical processes running in your FW (e.g. active TS) and if so,
            refuse to enter the bootloader. Otherwise if not, transmit response with `BootloaderPending == true`
-           and reboot into the bootloder.
-        3. Perform a global search for accesses to System Control Block Vector Table Offset Register `SCB->VTOR`.
+           and reboot into the bootloder using function `boot::resetTo(destination)` using destination 
+           `boot::BackupDomain::magic::bootloader`.
+        3. (Optionally) Hook your fault handlers to perform system reset and initialize bootloader. This is a safe fallback
+           in the case of repeated application malfunction. To do this, modify your `HardFault_Handler` (or similar)
+           to call `boot::resetTo(boot::BackupDomain::magic::app_fatal_error)`. Information about the failure will propagate though
+           the bootloader to flash master (connected PC).
+        4. Perform a global search for accesses to System Control Block Vector Table Offset Register `SCB->VTOR`.
            They may interfere with bootloader's operation. Consult any occurrence with another experienced programmer.
     5. **CHECKPOINT**: You should be able to build the project now. After successful compilation, disassemble the binary
        and check that the isr vector is not located at `0x0800'0000` but rather several KiB above the start of flash memory.

@@ -628,8 +628,10 @@ namespace boot {
 
 
 	void Bootloader::setEntryReason(EntryReason reason) {
-		assert(entryReason_ == EntryReason::DontEnter); //Make sure this is called only once
-		assert(reason != EntryReason::DontEnter); //Sanity check
+		bool const requested_during_startup_check = entryReason_ == EntryReason::StartupCanBusCheck && reason == EntryReason::Requested;
+		//Make sure this is called only once or after startup check detects a BL request
+		assert(entryReason_ == EntryReason::Unknown || requested_during_startup_check);
+		assert(reason != EntryReason::Unknown); //Sanity check
 
 		entryReason_ = reason;
 	}

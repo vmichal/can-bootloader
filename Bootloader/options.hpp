@@ -252,6 +252,18 @@ namespace boot {
 #ifdef BOOT_STM32F1 //currently supprted only in STM32F1 mode
 		constexpr bool remapCAN2 = false; //Governs whether the CAN2 is remapped. Only in FSE10 DSH
 #endif
+
+
+		// Governs the bootloader's behaviour when valid application is stored in memory.
+		// When set to false, application is initialized right away
+		// When set to true, the BL joins the CAN communication and listens for incomming messages for some time.
+		// If Bootloader::Ping with BootloaderRequested bit set is received during this time, BL stays active.
+		// If the specified duration elapses without reception of set BootloaderRequested bit, the BL initializes the application.
+		constexpr bool enableStartupCanBusCheck = true;
+		// When configuring this, keep in mind that the actual PCB this MCU sits upon will be left without digital control,
+		// as the bootloader only initializes CAN pins and leaves all other pins floating. This should not be an issue if the HW
+		// is designed correctly, but better safe than sorry.
+		constexpr Duration startupCanBusCheckDuration = 400_ms;
 	}
 
 	auto constexpr getMemoryBlocks() {

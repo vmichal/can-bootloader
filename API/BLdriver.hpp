@@ -25,12 +25,13 @@ namespace boot {
 	}
 
 	struct BackupDomain {
-		constexpr static std::uint16_t reset_value = 0x00'00; //value after power reset. Enter the application
-		//Writing this value to the bootControlRegister requests entering the bootloader after reset
-		constexpr static std::uint16_t bootloader_magic = 0xB007;
-		//The application has been unstable and could not be kept running.
-		constexpr static std::uint16_t app_fatal_error_magic = 0xDEAD;
-		constexpr static std::uint16_t application_magic = 0xC0DE; //enter the application
+		enum class magic : std::uint16_t {
+			reset_value = 0x00'00, //value after power reset. Enter the application
+			bootloader = 0xB007, //Writing this value to the bootControlRegister requests entering the bootloader after reset
+			app_fatal_error = 0xDEAD, //The application has been unstable and could not be kept running.
+			app_perform_can_check = 0xC0DE, //Request to enter the application after CAN bus check
+			app_skip_can_check = 0x5CBC, //Request to enter the application immediately (without CAN bus check)
+		};
 
 		//Memory location in backup domain used for data exchange between BL and application
 		inline static std::uint16_t volatile& bootControlRegister = *BootControlBackupRegisterAddress;
@@ -53,5 +54,5 @@ namespace boot {
 	};
 
 	[[noreturn]]
-	void resetTo(std::uint16_t code);
+	void resetTo(BackupDomain::magic where);
 }

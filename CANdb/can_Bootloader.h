@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced) generated for Bootloader on 11. 11. 2021 (dd. mm. yyyy) at 13.50.55 (hh.mm.ss)
+//CANdb code model v2 (enhanced) generated for Bootloader on 03. 12. 2021 (dd. mm. yyyy) at 10.30.31 (hh.mm.ss)
 
 typedef enum {
     bus_CAN1 = 0,
@@ -29,12 +29,15 @@ enum { Bootloader_Data_tx_bus           = bus_UNDEFINED };
 enum { Bootloader_DataAck_id            = STD_ID(0x624) };
 enum { Bootloader_DataAck_tx_bus        = bus_UNDEFINED };
 enum { Bootloader_ExitReq_id            = STD_ID(0x625) };
-enum { Bootloader_ExitAck_id            = STD_ID(0x626) };
-enum { Bootloader_ExitAck_tx_bus        = bus_UNDEFINED };
+enum { Bootloader_Ping_id               = STD_ID(0x626) };
 enum { Bootloader_Beacon_id             = STD_ID(0x627) };
 enum { Bootloader_Beacon_timeout        = 1000 };
 enum { Bootloader_Beacon_period         = 500 };
 enum { Bootloader_Beacon_tx_bus         = bus_BOTH };
+enum { Bootloader_PingResponse_id       = STD_ID(0x629) };
+enum { Bootloader_PingResponse_tx_bus   = bus_UNDEFINED };
+enum { Bootloader_ExitAck_id            = STD_ID(0x62A) };
+enum { Bootloader_ExitAck_tx_bus        = bus_UNDEFINED };
 enum { Bootloader_SoftwareBuild_id      = STD_ID(0x62D) };
 enum { Bootloader_SoftwareBuild_period  = 1000 };
 enum { Bootloader_SoftwareBuild_tx_bus  = bus_BOTH };
@@ -42,82 +45,8 @@ enum { CarDiagnostics_RecoveryModeBeacon_id = STD_ID(0x023) };
 enum { CarDiagnostics_RecoveryModeBeacon_period = 100 };
 enum { CarDiagnostics_RecoveryModeBeacon_tx_bus = bus_BOTH };
 
-extern CAN_ID_t const candb_sent_messages[9];
-extern CAN_ID_t const candb_received_messages[7];
-
-enum CarDiagnostics_BusName {
-    /* Fse09 bus 1 */
-    CarDiagnostics_BusName_FSE09_CAN1 = 0,
-    /* Fse09 bus 2 */
-    CarDiagnostics_BusName_FSE09_CAN2 = 1,
-    /* Driverless bus 1 */
-    CarDiagnostics_BusName_DV01_CAN1 = 2,
-    /* Driverless bus 2 */
-    CarDiagnostics_BusName_DV01_CAN3 = 3,
-};
-
-enum CarDiagnostics_ClockState {
-    /* no initialization has been performed yet */
-    CarDiagnostics_ClockState_waiting_for_init = 0,
-    /* waiting for HSE to stabilize */
-    CarDiagnostics_ClockState_waiting_for_hse = 1,
-    /* waiting for PLL to stabilize */
-    CarDiagnostics_ClockState_waiting_for_pll = 2,
-    /* HSE has refused to start. DV01 Vietman flashbacks */
-    CarDiagnostics_ClockState_hse_dead = 3,
-    /* Pll has refused to lock */
-    CarDiagnostics_ClockState_pll_dead = 4,
-    /* No failure is detected */
-    CarDiagnostics_ClockState_fully_operational = 5,
-    /* Clock security system detected failure of HSE */
-    CarDiagnostics_ClockState_css_triggered = 6,
-};
-
-enum CarDiagnostics_ECU {
-    /* Accurator management system */
-    CarDiagnostics_ECU_AMS = 0,
-    /* Dashboard */
-    CarDiagnostics_ECU_DSH = 1,
-    /* Pedal unit */
-    CarDiagnostics_ECU_PDL = 2,
-    /* Fusebox */
-    CarDiagnostics_ECU_FSB = 3,
-    /* Vehicle dynamics control unit */
-    CarDiagnostics_ECU_VDCU = 4,
-    /* Steering wheel */
-    CarDiagnostics_ECU_STW = 5,
-    /* Driverless fusebox and some other functionality */
-    CarDiagnostics_ECU_EBSS = 6,
-    /* Bootloader of some ECU */
-    CarDiagnostics_ECU_Bootloader = 7,
-};
-
-enum CarDiagnostics_FirmwareState {
-    /* The device has experienced a power reset */
-    CarDiagnostics_FirmwareState_coldStart = 0,
-    /* Software reset occured because a bootloader was running. */
-    CarDiagnostics_FirmwareState_bootloaderRequested = 1,
-    /* Software reset occured because a noncritical error was encountered */
-    CarDiagnostics_FirmwareState_minorError = 2,
-    /* Software reset occured because of a major failure */
-    CarDiagnostics_FirmwareState_fatalError = 3,
-    /* Software reset because of failed assertion */
-    CarDiagnostics_FirmwareState_failedAssertion = 4,
-    /* Clock security system detected fail of HSE during the previous run. */
-    CarDiagnostics_FirmwareState_clockError = 5,
-    /* The firmware is stable and running */
-    CarDiagnostics_FirmwareState_stable = 6,
-    /* The firmware is being monitored because of recent reset (boot loop detection is active) */
-    CarDiagnostics_FirmwareState_initialization = 7,
-    /* The MCU has repeatedly failed to properly initialize. */
-    CarDiagnostics_FirmwareState_infiniteBootLoop = 8,
-    /* The firmware repeatedly encountered a fatal error */
-    CarDiagnostics_FirmwareState_tooManyFatalErrors = 9,
-    /* The state register contains unrecognized value */
-    CarDiagnostics_FirmwareState_stateRegisterCorrupted = 10,
-    /* Application's main function exited */
-    CarDiagnostics_FirmwareState_mainReturned = 11,
-};
+extern CAN_ID_t const candb_sent_messages[10];
+extern CAN_ID_t const candb_received_messages[8];
 
 enum Bootloader_BootTarget {
     /* Accumulator management System */
@@ -158,24 +87,30 @@ enum Bootloader_Command {
 };
 
 enum Bootloader_EntryReason {
-    /* Bootloader will not be entered (jump straight to application) */
-    Bootloader_EntryReason_DontEnter = 0,
-    /* Either no firmware is flashed, or there has been a memory corruption */
-    Bootloader_EntryReason_InvalidMagic = 1,
+    /* The bootloader is listening for pings over CAN messages to determine, whether it is allowed to start the application */
+    Bootloader_EntryReason_StartupCanBusCheck = 0,
+    /* Bootloader has performed startup CAN bus check without receiving any activation request. It is therefore safe to initialize the application. */
+    Bootloader_EntryReason_DontEnter = 1,
     /* The application's interrupt vector is not aligned properly */
-    Bootloader_EntryReason_UnalignedInterruptVector = 2,
+    Bootloader_EntryReason_InterruptVectorNotAligned = 2,
     /* The entry point pointer does not point into flash */
-    Bootloader_EntryReason_InvalidEntryPoint = 3,
+    Bootloader_EntryReason_EntryPointNotInFlash = 3,
     /* The vector table pointer not point into flash */
-    Bootloader_EntryReason_InvalidInterruptVector = 4,
-    /* The specified top of stack points to flash */
-    Bootloader_EntryReason_InvalidTopOfStack = 5,
-    /* The backup register contained value different from 0 (reset value) or application_magic */
+    Bootloader_EntryReason_InterruptVectorNotInFlash = 4,
+    /* The specified top of stack does not point to RAM */
+    Bootloader_EntryReason_TopOfStackInvalid = 5,
+    /* The value contained in the boot control register was not recognized */
     Bootloader_EntryReason_BackupRegisterCorrupted = 6,
-    /* The bootloader was requested by the flash master via message Ping */
+    /* The bootloader was requested by the flash master via message Ping either during normal application operation or during startup CAN bus check */
     Bootloader_EntryReason_Requested = 7,
-    /* The application repeatedly crashed (it was unable to properly initialize or encountered fatal error like a failed assertion) */
+    /* The application repeatedly crashed and cannot continue (it was unable to properly initialize or encountered fatal error like a failed assertion) */
     Bootloader_EntryReason_ApplicationFailure = 8,
+    /* The entry reason is not known */
+    Bootloader_EntryReason_Unknown = 9,
+    /* No firmware is flashed, the jump table is erased */
+    Bootloader_EntryReason_ApplicationMissing = 10,
+    /* The jump table contains some data but is not valid */
+    Bootloader_EntryReason_JumpTableCorrupted = 11,
 };
 
 enum Bootloader_HandshakeResponse {
@@ -300,6 +235,80 @@ enum Bootloader_WriteResult {
     Bootloader_WriteResult_Timeout = 3,
 };
 
+enum CarDiagnostics_BusName {
+    /* Fse09 bus 1 */
+    CarDiagnostics_BusName_FSE09_CAN1 = 0,
+    /* Fse09 bus 2 */
+    CarDiagnostics_BusName_FSE09_CAN2 = 1,
+    /* Driverless bus 1 */
+    CarDiagnostics_BusName_DV01_CAN1 = 2,
+    /* Driverless bus 2 */
+    CarDiagnostics_BusName_DV01_CAN3 = 3,
+};
+
+enum CarDiagnostics_ClockState {
+    /* no initialization has been performed yet */
+    CarDiagnostics_ClockState_waiting_for_init = 0,
+    /* waiting for HSE to stabilize */
+    CarDiagnostics_ClockState_waiting_for_hse = 1,
+    /* waiting for PLL to stabilize */
+    CarDiagnostics_ClockState_waiting_for_pll = 2,
+    /* HSE has refused to start. DV01 Vietman flashbacks */
+    CarDiagnostics_ClockState_hse_dead = 3,
+    /* Pll has refused to lock */
+    CarDiagnostics_ClockState_pll_dead = 4,
+    /* No failure is detected */
+    CarDiagnostics_ClockState_fully_operational = 5,
+    /* Clock security system detected failure of HSE */
+    CarDiagnostics_ClockState_css_triggered = 6,
+};
+
+enum CarDiagnostics_ECU {
+    /* Accurator management system */
+    CarDiagnostics_ECU_AMS = 0,
+    /* Dashboard */
+    CarDiagnostics_ECU_DSH = 1,
+    /* Pedal unit */
+    CarDiagnostics_ECU_PDL = 2,
+    /* Fusebox */
+    CarDiagnostics_ECU_FSB = 3,
+    /* Vehicle dynamics control unit */
+    CarDiagnostics_ECU_VDCU = 4,
+    /* Steering wheel */
+    CarDiagnostics_ECU_STW = 5,
+    /* Driverless fusebox and some other functionality */
+    CarDiagnostics_ECU_EBSS = 6,
+    /* Bootloader of some ECU */
+    CarDiagnostics_ECU_Bootloader = 7,
+};
+
+enum CarDiagnostics_FirmwareState {
+    /* The device has experienced a power reset */
+    CarDiagnostics_FirmwareState_coldStart = 0,
+    /* Software reset occured because a bootloader was running. */
+    CarDiagnostics_FirmwareState_bootloaderRequested = 1,
+    /* Software reset occured because a noncritical error was encountered */
+    CarDiagnostics_FirmwareState_minorError = 2,
+    /* Software reset occured because of a major failure */
+    CarDiagnostics_FirmwareState_fatalError = 3,
+    /* Software reset because of failed assertion */
+    CarDiagnostics_FirmwareState_failedAssertion = 4,
+    /* Clock security system detected fail of HSE during the previous run. */
+    CarDiagnostics_FirmwareState_clockError = 5,
+    /* The firmware is stable and running */
+    CarDiagnostics_FirmwareState_stable = 6,
+    /* The firmware is being monitored because of recent reset (boot loop detection is active) */
+    CarDiagnostics_FirmwareState_initialization = 7,
+    /* The MCU has repeatedly failed to properly initialize. */
+    CarDiagnostics_FirmwareState_infiniteBootLoop = 8,
+    /* The firmware repeatedly encountered a fatal error */
+    CarDiagnostics_FirmwareState_tooManyFatalErrors = 9,
+    /* The state register contains unrecognized value */
+    CarDiagnostics_FirmwareState_stateRegisterCorrupted = 10,
+    /* Application's main function exited */
+    CarDiagnostics_FirmwareState_mainReturned = 11,
+};
+
 /*
  * Configuration message exchanged between the flashing master and the bootloader. Has corresponding acknowledge.
  */
@@ -396,17 +405,15 @@ typedef struct Bootloader_ExitReq_t {
 
 
 /*
- * Acknowledgement for a request to leave the bootloader.
- * Carries information, whether the unit can transition from the bootloader to the main firmware at the moment.
- * This transition is prohibited during the process of erasing or flashing. In that case only a power cycle or asserting the Force bit in ExitReq can cause the bootloader to quit.
+ * Polls possible boot targets and detects their presence on the CAN bus. May request an ECU to enter the bootloader.
  */
-typedef struct Bootloader_ExitAck_t {
-	/* Identifies the target unit */
+typedef struct Bootloader_Ping_t {
+	/* Identifies the unit targeted by this message. */
 	enum Bootloader_BootTarget	Target;
 
-	/* True iff the unit is switching from the bootloader to firmware. */
-	uint8_t	Confirmed;
-} Bootloader_ExitAck_t;
+	/* Shall the targeted unit reset into bootloader? */
+	uint8_t	BootloaderRequested;
+} Bootloader_Ping_t;
 
 
 /*
@@ -430,6 +437,32 @@ typedef struct Bootloader_Beacon_t {
 #define Bootloader_Beacon_FlashSize_FACTOR	((float)1)
 #define Bootloader_Beacon_FlashSize_MIN	((float)0)
 #define Bootloader_Beacon_FlashSize_MAX	((float)4095)
+
+/*
+ * Targeted unit has received a Ping.
+ */
+typedef struct Bootloader_PingResponse_t {
+	/* Identifies the unit which is currently transitioning to the bootloader. */
+	enum Bootloader_BootTarget	Target;
+
+	/* Targeted unit confirms entry request and schedules system reset. */
+	uint8_t	BootloaderPending;
+} Bootloader_PingResponse_t;
+
+
+/*
+ * Acknowledgement for a request to leave the bootloader.
+ * Carries information, whether the unit can transition from the bootloader to the main firmware at the moment.
+ * This transition is prohibited during the process of erasing or flashing. In that case only a power cycle or asserting the Force bit in ExitReq can cause the bootloader to quit.
+ */
+typedef struct Bootloader_ExitAck_t {
+	/* Identifies the target unit */
+	enum Bootloader_BootTarget	Target;
+
+	/* True iff the unit is switching from the bootloader to firmware. */
+	uint8_t	Confirmed;
+} Bootloader_ExitAck_t;
+
 
 /*
  * Information about the currently running software (SHA of git commit).
@@ -532,8 +565,12 @@ uint32_t Bootloader_ExitReq_get_flags(void);
 void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 candb_bus_t Bootloader_ExitReq_get_rx_bus(void);
 
-int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
-int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
+int Bootloader_decode_Ping_s(const uint8_t* bytes, size_t length, Bootloader_Ping_t* data_out);
+int Bootloader_decode_Ping(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* BootloaderRequested_out);
+int Bootloader_get_Ping(Bootloader_Ping_t* data_out);
+uint32_t Bootloader_Ping_get_flags(void);
+void Bootloader_Ping_on_receive(int (*callback)(Bootloader_Ping_t* data));
+candb_bus_t Bootloader_Ping_get_rx_bus(void);
 
 int Bootloader_decode_Beacon_s(const uint8_t* bytes, size_t length, Bootloader_Beacon_t* data_out);
 int Bootloader_decode_Beacon(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, enum Bootloader_State* State_out, enum Bootloader_EntryReason* EntryReason_out, uint16_t* FlashSize_out);
@@ -545,6 +582,12 @@ candb_bus_t Bootloader_Beacon_get_rx_bus(void);
 bool Bootloader_Beacon_has_timed_out(void);
 int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, enum Bootloader_EntryReason EntryReason, uint16_t FlashSize);
 bool Bootloader_Beacon_need_to_send(void);
+
+int Bootloader_send_PingResponse_s(const Bootloader_PingResponse_t* data);
+int Bootloader_send_PingResponse(enum Bootloader_BootTarget Target, uint8_t BootloaderPending);
+
+int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data);
+int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed);
 
 int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data);
 int Bootloader_send_SoftwareBuild(uint32_t CommitSHA, uint8_t DirtyRepo, enum Bootloader_BootTarget Target);
@@ -611,8 +654,9 @@ inline candb_bus_t get_rx_bus<Bootloader_ExitReq_t>() {
     return Bootloader_ExitReq_get_rx_bus();
 }
 
-inline int send(const Bootloader_ExitAck_t& data) {
-    return Bootloader_send_ExitAck_s(&data);
+template <>
+inline candb_bus_t get_rx_bus<Bootloader_Ping_t>() {
+    return Bootloader_Ping_get_rx_bus();
 }
 
 template <>
@@ -632,6 +676,14 @@ inline bool has_timed_out<Bootloader_Beacon_t>() {
 template <>
 inline candb_bus_t get_rx_bus<Bootloader_Beacon_t>() {
     return Bootloader_Beacon_get_rx_bus();
+}
+
+inline int send(const Bootloader_PingResponse_t& data) {
+    return Bootloader_send_PingResponse_s(&data);
+}
+
+inline int send(const Bootloader_ExitAck_t& data) {
+    return Bootloader_send_ExitAck_s(&data);
 }
 
 template <>

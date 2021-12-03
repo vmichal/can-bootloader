@@ -322,7 +322,7 @@ namespace boot {
 		bool stall_ = false;
 		TransactionType transactionType_ = TransactionType::Unknown;
 		CanManager& can_;
-		static inline EntryReason entryReason_ = EntryReason::DontEnter;
+		static inline EntryReason entryReason_ = EntryReason::Unknown;
 
 	public:
 		[[nodiscard]] bool updatingBootloader() const { return transactionType_ == TransactionType::BootloaderUpdate; }
@@ -367,8 +367,13 @@ namespace boot {
 		static HandshakeResponse validateVectorTable(AddressSpace expected_space, std::uint32_t address);
 
 		static void setEntryReason(EntryReason);
-
+		[[nodiscard]]
 		static EntryReason entryReason() { return entryReason_; }
+
+		[[nodiscard]]
+		static bool startupCheckInProgress() {
+			return entryReason_ == EntryReason::StartupCanBusCheck;
+		}
 
 		explicit Bootloader(CanManager& can) :
 			physicalMemoryMapTransmitter_{*this},

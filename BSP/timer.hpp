@@ -27,13 +27,17 @@ struct SystemTimer {
 	//Initial tick count of the system timer
 	//Set to zero for release as it allows the compiler to eliminate the entire expression involving this constant
 	static constexpr std::uint32_t initialTickCount = 0;
-	static constexpr Timestamp bootTime{initialTickCount};
+	static constexpr Timestamp startup_time{initialTickCount};
 
 	inline volatile static std::uint32_t ticks = initialTickCount;
 public:
-	static Timestamp Now();
+	static Timestamp Now() {
+		return Timestamp{ticks};
+	}
 
-	static Duration GetUptime();
+	static Duration GetUptime() {
+		return Duration::fromMilliseconds(ticks);
+	}
 
 	static void Initialize();
 	friend void SysTick_Handler();

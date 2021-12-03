@@ -84,9 +84,10 @@ namespace bsp::can {
 		peripheralInit(*CAN1, APB1_frequency / can1_frequency / quanta_per_bit);
 		peripheralInit(*CAN2, APB1_frequency / can2_frequency / quanta_per_bit);
 
-		//11 bits standard IDs. They share prefix 0x62_, the three bits are variable (range 0x620-0x627)
-		constexpr unsigned sharedPrefix = 0x62 << 4;
-		constexpr unsigned mustMatch = bit::bitmask_of_width(8) << 3;
+		assert(std::ranges::all_of(candb_received_messages,[](unsigned id) {
+			// Make sure all received messages match the input filter (= they share the shared prefix)
+			return (id & filter::sharedPrefix) == filter::sharedPrefix;
+		}));
 
 		//All filters must be accessed via CAN1, because
 		//[ref manual f105 24.9.5] In connectivity line devices, the registers from offset 0x200 to 31C are present only in CAN1.
@@ -102,8 +103,8 @@ namespace bsp::can {
 		//activate filters (they can still be modified, because FINIT flag overrides this)
 		bit::modify(std::ref(CAN1->FA1R), bit::bitmask_of_width(2), 0b11);
 
-		CAN1->sFilterRegister[0].FR1 = CAN1->sFilterRegister[1].FR1 = sharedPrefix << (5 + 16);
-		CAN1->sFilterRegister[0].FR2 = CAN1->sFilterRegister[1].FR2 = mustMatch << (5 + 16);
+		CAN1->sFilterRegister[0].FR1 = CAN1->sFilterRegister[1].FR1 = filter::sharedPrefix << (5 + 16);
+		CAN1->sFilterRegister[0].FR2 = CAN1->sFilterRegister[1].FR2 = filter::mustMatch << (5 + 16);
 
 		//Each CAN peripheral gets only one filter.
 		bit::modify(std::ref(CAN1->FMR), bit::bitmask_of_width(6), 1, 8);

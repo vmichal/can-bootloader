@@ -23,6 +23,7 @@ namespace boot {
 
 		void SendDataAck(std::uint32_t address, WriteStatus result) const;
 		void SendExitAck(bool exitPossible) const;
+		void SendPingResponse(bool entering_bl) const;
 		void SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const;
 		void SendHandshake(Register reg, Command command, std::uint32_t value);
 		void SendHandshake(Bootloader_Handshake_t const& msg);

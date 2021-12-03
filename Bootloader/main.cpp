@@ -18,11 +18,14 @@
 #include <library/timer.hpp>
 #include <BSP/can.hpp>
 #include <BSP/gpio.hpp>
+#include <BSP/timer.hpp>
+
 namespace boot {
 
 	CanManager canManager;
 	Bootloader bootloader{ canManager };
 	std::optional<Timestamp> lastReceivedData;
+
 
 	namespace {
 
@@ -40,14 +43,16 @@ namespace boot {
 				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN2->TSR, CAN_TSR_TME));
 		}
 
-		void setupCanCallbacks() {
+		void setupRegularCanCallbacks() {
 
 			Bootloader_ExitReq_on_receive([](Bootloader_ExitReq_t* data) {
 				if (data->Target != customization::thisUnit)
 					return 2;
 
-				std::uint16_t const destination = data->InitializeApplication
-					? BackupDomain::application_magic : BackupDomain::bootloader_magic;
+				// The startup CAN check can be skipped in this case, because we have just received flash master's command to exit the bootloader.
+				// It is therefore reasonable to assume that the master won't ask us to enter bootloader in 50 ms
+				BackupDomain::magic const destination = data->InitializeApplication
+					? BackupDomain::magic::app_skip_can_check : BackupDomain::magic::bootloader;
 
 				if (!data->Force && bootloader.transactionInProgress()) {
 					canManager.SendExitAck(false);
@@ -123,6 +128,28 @@ namespace boot {
 				return 0;
 				});
 		}
+
+		void switchFromStartupCheckToRegularOperation() {
+			//Only executable during startup check
+			assert(Bootloader::entryReason() == EntryReason::StartupCanBusCheck);
+
+			Bootloader_Ping_on_receive(nullptr); // Deregister callback for Bootloader::Ping
+			setupRegularCanCallbacks(); // Register new callbacks for proper operation
+			Bootloader::setEntryReason(EntryReason::Requested); // Inform the bootloader that regular operation shall be initiated
+		}
+
+		void setupStartupCheckCanCallbacks() {
+			// Callbacks for messages received during startup CAN bus check.
+			Bootloader_Ping_on_receive([](Bootloader_Ping_t * ping) -> int {
+				if (ping->Target != customization::thisUnit)
+					return 2;
+
+				canManager.SendPingResponse(ping->BootloaderRequested);
+				if (ping->BootloaderRequested)
+					switchFromStartupCheckToRegularOperation();
+				return 0;
+			});
+		}
 	}
 
 	[[noreturn]]
@@ -130,20 +157,28 @@ namespace boot {
 
 		candbInit();
 
-		setupCanCallbacks();
-
-		canManager.SendSoftwareBuild();
-		canManager.SendBeacon(bootloader.status(), Bootloader::entryReason());
+		if (bootloader.entryReason() == EntryReason::StartupCanBusCheck)
+			setupStartupCheckCanCallbacks();
+		else
+			setupRegularCanCallbacks();
 
 		for (;;) { //main loop
+			txProcess();
+
+			if (bootloader.startupCheckInProgress()) {
+				if (SystemTimer::GetUptime() > customization::startupCanBusCheckDuration) {
+					// Enough time elapsed without receiving any BL request. Start the application
+					resetTo(BackupDomain::magic::app_skip_can_check);
+				}
+				continue;
+				// Prevent the rest of main loop from executing when we are in the CAN bus startup check
+			}
 
 			if (need_to_send<Bootloader_SoftwareBuild_t>())
 				canManager.SendSoftwareBuild();
 
 			if (need_to_send<Bootloader_Beacon_t>())
 				canManager.SendBeacon(bootloader.stalled() ? Status::ComunicationStalled: bootloader.status(), bootloader.entryReason());
-
-			txProcess();
 
 			bool const some_data_received_long_time_ago = lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s);
 			if (bootloader.status() == Status::DownloadingFirmware && some_data_received_long_time_ago && !bootloader.stalled()) {
@@ -174,7 +209,7 @@ namespace boot {
 		for (;;) {
 			if constexpr (boot::rebootAfterHardfault) {
 				if (hardfaultEntryTime.TimeElapsed(boot::rebootDelayHardfault))
-					resetTo(BackupDomain::bootloader_magic);
+					resetTo(BackupDomain::magic::bootloader);
 			}
 
 			if (need_to_send<CarDiagnostics_RecoveryModeBeacon_t>()) {

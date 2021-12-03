@@ -70,17 +70,25 @@ namespace boot {
 		MustBeNonZero = Bootloader_HandshakeResponse_MustBeNonZero,
 	};
 
+	/*
+	 * To update this enumeration, execute regex search and replace
+	 * search for "(Bootloader_EntryReason_([a-zA-Z0-9_]+)) = [0-9]+,"
+	 * replace by "$2 = $1,"
+	 * */
 	enum class EntryReason {
+		StartupCanBusCheck = Bootloader_EntryReason_StartupCanBusCheck,
+		DontEnter = Bootloader_EntryReason_DontEnter,
+		InterruptVectorNotAligned = Bootloader_EntryReason_InterruptVectorNotAligned,
+		EntryPointNotInFlash = Bootloader_EntryReason_EntryPointNotInFlash,
+		InterruptVectorNotInFlash = Bootloader_EntryReason_InterruptVectorNotInFlash,
+		TopOfStackInvalid = Bootloader_EntryReason_TopOfStackInvalid,
+		BackupRegisterCorrupted = Bootloader_EntryReason_BackupRegisterCorrupted,
+		Requested = Bootloader_EntryReason_Requested,
+		ApplicationFailure = Bootloader_EntryReason_ApplicationFailure,
+		Unknown = Bootloader_EntryReason_Unknown,
+		ApplicationMissing = Bootloader_EntryReason_ApplicationMissing,
+		JumpTableCorrupted = Bootloader_EntryReason_JumpTableCorrupted,
 
-		DontEnter = Bootloader_EntryReason_DontEnter, //Bootloader will not be entered (jump straight to application)
-		InvalidMagic = Bootloader_EntryReason_InvalidMagic, //Either no firmware is flashed, or there has been a memory corruption
-		UnalignedInterruptVector = Bootloader_EntryReason_UnalignedInterruptVector, //The application's interrupt vector is not aligned properly
-		InvalidEntryPoint = Bootloader_EntryReason_InvalidEntryPoint, //The entry point pointer does not point into flash
-		InvalidInterruptVector = Bootloader_EntryReason_InvalidInterruptVector, //The vector table pointer not point into flash
-		InvalidTopOfStack = Bootloader_EntryReason_InvalidTopOfStack, //The specified top of stack points to flash
-		BackupRegisterCorrupted = Bootloader_EntryReason_BackupRegisterCorrupted, //The backup register contained value different from 0 (reset value) or application_magic
-		Requested = Bootloader_EntryReason_Requested, //The bootloader was requested
-		ApplicationFailure = Bootloader_EntryReason_ApplicationFailure, //The application died horribly.
 	};
 
 	enum class Status {
