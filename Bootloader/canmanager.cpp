@@ -94,6 +94,9 @@ namespace boot {
 
 		msg.Target = customization::thisUnit;
 		msg.BootloaderPending = entering_bl;
+		msg.BootloaderMetadataValid = true;
+		msg.BL_SoftwareBuild = ufsel::git::commit_hash();
+		msg.BL_DirtyRepo = ufsel::git::has_dirty_working_tree();
 
 		for (;send(msg););
 	}

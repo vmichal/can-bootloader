@@ -1,8 +1,8 @@
 
-/* Memory map for bootloader aware firmware
+/* Memory map for bootloader aware firmware running on STM32F1
 
 * Written by Vojtech Michal
-* Copyright (c) eForce FEE Prague Formula, 2020
+* Copyright (c) eForce FEE Prague Formula, 2020, 2021
 
 Include this file in your linker script to get the memory map for bootloader aware application. */
 
@@ -15,17 +15,12 @@ FlashSize = 256K;
 between BL and application during system resets.*/
 BootControlBackupRegisterAddress = 0x40006c00 + 4; /* BKP domain, reg one used.*/
 
-/* BL's requirements. 10K for BL code and 2k for firmware jump table.*/
-BootloaderSize = 10K;
+/* BL's requirements. 14K for BL code and 2k for firmware jump table.*/
+CompleteBootloaderSize = 14K;
 JumpTableSize = 2K;
-
-
 
 /* Specify the memory areas */
 MEMORY
 {
-BootloaderFlash(rx)      : ORIGIN = FlashStart, LENGTH = BootloaderSize
-JumpTableFlash(rx)       : ORIGIN = FlashStart + BootloaderSize, LENGTH = JumpTableSize
-ApplicationFlash(rx)     : ORIGIN = FlashStart + BootloaderSize + JumpTableSize, LENGTH = FlashSize - BootloaderSize - JumpTableSize
 RAM (xrw)                : ORIGIN = 0x20000000, LENGTH = 64K
 }

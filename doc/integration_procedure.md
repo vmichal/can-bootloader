@@ -70,7 +70,12 @@ Make sure you meet these requirements:
            TODO This step should be more concrete when more experience is gathered. Errors originating from this point
            have had vastly different causes so far, therefore it is best to consult with someone when you get stuck.
     3. Modify your linker file, i.e. `xxxxxxx.ld`
-        1. Add statement `INCLUDE ../bootloader/API/bootloader-aware-memory-map-stm32f_.ld` with underscore in `stm32f_` replaced.
+        1. Add statements
+           ```
+           INCLUDE ../bootloader/API/bootloader-aware-memory-map-stm32f_.ld
+           INCLUDE ../bootloader/API/bootloader-aware-memory-map-shared.ld
+           ```
+           with underscore in `stm32f_` replaced by identifier of your MCU family of choice.
            Note the double dot denoting the parent directory. You may need to go up more than one level depending on the directory
            structure you use for building. Think of it like this - you specify a linker script (usually in your cmake toolchain file).
            The linker is later given this script to execute when the compiler has converted all source files to object files.

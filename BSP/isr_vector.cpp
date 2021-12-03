@@ -6,7 +6,6 @@ extern "C" {
 
 	extern std::uint32_t _estack[];
 
-	//TODO debug why this is not located on the proper address
 	__attribute__((section(".isr_vector"))) interrupt_service_routine interrupt_routines[]{
 		reinterpret_cast<interrupt_service_routine>(_estack),
 		Reset_Handler,

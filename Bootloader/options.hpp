@@ -181,10 +181,10 @@ namespace boot {
 		//Controls, whether the flash memory consists of blocks of the same size (f1xx flash pages) or different sizes (f4xx sectors)
 		constexpr PhysicalBlockSizes physicalBlockSizePolicy = PhysicalBlockSizes::same;
 
-		//In case of AMS/DSH, the bootloader occupies 10K of flash and the application jump table occupies two more.
-		//Hence the application can not start at lower address as the start of sixth block
+		//In case of AMS/DSH, the bootloader occupies 14K of flash and the application jump table occupies two more.
+		//Hence the application can not start at lower address as the start of eighth block
 		//TODO this must be checked once in a while, whether it is correct...
-		constexpr std::uint32_t firstBlockAvailableToApplication = 6;
+		constexpr std::uint32_t firstBlockAvailableToApplication = 8;
 		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
