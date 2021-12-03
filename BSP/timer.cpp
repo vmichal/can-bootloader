@@ -8,7 +8,7 @@
 
 void BlockingDelay(Duration const time) {
     Timestamp const start = Timestamp::Now();
-    for (;Timestamp::Now() - start < time;);
+    while (!start.TimeElapsed(time));
 }
 
 void SystemTimer::Initialize() {
@@ -21,14 +21,6 @@ void SystemTimer::Initialize() {
         BIT_MASK(SysTick_CTRL_TICKINT), //enable the interrupt
         BIT_MASK(SysTick_CTRL_ENABLE) //enable the counter
         );
-}
-
-Timestamp SystemTimer::Now() {
-    return Timestamp{ticks};
-}
-
-Duration SystemTimer::GetUptime() {
-    return Duration::fromMilliseconds(ticks);
 }
 
 extern "C" void SysTick_Handler() {

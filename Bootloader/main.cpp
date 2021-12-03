@@ -18,11 +18,14 @@
 #include <library/timer.hpp>
 #include <BSP/can.hpp>
 #include <BSP/gpio.hpp>
+#include <BSP/timer.hpp>
+
 namespace boot {
 
 	CanManager canManager;
 	Bootloader bootloader{ canManager };
 	std::optional<Timestamp> lastReceivedData;
+
 
 	namespace {
 
