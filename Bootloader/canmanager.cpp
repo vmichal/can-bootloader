@@ -89,6 +89,15 @@ namespace boot {
 		for (;send(msg););
 	}
 
+	void CanManager::sendPingResponse(bool entering_bl) const {
+		Bootloader_PingResponse_t msg;
+
+		msg.Target = customization::thisUnit;
+		msg.Confirmed = entering_bl;
+
+		for (;send(msg););
+	}
+
 	void CanManager::SendHandshake(Bootloader_Handshake_t const& msg) {
 
 		for (;send(msg););

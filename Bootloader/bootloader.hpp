@@ -367,8 +367,13 @@ namespace boot {
 		static HandshakeResponse validateVectorTable(AddressSpace expected_space, std::uint32_t address);
 
 		static void setEntryReason(EntryReason);
-
+		[[nodiscard]]
 		static EntryReason entryReason() { return entryReason_; }
+
+		[[nodiscard]]
+		static bool startupCheckInProgress() {
+			return entryReason_ == EntryReason::StartupCanBusCheck;
+		}
 
 		explicit Bootloader(CanManager& can) :
 			physicalMemoryMapTransmitter_{*this},

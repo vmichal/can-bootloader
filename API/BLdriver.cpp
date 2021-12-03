@@ -79,7 +79,7 @@ namespace boot {
 
 	[[noreturn]]
 	void resetTo(BackupDomain::magic const where) {
-		UFSEL_ASSERT_INTERNAL(where == BackupDomain::magic::application
+		UFSEL_ASSERT_INTERNAL(where == BackupDomain::magic::app_skip_can_check || where == BackupDomain::magic::app_perform_can_check
 		                      || where == BackupDomain::magic::bootloader || where == BackupDomain::magic::app_fatal_error);
 
 		BackupDomain::unlock();

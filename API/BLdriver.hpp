@@ -29,7 +29,8 @@ namespace boot {
 			reset_value = 0x00'00, //value after power reset. Enter the application
 			bootloader = 0xB007, //Writing this value to the bootControlRegister requests entering the bootloader after reset
 			app_fatal_error = 0xDEAD, //The application has been unstable and could not be kept running.
-			application = 0xC0DE, //enter the application
+			app_perform_can_check = 0xC0DE, //Request to enter the application after CAN bus check
+			app_skip_can_check = 0x5CBC, //Request to enter the application immediately (without CAN bus check)
 		};
 
 		//Memory location in backup domain used for data exchange between BL and application

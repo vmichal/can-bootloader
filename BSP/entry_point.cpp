@@ -84,8 +84,9 @@ namespace {
 			return boot::EntryReason::ApplicationFailure;
 
 		case boot::BackupDomain::magic::reset_value:
-		case boot::BackupDomain::magic::application:
-			break; //these two options must still be validated
+		case boot::BackupDomain::magic::app_skip_can_check:
+		case boot::BackupDomain::magic::app_perform_can_check:
+			break; //these three options must still be validated
 		default: //the backup domain contains unknown value
 			return boot::EntryReason::BackupRegisterCorrupted;
 		}
@@ -114,7 +115,9 @@ namespace {
 		if (entry_space == Space::ApplicationFlash || entry_space == Space::JumpTable || entry_space == Space::BootloaderFlash)
 			return boot::EntryReason::TopOfStackInvalid;
 
-		return boot::EntryReason::DontEnter;
+		//If we have got this far, it appears that the firmware is valid. Initiate the CAN bus startup check or skip it
+		bool const check_can = boot::customization::enableStartupCanBusCheck && destination != boot::BackupDomain::magic::app_skip_can_check;
+		return check_can ? boot::EntryReason::StartupCanBusCheck : boot::EntryReason::DontEnter;
 	}
 
 	void configure_system_clock() {
