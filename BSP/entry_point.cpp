@@ -127,18 +127,18 @@ namespace {
 		while (bit::all_cleared(RCC->CR, RCC_CR_HSERDY)); //wait for it to stabilize
 
 		bit::set(std::ref(RCC->CFGR),
-			RCC_CFGR_PLLMULL6, //Make PLL multiply 2MHz * 6 -> 12 MHz
+			RCC_CFGR_PLLMULL9, //Make PLL multiply 4MHz * 9 -> 36 MHz
 			RCC_CFGR_PLLSRC //clock it from PREDIV1 (divided HSE)
 		);
 
-		constexpr Frequency desiredPLLinput = 2_MHz;
+		constexpr Frequency desiredPLLinput = 4_MHz;
 		constexpr int PREDIV1 = boot::customization::HSE / desiredPLLinput;
 		static_assert(PREDIV1 * desiredPLLinput == boot::customization::HSE, "Your HSE is not an integral multiple of 2 MHz!");
 		bit::set(std::ref(RCC->CFGR2),
 			PREDIV1-1 //divide HSE by PREDIV1 so that we get 4MHz at PLL input
 			);
 
-		bit::modify(std::ref(FLASH->ACR), FLASH_ACR_LATENCY,0); //Flash latency zero wait states, because the SYSCLK is slow as fuck.
+		bit::modify(std::ref(FLASH->ACR), FLASH_ACR_LATENCY,1); //Flash latency one wait state, because the SYSCLK is somewhat fast as fuck.
 
 		bit::set(std::ref(RCC->CR), RCC_CR_PLLON); //Enable PLL
 		while (bit::all_cleared(RCC->CR, RCC_CR_PLLRDY)); //wait for it to stabilize
@@ -153,7 +153,7 @@ namespace {
 
 		constexpr int PLLM = boot::customization::HSE / 1_MHz; //Frequency 1MHz at PLL input
 		//PLL can further divide by 2,4,6 or 8 and multiply by 50 to 432
-		constexpr int PLLN = 6*12; //We want to achieve SYSCLK 12 MHz, so lets set P = 6 and N = 12*6
+		constexpr int PLLN = 6*36; //We want to achieve SYSCLK 12 MHz, so lets set P = 6 and N = 36*6
 
 		RCC->PLLCFGR = bit::set(
 #ifdef RCC_PLLCFGR_PLLR
@@ -161,13 +161,13 @@ namespace {
 #endif
 			15 << POS_FROM_MASK(RCC_PLLCFGR_PLLQ), //Probably irrelevant, not used
 			RCC_PLLCFGR_PLLSRC, //HSE used as source
-			//Divide PLL output (72MHz) by 6 in order to get 12MHz on AHB
+			//Divide PLL output by 6 in order to get 36MHz on AHB
 			0b10 << POS_FROM_MASK(RCC_PLLCFGR_PLLP),
 			PLLN << POS_FROM_MASK(RCC_PLLCFGR_PLLN),
 			PLLM << POS_FROM_MASK(RCC_PLLCFGR_PLLM));
 
 		//Section 3.4.1 of reference manual - conversion table from CPU speed and voltage range to flash latency
-		constexpr auto desired_latency = FLASH_ACR_LATENCY_0WS; //Voltage range 2.7-3.6 && HCLK < 30MHz --> 0 wait states
+		constexpr auto desired_latency = FLASH_ACR_LATENCY_1WS; //Voltage range 2.7-3.6 && 30MHz < HCLK < 60MHz --> 1 wait states
 		bit::modify(std::ref(FLASH->ACR), FLASH_ACR_LATENCY, desired_latency);
 		bit::set(std::ref(FLASH->ACR), FLASH_ACR_PRFTEN);
 		while (bit::get(FLASH->ACR, FLASH_ACR_LATENCY) != desired_latency); //Wait for ack

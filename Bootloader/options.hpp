@@ -288,6 +288,8 @@ namespace boot {
 	constexpr bool rebootAfterHardfault = true;
 	constexpr auto rebootDelayHardfault = 10_s;
 
+	constexpr Frequency SYSCLK = 36_MHz;
+
 	constexpr std::uint32_t isrVectorAlignmentMask = ufsel::bit::bitmask_of_width(customization::isrVectorAlignmentBits);
 
 	constexpr std::uint32_t smallestPageSize = (*std::min_element(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(),[](auto const &a, auto const &b) {return a.length < b.length;} )).length;
