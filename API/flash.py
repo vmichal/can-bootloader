@@ -81,18 +81,6 @@ oc.set_silent(False) #send ack frames to estabilish communication between the ma
 oc.set_message_forwarding(True)
 oc.set_bitrate_auto()
 
-def find_message(owner, name, database):
-	try:
-		return next(msg for id, msg in database.parsed_messages.items() if msg.owner == owner and msg.description.name == name)
-	except:
-		raise Exception(f"Message {owner}::{name} does not exist!")
-
-def find_enum(owner, name, database):
-	try:
-		return next(e for e in database.parsed_enums if e.name == f'{owner}_{name}')
-	except:
-		raise Exception(f"Enum {owner}::{name} does not exist!")
-
 TargetBootloaderData = namedtuple('TargetBootloaderData', ['state', 'flash_size', 'last_response', 'entry_reason'])
 TargetSoftwareBuild = namedtuple('TargetSoftwareBuild', ['CommitSHA', 'DirtyRepo'])
 ApplicationData = namedtuple('ApplicationData', ['BLpending', 'last_response'])
@@ -104,10 +92,10 @@ class BootloaderListing:
 
 		self.oc = oc
 		self.candb = canDB
-		self.beacon = find_message("Bootloader", "Beacon", self.candb) #all active bootloaders transmit this message
-		self.pingResponse = find_message("Bootloader", "PingResponse", self.candb) #whereas units with active firmware transmit this
-		self.ping = find_message("Bootloader", "Ping", self.candb)
-		self.SoftwareBuild = find_message("Bootloader", "SoftwareBuild", self.candb)
+		self.beacon = self.candb.getMsgByName("Bootloader", "Beacon") #all active bootloaders transmit this message
+		self.pingResponse = self.candb.getMsgByName("Bootloader", "PingResponse") #whereas units with active firmware transmit this
+		self.ping = self.candb.getMsgByName("Bootloader", "Ping")
+		self.SoftwareBuild = self.candb.getMsgByName("Bootloader", "SoftwareBuild")
 	
 		try:
 			self.beacon["Target"]
@@ -535,27 +523,27 @@ class FlashMaster:
 		self.output_file = sys.stdout if not quiet else open('/dev/null', 'w')
 
 		#get references to enumerations
-		self.BootTargetEnum = find_enum("Bootloader", "BootTarget", self.db)
-		self.HandshakeResponseEnum = find_enum("Bootloader", "HandshakeResponse", self.db)
-		self.RegisterEnum = find_enum("Bootloader", "Register", self.db)
-		self.StateEnum = find_enum("Bootloader", "State", self.db)
-		self.WriteResultEnum = find_enum("Bootloader", "WriteResult", self.db)
-		self.CommandEnum = find_enum('Bootloader', 'Command', self.db)
-		self.EntryReasonEnum = find_enum('Bootloader', 'EntryReason', self.db)
+		self.BootTargetEnum = self.db.getEnumByName("Bootloader", "BootTarget")
+		self.HandshakeResponseEnum = self.db.getEnumByName("Bootloader", "HandshakeResponse")
+		self.RegisterEnum = self.db.getEnumByName("Bootloader", "Register")
+		self.StateEnum = self.db.getEnumByName("Bootloader", "State")
+		self.WriteResultEnum = self.db.getEnumByName("Bootloader", "WriteResult")
+		self.CommandEnum = self.db.getEnumByName('Bootloader', 'Command')
+		self.EntryReasonEnum = self.db.getEnumByName('Bootloader', 'EntryReason')
 
 
 		#get references to messages
-		self.Ping = find_message("Bootloader", "Ping", self.db)
-		self.PingResponse = find_message("Bootloader", "PingResponse", self.db)
-		self.ExitReq = find_message("Bootloader", "ExitReq", self.db)
-		self.ExitAck = find_message("Bootloader", "ExitAck", self.db)
-		self.Beacon = find_message("Bootloader", "Beacon", self.db)
-		self.Data = find_message("Bootloader", "Data", self.db)
-		self.DataAck = find_message("Bootloader", "DataAck", self.db)
-		self.Handshake = find_message("Bootloader", "Handshake", self.db)
-		self.HandshakeAck = find_message("Bootloader", "HandshakeAck", self.db)
-		self.CommunicationYield = find_message('Bootloader', 'CommunicationYield', self.db)
-		self.SoftwareBuild = find_message('Bootloader', 'SoftwareBuild', self.db)
+		self.Ping = self.db.getMsgByName("Bootloader", "Ping")
+		self.PingResponse = self.db.getMsgByName("Bootloader", "PingResponse")
+		self.ExitReq = self.db.getMsgByName("Bootloader", "ExitReq")
+		self.ExitAck = self.db.getMsgByName("Bootloader", "ExitAck")
+		self.Beacon = self.db.getMsgByName("Bootloader", "Beacon")
+		self.Data = self.db.getMsgByName("Bootloader", "Data")
+		self.DataAck = self.db.getMsgByName("Bootloader", "DataAck")
+		self.Handshake = self.db.getMsgByName("Bootloader", "Handshake")
+		self.HandshakeAck = self.db.getMsgByName("Bootloader", "HandshakeAck")
+		self.CommunicationYield = self.db.getMsgByName("Bootloader", "CommunicationYield")
+		self.SoftwareBuild = self.db.getMsgByName("Bootloader", "SoftwareBuild")
 
 		self.targetName = unit
 		self.target = enumerator_by_name(self.targetName, self.BootTargetEnum)
