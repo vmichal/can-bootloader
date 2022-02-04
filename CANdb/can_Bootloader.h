@@ -65,6 +65,8 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_EBSS = 6,
     /* SiC motor controller */
     Bootloader_BootTarget_Disruptor = 7,
+    /* Steering Actuator (DV only) */
+    Bootloader_BootTarget_SA = 8,
 };
 
 enum Bootloader_Command {

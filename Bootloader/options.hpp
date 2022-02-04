@@ -240,6 +240,7 @@ namespace boot {
 		 * DSH (FSE10) - 12 MHz
 		 * FSB (FSE10) - 8 MHz
 		 * EBSS (DV01) - 12 MHz
+		 * SA (DV01) - 8 MHz
 		 */
 
 		// FSE10 DSH has remaped CAN2!
