@@ -70,9 +70,13 @@ namespace boot {
 		AwaitEndOfOperation();
 		ClearProgrammingErrors();
 
-		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PER);
-		ufsel::bit::modify(std::ref(FLASH->CR), FLASH_CR_PNB_Msk, getEnclosingBlockIndex(pageAddress) << FLASH_CR_PNB_Pos);
-		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_STRT); // start page erase
+		auto const page_id = getEnclosingBlockIndex(pageAddress);
+		bit::sliceable_reference CR{FLASH->CR};
+		CR[FLASH_CR_PER_Pos] = true;
+		CR[bit::slice::for_mask(FLASH_CR_PNB)] = page_id.block_index;
+		CR[FLASH_CR_BKER_Pos] = page_id.bank_num;
+		CR[FLASH_CR_STRT_Pos] = true; // start page erase
+		AwaitEndOfOperation();
 		return true;
 #elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
 
