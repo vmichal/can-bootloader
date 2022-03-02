@@ -50,7 +50,7 @@ namespace boot {
 				FLASH_SR_PROGERR // Programming error
 		);
 #elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
-		ufsel::bit::set(std::ref(FLASH->SR), , FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
+		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
 #elif defined BOOT_STM32F1
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP, FLASH_SR_WRPRTERR, FLASH_SR_PGERR);
 #endif
@@ -88,7 +88,7 @@ namespace boot {
 		//configure write paralelism based on voltage range, use 32bit paralellism (0b10)
 		ufsel::bit::modify(std::ref(FLASH->CR), ufsel::bit::bitmask_of_width(2), 0b10, POS_FROM_MASK(FLASH_CR_PSIZE));
 
-		unsigned const sectorIndex = Flash::getEnclosingBlockIndex(pageAddress);
+		unsigned const sectorIndex = Flash::getEnclosingBlockId(pageAddress).block_index;
 
 		assert(ufsel::bit::all_cleared(FLASH->CR, FLASH_CR_MER, FLASH_CR_PG));
 		FLASH->CR |= FLASH_CR_SER; //Choose sector erase.
