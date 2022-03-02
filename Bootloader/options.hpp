@@ -324,7 +324,4 @@ namespace boot {
 	constexpr static auto flash_write_buffer_size = 24_KiB;
 }
 
-//TODO update compile.sh to support G4
-
-
 
