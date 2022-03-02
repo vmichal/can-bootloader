@@ -183,29 +183,38 @@ namespace boot {
 			return addressOrigin(address) == AddressSpace::BootloaderFlash;
 		}
 
-		constexpr static int getEnclosingBlockIndex(std::uint32_t address) {
+		struct block_bank_id {
+			int block_index, bank_num;
+		};
+
+		constexpr static block_bank_id getEnclosingBlockId(std::uint32_t address) {
 			if constexpr (pagesHaveSameSize()) {
 				constexpr std::uint32_t block_size = customization::physicalBlockSize.toBytes();
 				constexpr std::uint32_t base_address = customization::flashMemoryBaseAddress;
-				return (address - base_address) / block_size;
+				constexpr std::uint32_t block_offset_ignoring_banks = (address - base_address) / block_size;
+				// Assume flash memory banks form a contiguous range
+				return block_bank_id{
+					.block_index = block_offset_ignoring_banks % customization::NumPhysicalBlocksPerBank,
+					.bank_num = block_offset_ignoring_banks / customization::NumPhysicalBlocksPerBank
+				};
 			}
 			else {
+				static_assert(customization::flashBankCount == 1,
+						"It is not currently supported to have more than one bank and unequal sector sizes.If you need this, you need to implement it.");
 				for (std::size_t i = 0; i < size(physicalMemoryBlocks); ++i) {
 					MemoryBlock const& block = physicalMemoryBlocks[i];
 					if (block.address <= address && address < end(block))
-						return i;
+						return {.block_index = i, .bank_num = 0};
 				}
-				return -1;
+				return {.block_index = -1, .bank_num = -1};
 			}
 		}
 		
 		constexpr static MemoryBlock getEnclosingBlock(std::uint32_t address) {
-			if constexpr (pagesHaveSameSize()) {
-				return physicalMemoryBlocks[getEnclosingBlockIndex(address)];
-			}
-			else {
-				return physicalMemoryBlocks[getEnclosingBlockIndex(address)];
-			}
+			auto const id = getEnclosingBlockId(address);
+			MemoryBlock result = physicalMemoryBlocks[id.block_index];
+			result.address += id.bank_num * flashBankSize; // Correct the memory block start (correctly handle bank number)
+			return result;
 		}
 
 		constexpr static std::uint32_t makePageAligned(std::uint32_t address) {
@@ -222,11 +231,11 @@ namespace boot {
 
 	struct PhysicalMemoryMap {
 
-		constexpr static unsigned applicationPages() {return customization::physicalBlockCount - customization::firstBlockAvailableToApplication;}
+		constexpr static unsigned applicationPages() {return customization::NumPhysicalBlocksPerBank - customization::firstBlockAvailableToApplication;}
 		constexpr static unsigned bootloaderPages() {return customization::firstBlockAvailableToApplication - customization::firstBlockAvailableToBootloader;}
 
 		static MemoryBlock block(std::uint32_t const index) {
-			assert(index < customization::physicalBlockCount);
+			assert(index < customization::NumPhysicalBlocksPerBank);
 			return physicalMemoryBlocks[index];
 		}
 
@@ -234,7 +243,7 @@ namespace boot {
 
 			bool const is_bootloader = space == AddressSpace::BootloaderFlash;
 			std::uint32_t const begin_index = is_bootloader ? customization::firstBlockAvailableToBootloader : customization::firstBlockAvailableToApplication;
-			std::uint32_t const end_index = is_bootloader ? customization::firstBlockAvailableToApplication : customization::physicalBlockCount;
+			std::uint32_t const end_index = is_bootloader ? customization::firstBlockAvailableToApplication : customization::NumPhysicalBlocksPerBank;
 
 			for (std::uint32_t i = begin_index; i < end_index; ++i) {
 				MemoryBlock const physical = physicalMemoryBlocks[i];
