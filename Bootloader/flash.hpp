@@ -194,11 +194,12 @@ namespace boot {
 			if constexpr (pagesHaveSameSize()) {
 				constexpr std::uint32_t block_size = customization::physicalBlockSize.toBytes();
 				constexpr std::uint32_t base_address = customization::flashMemoryBaseAddress;
-				constexpr std::uint32_t block_offset_ignoring_banks = (address - base_address) / block_size;
+				constexpr int blocksPerBank = customization::NumPhysicalBlocksPerBank;
+				int const block_offset_ignoring_banks = (address - base_address) / block_size;
 				// Assume flash memory banks form a contiguous range
 				return block_bank_id{
-					.block_index = block_offset_ignoring_banks % customization::NumPhysicalBlocksPerBank,
-					.bank_num = block_offset_ignoring_banks / customization::NumPhysicalBlocksPerBank
+					.block_index = block_offset_ignoring_banks % blocksPerBank,
+					.bank_num = block_offset_ignoring_banks / blocksPerBank
 				};
 			}
 			else {
@@ -207,7 +208,7 @@ namespace boot {
 				for (std::size_t i = 0; i < size(physicalMemoryBlocks); ++i) {
 					MemoryBlock const& block = physicalMemoryBlocks[i];
 					if (block.address <= address && address < end(block))
-						return {.block_index = i, .bank_num = 0};
+						return {.block_index = static_cast<int>(i), .bank_num = 0};
 				}
 				return {.block_index = -1, .bank_num = -1};
 			}
@@ -216,7 +217,7 @@ namespace boot {
 		constexpr static MemoryBlock getEnclosingBlock(std::uint32_t address) {
 			auto const id = getEnclosingBlockId(address);
 			MemoryBlock result = physicalMemoryBlocks[id.block_index];
-			result.address += id.bank_num * flashBankSize; // Correct the memory block start (correctly handle bank number)
+			result.address += id.bank_num * flashBankSize.toBytes(); // Correct the memory block start (correctly handle bank number)
 			return result;
 		}
 

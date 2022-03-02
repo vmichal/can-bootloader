@@ -70,6 +70,12 @@ namespace boot {
 		}
 
 		struct iterator {
+			using iterator_category = std::bidirectional_iterator_tag;
+			using difference_type = std::ptrdiff_t;
+			using value_type = MemoryBlock;
+			using pointer = void;
+			using reference = void;
+
 			std::uint32_t index_ = 0;
 
 			constexpr MemoryBlock operator*() const {
@@ -324,7 +330,7 @@ namespace boot {
 #error "This MCU is not supported"
 #endif
 
-	constexpr auto flashBankSize = std::transform_reduce(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(), 0_B, std::plus{}, std::mem_fn(&MemoryBlock::length));
+	constexpr auto flashBankSize = InformationSize::fromBytes(std::transform_reduce(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(), 0, std::plus{}, std::mem_fn(&MemoryBlock::length)));
 
 	static_assert(customization::flashProgrammingParallelism == 16 || customization::flashProgrammingParallelism == 32 || customization::flashProgrammingParallelism == 64, "Unsupported flash programming parallelism!");
 
