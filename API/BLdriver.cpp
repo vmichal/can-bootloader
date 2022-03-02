@@ -3,7 +3,7 @@
  *
  * Written by Vojtěch Michal
  *
- * Copyright (c) 2020 eforce FEE Prague Formula
+ * Copyright (c) 2020, 2021 eforce FEE Prague Formula
  *
  * Implementation of functions that constitute the firmware's interface to bootloader
  * Example code showing, what is necessary in order to integrate BL into your project,
@@ -20,6 +20,9 @@
 #include "../Drivers/core_cm3.h"
 #elif defined(BOOT_STM32F4)
 #include "../Drivers/stm32f4xx.h"
+#include "../Drivers/core_cm4.h"
+#elif defined(BOOT_STM32G4)
+#include "../Drivers/stm32g4xx.h"
 #include "../Drivers/core_cm4.h"
 #elif defined(BOOT_STM32F7)
 #include "../Drivers/stm32f767xx.h"
@@ -50,6 +53,13 @@ namespace boot {
 
 		bit::set(std::ref(RCC->BDCR), 0b10 << std::countr_zero(RCC_BDCR_RTCSEL)); //select LSI as RTC clock
 		bit::set(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
+#elif defined BOOT_STM32G4
+		bit::set(std::ref(RCC->APB1ENR1), RCC_APB1ENR1_PWREN); //Enable clock to power controleer
+
+		bit::set(std::ref(PWR->CR1), PWR_CR1_DBP);		//Disable backup domain protection
+
+		bit::set(std::ref(RCC->BDCR), 0b10 << std::countr_zero(RCC_BDCR_RTCSEL)); //select LSI as RTC clock
+		bit::set(std::ref(RCC->BDCR), RCC_BDCR_RTCEN); // enable RTC clock.
 #endif
 	}
 
@@ -74,6 +84,13 @@ namespace boot {
 		bit::clear(std::ref(PWR->CR1), PWR_CR1_DBP);	//Enable backup domain protection
 		
 		bit::clear(std::ref(RCC->APB1ENR), RCC_APB1ENR_PWREN); //Disable clock to power controleer
+#elif defined BOOT_STM32G4
+		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCEN);
+		bit::clear(std::ref(RCC->BDCR), RCC_BDCR_RTCSEL); //deactivate RTC clock
+
+		bit::clear(std::ref(PWR->CR1), PWR_CR1_DBP);	//Enable backup domain protection
+
+		bit::clear(std::ref(RCC->APB1ENR1), RCC_APB1ENR1_PWREN); //Disable clock to power controleer
 #endif
 	}
 

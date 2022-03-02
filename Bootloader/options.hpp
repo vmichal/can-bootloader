@@ -16,6 +16,7 @@
 #include <CANdb/can_Bootloader.h>
 #include <bit>
 #include <array>
+#include <numeric>
 
 #define POS_FROM_MASK(x) std::countr_zero(x)
 #define BIT_MASK(name) name ## _Msk
@@ -31,6 +32,9 @@
 #elif defined(BOOT_STM32F2)
 #include "../Drivers/stm32f205xx.h"
 #include "../Drivers/core_cm3.h"
+#elif defined(BOOT_STM32G4)
+#include "../Drivers/stm32g4xx.h"
+#include "../Drivers/core_cm4.h"
 #else
 #error "This MCU is not supported!"
 #endif
@@ -108,8 +112,11 @@ namespace boot {
 		//Governs the width of programming acesses to the flash memory
 		constexpr unsigned flashProgrammingParallelism = 32;
 
-		//The number of physical blocks available on the target chip
-		constexpr std::uint32_t physicalBlockCount = 12;
+		// The number of banks the flash memory is separated into
+		constexpr int flashBankCount = 1;
+
+		//The number of physical blocks available per bank
+		constexpr std::uint32_t NumPhysicalBlocksPerBank = 12;
 
 		//Used only iff the flash memory consists of blocks of the same size
 		constexpr InformationSize physicalBlockSize = 0_B;
@@ -124,7 +131,7 @@ namespace boot {
 		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
-		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal {
+		constexpr std::array<MemoryBlock, NumPhysicalBlocksPerBank> blocksWhenSizesAreUnequal {
 			MemoryBlock{0x0800'0000, ( 16_KiB).toBytes()},
 			MemoryBlock{0x0800'4000, ( 16_KiB).toBytes()},
 			MemoryBlock{0x0800'8000, ( 16_KiB).toBytes()},
@@ -142,8 +149,11 @@ namespace boot {
 		//Governs the width of programming acesses to the flash memory
 		constexpr unsigned flashProgrammingParallelism = 32;
 
-		//The number of physical blocks available on the target chip
-		constexpr std::uint32_t physicalBlockCount = 8;
+		// The number of banks the flash memory is separated into
+		constexpr int flashBankCount = 1;
+
+		//The number of physical blocks available per bank
+		constexpr std::uint32_t NumPhysicalBlocksPerBank = 8;
 
 		//Used only iff the flash memory consists of blocks of the same size
 		constexpr InformationSize physicalBlockSize = 0_B;
@@ -158,7 +168,7 @@ namespace boot {
 		constexpr std::uint32_t firstBlockAvailableToBootloader = 2; //because of the flash FS
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
-		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{
+		constexpr std::array<MemoryBlock, NumPhysicalBlocksPerBank> blocksWhenSizesAreUnequal{
 			MemoryBlock{0x0800'0000, (32_KiB).toBytes()},
 			MemoryBlock{0x0800'8000, (32_KiB).toBytes()},
 			MemoryBlock{0x0801'0000, (32_KiB).toBytes()},
@@ -172,8 +182,11 @@ namespace boot {
 		//Governs the width of programming acesses to the flash memory
 		constexpr unsigned flashProgrammingParallelism = 16;
 
-		//The number of physical blocks available on the target chip
-		constexpr std::uint32_t physicalBlockCount = 128;
+		// The number of banks the flash memory is separated into
+		constexpr int flashBankCount = 1;
+
+		//The number of physical blocks available per bank
+		constexpr std::uint32_t NumPhysicalBlocksPerBank = 128;
 
 		//Used only iff the flash memory consists of blocks of the same size
 		constexpr InformationSize physicalBlockSize = 2048_B;
@@ -188,13 +201,39 @@ namespace boot {
 		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
-		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal{ };
+		constexpr std::array<MemoryBlock, NumPhysicalBlocksPerBank> blocksWhenSizesAreUnequal{ };
+#elif defined BOOT_STM32G4
+		//Governs the width of programming acesses to the flash memory
+		constexpr unsigned flashProgrammingParallelism = 64;
+
+		// The number of banks the flash memory is separated into
+		constexpr int flashBankCount = 2;
+
+		//The number of physical blocks available per bank
+		constexpr std::uint32_t NumPhysicalBlocksPerBank = 128;
+
+		//Used only iff the flash memory consists of blocks of the same size
+		constexpr InformationSize physicalBlockSize = 2048_B;
+
+		//Controls, whether the flash memory consists of blocks of the same size (f1xx or g4xx flash pages) or different sizes (f4xx/f7xx/f2xx sectors)
+		constexpr PhysicalBlockSizes physicalBlockSizePolicy = PhysicalBlockSizes::same;
+
+		// In case of Disruptor, the bootloader occupies 12K and 4K for jump table
+		//TODO this must be checked once in a while, whether it is correct...
+		constexpr std::uint32_t firstBlockAvailableToApplication = 4;
+		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
+
+		//Fill this array with memory blocks iff the memory blocks have unequal sizes
+		constexpr std::array<MemoryBlock, NumPhysicalBlocksPerBank> blocksWhenSizesAreUnequal{ };
 #elif defined BOOT_STM32F2
 		//Governs the width of programming acesses to the flash memory
 		constexpr unsigned flashProgrammingParallelism = 32;
 
-		//The number of physical blocks available on the target chip
-		constexpr std::uint32_t physicalBlockCount = 12;
+		// The number of banks the flash memory is separated into
+		constexpr int flashBankCount = 1;
+
+		//The number of physical blocks available per bank
+		constexpr std::uint32_t NumPhysicalBlocksPerBank = 12;
 
 		//Used only iff the flash memory consists of blocks of the same size
 		constexpr InformationSize physicalBlockSize = 0_B;
@@ -209,7 +248,7 @@ namespace boot {
 		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
-		constexpr std::array<MemoryBlock, physicalBlockCount> blocksWhenSizesAreUnequal {
+		constexpr std::array<MemoryBlock, NumPhysicalBlocksPerBank> blocksWhenSizesAreUnequal {
 				MemoryBlock{0x0800'0000, ( 16_KiB).toBytes()},
 				MemoryBlock{0x0800'4000, ( 16_KiB).toBytes()},
 				MemoryBlock{0x0800'8000, ( 16_KiB).toBytes()},
@@ -241,13 +280,14 @@ namespace boot {
 		 * FSB (FSE10) - 8 MHz
 		 * EBSS (DV01) - 12 MHz
 		 * SA (DV01) - 12 MHz
+		 * Disruptor - 12 MHz
 		 */
 
 		// FSE10 DSH has remaped CAN2!
 
 
 		//Bootloader target identification
-		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_EBSS;
+		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_Disruptor;
 		//Frequency of used external oscillator
 		constexpr Frequency HSE = 12_MHz;
 #ifdef BOOT_STM32F1 //currently supprted only in STM32F1 mode
@@ -269,12 +309,12 @@ namespace boot {
 
 	auto constexpr getMemoryBlocks() {
 		if constexpr (customization::physicalBlockSizePolicy == PhysicalBlockSizes::same)
-			return EquidistantMemoryGenerator<customization::physicalBlockCount, customization::physicalBlockSize.toBytes(), customization::flashMemoryBaseAddress>{};
+			return EquidistantMemoryGenerator<customization::NumPhysicalBlocksPerBank, customization::physicalBlockSize.toBytes(), customization::flashMemoryBaseAddress>{};
 		else
 			return customization::blocksWhenSizesAreUnequal;
 	}
 	constexpr auto physicalMemoryBlocks = getMemoryBlocks();
-#ifdef BOOT_STM32F1
+#if defined BOOT_STM32F1 || defined BOOT_STM32G4
 	static_assert(physicalMemoryBlocks.size() == 128); //sanity check that this template magic works
 #elif defined BOOT_STM32F4 || defined BOOT_STM32F2
 	static_assert(physicalMemoryBlocks.size() == 12); //sanity check that this template magic works
@@ -283,6 +323,8 @@ namespace boot {
 #else
 #error "This MCU is not supported"
 #endif
+
+	constexpr auto flashBankSize = std::transform_reduce(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(), 0_B, std::plus{}, std::mem_fn(&MemoryBlock::length));
 
 	static_assert(customization::flashProgrammingParallelism == 16 || customization::flashProgrammingParallelism == 32 || customization::flashProgrammingParallelism == 64, "Unsupported flash programming parallelism!");
 
@@ -296,6 +338,5 @@ namespace boot {
 	constexpr std::uint32_t smallestPageSize = (*std::min_element(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(),[](auto const &a, auto const &b) {return a.length < b.length;} )).length;
 	constexpr static std::size_t flash_write_buffer_size = 1024;
 }
-
 
 

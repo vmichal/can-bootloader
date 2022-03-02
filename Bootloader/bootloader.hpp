@@ -112,7 +112,7 @@ namespace boot {
 		};
 
 		Status status_ = Status::uninitialized;
-		std::array<MemoryBlock, customization::physicalBlockCount> erased_pages_;
+		std::array<MemoryBlock, customization::NumPhysicalBlocksPerBank> erased_pages_;
 		std::uint32_t erased_pages_count_ = 0, expectedPageCount_ = 0;
 
 	public:
