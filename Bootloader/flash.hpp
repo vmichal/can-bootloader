@@ -130,7 +130,9 @@ namespace boot {
 		};
 
 		static void AwaitEndOfErasure();
+		static void AwaitEndOfOperation();
 		static bool ErasePage(std::uint32_t pageAddress);
+		static void ClearProgrammingErrors();
 
 		static WriteStatus Write(std::uint32_t address, nativeType data);
 
