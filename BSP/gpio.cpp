@@ -53,10 +53,10 @@ namespace bsp::gpio {
 	void Initialize(void)
 	{
 		using namespace ufsel;
-		//Enable clock to GPIOA, GPIOB
+		//Enable clock to GPIOA, GPIOB (or B and D for STM32G4 instead)
 #if defined STM32G4
 	bit::set(std::ref(RCC->AHB2ENR),
-				RCC_AHB2ENR_GPIOAEN,
+				RCC_AHB2ENR_GPIODEN,
 				RCC_AHB2ENR_GPIOBEN);
 
 #else
