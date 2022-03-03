@@ -72,7 +72,7 @@ namespace boot {
 		AwaitEndOfOperation();
 		ClearProgrammingErrors();
 
-		auto const page_id = getEnclosingBlockIndex(pageAddress);
+		auto const page_id = getEnclosingBlockId(pageAddress);
 		bit::sliceable_reference CR{FLASH->CR};
 		CR[FLASH_CR_PER_Pos] = true;
 		CR[bit::slice::for_mask(FLASH_CR_PNB)] = page_id.block_index;

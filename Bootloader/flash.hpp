@@ -203,8 +203,6 @@ namespace boot {
 				};
 			}
 			else {
-				static_assert(customization::flashBankCount == 1,
-						"It is not currently supported to have more than one bank and unequal sector sizes.If you need this, you need to implement it.");
 				for (std::size_t i = 0; i < size(physicalMemoryBlocks); ++i) {
 					MemoryBlock const& block = physicalMemoryBlocks[i];
 					if (block.address <= address && address < end(block))
@@ -232,6 +230,9 @@ namespace boot {
 		static AddressSpace addressOrigin(std::uint32_t address);
 		static AddressSpace addressOrigin_located_in_flash(std::uint32_t address) __attribute__((section(".executed_from_flash")));
 	};
+
+	static_assert(customization::flashBankCount == 1 || Flash::pagesHaveSameSize(),
+			"It is not currently supported to have more than one bank and unequal sector sizes.If you need this, you need to implement it.");
 
 	struct PhysicalMemoryMap {
 

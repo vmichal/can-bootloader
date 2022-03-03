@@ -195,14 +195,14 @@ namespace {
 		// and SYSCLK (VCO / PLLR) will run at 12 MHz
 
 		constexpr auto PLL_input = 1_MHz;
-		constexpr auto desired_VCO = boot::SYSCLK;
+		constexpr auto desired_VCO = boot::SYSCLK * 2; // PLLR must divide at least by 2
 
 		constexpr unsigned PLLM = boot::customization::HSE / PLL_input; //pre PLL divisor
 		constexpr unsigned PLLN = desired_VCO / PLL_input; // multiply PLL input to VCO clock.
 		constexpr unsigned PLLR = desired_VCO / boot::SYSCLK; // divides VCO freq to SYSCLK
 		// Static asserts based on information in device reference manual.
 		// See section 7.4.4 - description of RCC_PLLCFGR register
-		static_assert(PLLR * SYSCLK == desired_VCO, "Frequency prescalers must be natural numbers!");
+		static_assert(PLLR * boot::SYSCLK == desired_VCO, "Frequency prescalers must be natural numbers!");
 		static_assert(PLL_input * PLLM == boot::customization::HSE, "This PLL input frequency cannot be achieved using supplied HSE frequency.");
 		static_assert(PLLN >= 8 && PLLN <= 127);
 		static_assert(PLLM >= 1 && PLLM <= 16);
