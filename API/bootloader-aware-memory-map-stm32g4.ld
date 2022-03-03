@@ -16,19 +16,18 @@ between BL and application during system resets.*/
 BootControlBackupRegisterAddress = 0x40002400 + 0x100; /* BKP domain (in TAMP), reg one used.*/
 
 /* BL's requirements. 12K for BL code and 4k for firmware jump table.*/
-BootloaderSize = 12K;
-JumpTableSize = 4K;
+/* TODO the bootloader shall not be this big. Investigate why it needs 18K of memory*/
+CompleteBootloaderSize = 20K;
+JumpTableSize = 2K;
 
 
 
 /* Specify the memory areas */
 MEMORY
 {
-BootloaderFlash(rx)      : ORIGIN = FlashStart, LENGTH = BootloaderSize
-JumpTableFlash(rx)       : ORIGIN = FlashStart + BootloaderSize, LENGTH = JumpTableSize
-ApplicationFlash(rx)     : ORIGIN = FlashStart + BootloaderSize + JumpTableSize, LENGTH = FlashSize - BootloaderSize - JumpTableSize
 
-SRAM1 (xrw)              : ORIGIN = 0x20000000, LENGTH = 80K
+/* Use only SRAM1, here called RAM*/
+RAM (xrw)              : ORIGIN = 0x20000000, LENGTH = 80K
 SRAM2 (xrw)              : ORIGIN = 0x20014000, LENGTH = 16K
-RAM   (xrw)              : ORIGIN = 0x20018000, LENGTH = 16K /*CCM*/
+CCM_RAM   (xrw)              : ORIGIN = 0x20018000, LENGTH = 16K /*CCM*/
 }
