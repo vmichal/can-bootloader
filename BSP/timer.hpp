@@ -14,7 +14,6 @@
 #include <cstdint>
 
 
-constexpr auto SYS_CLK = 12'000'000_Hz; 
 constexpr auto SysTickFrequency = 1'000_Hz;
 
 extern "C" void SysTick_Handler();
