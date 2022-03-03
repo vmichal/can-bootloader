@@ -226,8 +226,8 @@ namespace {
 		bit::set(std::ref(RCC->CR), RCC_CR_PLLON); //start PLL
 		bit::wait_until_set(RCC->CR, RCC_CR_PLLRDY);
 
-		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SWS_Msk, RCC_CFGR_SWS_PLL); // set PLL as system clock
-		while (bit::get(RCC->CFGR, RCC_CFGR_SW_Msk) != RCC_CFGR_SW_PLL); // wait for the SYSCLK to switch to PLL
+		bit::modify(std::ref(RCC->CFGR), RCC_CFGR_SW_Msk, RCC_CFGR_SW_PLL); // set PLL as system clock
+		while (bit::get(RCC->CFGR, RCC_CFGR_SWS_Msk) != RCC_CFGR_SWS_PLL); // wait for the SYSCLK to switch to PLL
 
 		bit::clear(std::ref(RCC->CR), RCC_CR_HSION); //disable internal oscillator
 #else
