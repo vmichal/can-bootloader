@@ -617,8 +617,10 @@ class FlashMaster:
 		message = self.db.getMsgById(id)
 
 		for field in must_match:
-			if sent._asdict()[field] != message[field].value[0]:
-				print(f'Received unrelated acknowledge!', file=sys.stderr)
+			expected = sent._asdict()[field]
+			received = message[field].value[0]
+			if expected != received:
+				print(f'Received unrelated acknowledge! Field {field} does not match ({expected=}, {received=})', file=sys.stderr)
 				return False
 
 		return [message[field].value[0] for field in wanted]
