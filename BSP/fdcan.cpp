@@ -48,7 +48,7 @@ namespace bsp::can {
 			using namespace ufsel;
 
 			// enter initialization
-			bit::set(std::ref(can.CCCR), FDCAN_CCCR_INIT);
+			bit::set(std::ref(can.CCCR), FDCAN_CCCR_INIT, FDCAN_CCCR_CCE);
 		}
 
 		//wait for FDCAN to synchronize with the bus (leave initialization)
@@ -62,7 +62,7 @@ namespace bsp::can {
 			//await acknowledge that the peripheral entered initialization mode
 			bit::wait_until_set(can->CCCR, FDCAN_CCCR_INIT);
 
-			bit::set(std::ref(can->DBTP),
+			can->DBTP = bit::bitmask(
 					// do not enable transceiver delay compensation
 					(bit_time_config.data_prescaler - 1) << FDCAN_DBTP_DBRP_Pos, // configure data prescaler
 					(bit_time_config.bs1 - 1) << FDCAN_DBTP_DTSEG1_Pos, // configure segment 1&2 length
@@ -74,7 +74,7 @@ namespace bsp::can {
 
 			bit::set(std::ref(can->CCCR),
 					// keep ISO CANFD operation
-					FDCAN_CCCR_TXP, // insert a delay of 2 bit times after successful frame TX
+					FDCAN_CCCR_TXP // insert a delay of 2 bit times after successful frame TX
 					// edge filtering disabled
 					// protocol exception handling disabled
 					// disable bit rate switching
@@ -83,10 +83,9 @@ namespace bsp::can {
 					// disabled bus monitoring mode
 					// no clock stop request, no power down
 					// no restricted operation (for now?)
-					FDCAN_CCCR_CCE // allow write access to config registers
 			);
 
-			bit::set(std::ref(can->NBTP),
+			can->NBTP = bit::bitmask(
 					// do not enable transceiver delay compensation
 					(bit_time_config.nominal_prescaler - 1) << FDCAN_NBTP_NBRP_Pos, // the nominal baudrate prescaler
 					(bit_time_config.bs1 - 1) << FDCAN_NBTP_NTSEG1_Pos, // configure segment 1&2 length
@@ -170,6 +169,8 @@ namespace bsp::can {
 	void Initialize() {
 		using namespace ufsel;
 
+		bit::set(std::ref(RCC->APB1ENR1), RCC_APB1ENR1_FDCANEN); // enable FDCAN clock
+		bit::set(std::ref(RCC->CCIPR), 0b10 << RCC_CCIPR_FDCANSEL_Pos); // clock FDCAN from PCLK (36 MHz)
 #if 0
 		// No clock input prescaling is used
 		constexpr int periph_clock_prescaler = bsp::clock::bus_speed::APB1 / can_clock_frequency;
@@ -239,8 +240,10 @@ namespace bsp::can {
 		std::uint32_t const word_count = (length + sizeof(std::uint32_t) - 1) / sizeof(std::uint32_t);
 
 		MessageData result {.id = message_id, .length = length};
-		// Read message data out from the peripheral
-		std::copy_n(rx_buffer.data, word_count, result.data.begin());
+		// Copy the message data from Message RAM
+		// Cannot use std::copy here since it is strictly necessary to use word accesses
+		for (int word = 0; word < word_count; ++word)
+			result.data[word] = rx_buffer.data[word];
 
 		// Acknowledge data extraction, advance the read pointer
 		can->RXF0A = get_index;
@@ -257,23 +260,27 @@ namespace bsp::can {
 		auto & tx_buffer = ram->tx_buffers[write_index];
 		bool const is_extended = IS_EXT_ID(msg.id);
 		{
-			bit::sliceable_with_deffered_writeback T0(tx_buffer.T0);
+			bit::sliceable_value T0(0);
 			T0[bit::slice::for_mask(is_extended ? TX_Buffer::T0_ID_Msk_EXT : TX_Buffer::T0_ID_Msk_STD)] = msg.id;
 			T0[bit::slice::for_mask(TX_Buffer::T0_XTD_Msk)] = is_extended;
+			tx_buffer.T0 = T0.value();
 		}
 		auto const DLC = length_to_DLC(msg.length);
 		assert(DLC.has_value() && "You attempted to transmit a message of unsupported length!");
 		{
-			bit::sliceable_with_deffered_writeback T1(tx_buffer.T1);
+			bit::sliceable_value T1(0);
 			T1[bit::slice::for_mask(TX_Buffer::T1_MM_Msk)] = 0; // ignore message marker (keep zero)
 			T1[bit::slice::for_mask(TX_Buffer::T1_EFC_Msk)] = 0; // do not store TX event
 			T1[bit::slice::for_mask(TX_Buffer::T1_FDF_Msk)] = 0; // normal (non-FD) frame
 			T1[bit::slice::for_mask(TX_Buffer::T1_BRS_Msk)] = 0; // no bit rate switching
 			T1[bit::slice::for_mask(TX_Buffer::T1_DLC_Msk)] = DLC.value();
+			tx_buffer.T1 = T1.value();
 		}
 		int const word_count = (msg.length + sizeof(std::uint32_t) - 1) / sizeof(std::uint32_t);
 		// Copy the message data into Message RAM
-		std::copy_n(msg.data.begin(), word_count, tx_buffer.data);
+		// Cannot use std::copy here since it is strictly necessary to use word accesses
+		for (int word = 0; word < word_count; ++word)
+			tx_buffer.data[word] = msg.data[word];
 
 		// Add request for this TX buffer element
 		can->TXBAR = bit::bit(write_index);
