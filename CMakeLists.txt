@@ -15,6 +15,7 @@ set(SRC
         BSP/entry_point.cpp
         BSP/isr_vector.cpp
         BSP/can.cpp
+        BSP/fdcan.cpp
         BSP/gpio.cpp
         BSP/timer.cpp
 

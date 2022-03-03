@@ -1,8 +1,7 @@
-
+#pragma once
 
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __CAN_H
-#define __CAN_H
+#if !defined BOOT_STM32G4
 
 
 #include <Bootloader/options.hpp>

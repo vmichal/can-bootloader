@@ -17,6 +17,7 @@
 
 #include <library/timer.hpp>
 #include <BSP/can.hpp>
+#include <BSP/fdcan.hpp>
 #include <BSP/gpio.hpp>
 #include <BSP/timer.hpp>
 
@@ -37,10 +38,21 @@ namespace boot {
 
 			//make sure all can messages have been transmitted
 			Timestamp const start = Timestamp::Now();
+#if defined BOOT_STM32G4
+			//if there are ack errors on the bus, there is no other unit, so flush is pointless
+			constexpr auto has_pending_transmission = [](FDCAN_GlobalTypeDef * const can) { return !ufsel::bit::all_cleared(FDCAN1->TXBRP, FDCAN_TXBRP_TRP_Msk); };
+
+			// Wait until the peripheral transmits all messages (has_pending_transmission would go to false)
+			// or the receiver is disconnected (has_ack_error would go to true) or the time runs out
+			while (!start.TimeElapsed(timeout) && !bsp::can::hasAckError(FDCAN1) && has_pending_transmission(FDCAN1));
+			while (!start.TimeElapsed(timeout) && !bsp::can::hasAckError(FDCAN2) && has_pending_transmission(FDCAN2));
+
+#else
 			if (bus == bus_CAN1)
 				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN1->TSR, CAN_TSR_TME));
 			else
 				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN2->TSR, CAN_TSR_TME));
+#endif
 		}
 
 		void setupRegularCanCallbacks() {

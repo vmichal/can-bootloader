@@ -13,6 +13,7 @@
 
 #include "gpio.hpp"
 #include "can.hpp"
+#include "fdcan.hpp"
 #include "timer.hpp"
 
 #include <cstdint>

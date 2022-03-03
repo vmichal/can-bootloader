@@ -1,3 +1,6 @@
+
+#if !defined BOOT_STM32G4
+
 #include "can.hpp"
 #include "timer.hpp"
 
@@ -205,5 +208,5 @@ extern "C" void CAN2_RX0_IRQHandler(void)
 
 
 
-
+#endif
 /* END OF FILE */
