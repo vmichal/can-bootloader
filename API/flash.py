@@ -304,7 +304,7 @@ class BootloaderListing:
 
 		elif self.candb.isMsgKnown(ev.id.value): # handle all other known messages. We are interested in messages called 'SoftwareBuild'
 			msg = self.candb.getMsgById(ev.id.value)
-			if msg.description.name != "SoftwareBuild":
+			if msg.name != "SoftwareBuild":
 				return
 			self.candb.parseData(ev.id.value, ev.data, ev.timestamp)
 
