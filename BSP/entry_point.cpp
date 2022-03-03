@@ -219,7 +219,7 @@ namespace {
 				(PLLR / 2 - 1) << RCC_PLLCFGR_PLLR_Pos, //PLLR divides by 2 from 24 to 12 MHz
 				RCC_PLLCFGR_PLLREN, //enable PLLR output
 				PLLN << RCC_PLLCFGR_PLLN_Pos, //set VCO output to desired frequency
-				PLLM << RCC_PLLCFGR_PLLM_Pos, // configure the divider on PLL input
+				(PLLM-1) << RCC_PLLCFGR_PLLM_Pos, // configure the divider on PLL input
 				RCC_PLLCFGR_PLLSRC_HSE // connect HSE to PLL input
 				);
 
