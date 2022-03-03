@@ -27,15 +27,21 @@ namespace boot {
 
 	struct BootloaderMetadata;
 
+#if defined BOOT_STM32G4
+	using boot_control_register_t = std::uint32_t;
+#else
+	using boot_control_register_t = std::uint16_t;
+#endif
+
 	namespace impl {
 		extern "C" {
-			extern std::uint16_t BootControlBackupRegisterAddress[];
+			extern boot_control_register_t BootControlBackupRegisterAddress[];
 			extern BootloaderMetadata bootloader_metadata_address[];
 		}
 	}
 
 	struct BackupDomain {
-		enum class magic : std::uint16_t {
+		enum class magic : boot_control_register_t {
 			reset_value = 0x00'00, //value after power reset. Enter the application
 			bootloader = 0xB007, //Writing this value to the bootControlRegister requests entering the bootloader after reset
 			app_fatal_error = 0xDEAD, //The application has been unstable and could not be kept running.
@@ -44,7 +50,7 @@ namespace boot {
 		};
 
 		//Memory location in backup domain used for data exchange between BL and application
-		inline static std::uint16_t volatile& bootControlRegister = *impl::BootControlBackupRegisterAddress;
+		inline static boot_control_register_t volatile& bootControlRegister = *impl::BootControlBackupRegisterAddress;
 
 		static void lock()
 #ifdef BUILDING_BOOTLOADER

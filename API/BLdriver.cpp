@@ -100,7 +100,7 @@ namespace boot {
 		                      || where == BackupDomain::magic::bootloader || where == BackupDomain::magic::app_fatal_error);
 
 		BackupDomain::unlock();
-		BackupDomain::bootControlRegister = static_cast<std::uint16_t>(where);
+		BackupDomain::bootControlRegister = static_cast<boot_control_register_t>(where);
 
 		NVIC_SystemReset();
 		for (;;);
