@@ -241,7 +241,7 @@ namespace {
 	//We have no control over the definition of memcpy and thus it goes to .text. Section .text is initialized by calling this function
 	//hence an unsolveable circular dependency would occur.
 	__attribute__((section(".executed_from_flash"))) void do_load_section(section_elem_t const* load_address, section_elem_t* begin, section_elem_t const* const end) {
-		for (; begin != end; ++load_address, ++begin)
+		for (; begin < end; ++load_address, ++begin)
 			*begin = *load_address;
 	}
 #pragma GCC pop_options

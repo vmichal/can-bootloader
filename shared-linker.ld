@@ -98,8 +98,8 @@ SECTIONS
     _srodata = .;
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
-    _erodata = .;
     . = ALIGN(4);
+    _erodata = .;
   } > RAM AT> BootloaderFlash
 
   .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >BootloaderFlash
