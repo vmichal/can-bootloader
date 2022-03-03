@@ -141,9 +141,7 @@ namespace boot {
 		ufsel::bit::access_register<std::uint32_t>(address) = data; //Write lower word of data
 		ufsel::bit::access_register<std::uint32_t>(address + 4) = data >> 32; //Write higher word of data
 
-		AwaitEndOfOperation();
-		ufsel::bit::wait_until_set(FLASH->SR, FLASH_SR_EOP); // Wait for end of programming
-		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_EOP); // clear the flag
+		AwaitEndOfOperation(); // Wait for end of programming
 
 		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_SIZERR, FLASH_SR_PGSERR, FLASH_SR_PROGERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
 

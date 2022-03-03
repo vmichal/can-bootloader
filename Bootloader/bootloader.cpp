@@ -11,6 +11,7 @@
 #include "flash.hpp"
 
 #include <ufsel/assert.hpp>
+#include <ufsel/units.hpp>
 #include <library/timer.hpp>
 namespace boot {
 
@@ -505,12 +506,15 @@ namespace boot {
 
 		//TODO make sure there is enough stack space (in linker scripts)
 		ApplicationJumpTable table_copy = jumpTable; //copy the old jump table to RAM
-		table_copy.interruptVector_ = isr_vector;
 
 		Flash::RAII_unlock const _;
 
 		jumpTable.invalidate();
 		Flash::AwaitEndOfErasure(); //Make sure the page erasure has finished and exit erase mode.
+
+		//entry point is not stored as it can be derived from the isr vector
+		table_copy.set_interrupt_vector(isr_vector);
+		table_copy.set_magics();
 
 		table_copy.writeToFlash();
 		return HandshakeResponse::Ok;

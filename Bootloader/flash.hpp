@@ -292,7 +292,7 @@ namespace boot {
 		constexpr static std::uint32_t metadata_valid_magic_value = 0x0f0c'd150;
 
 		constexpr static int members_before_segment_array = 10;
-		constexpr static std::size_t bytes_before_segment_array = sizeof(std::uint32_t)*members_before_segment_array;
+		constexpr static std::size_t bytes_before_segment_array = sizeof(std::uint32_t) * members_before_segment_array;
 
 		std::uint32_t magic1_;
 		//If this contains the magic value, the rest of firmware metadata is valid. It is not necessary for the bootloader,
@@ -329,6 +329,7 @@ namespace boot {
 		void writeToFlash();
 	};
 	static_assert(offsetof(ApplicationJumpTable, logical_memory_blocks_) == ApplicationJumpTable::bytes_before_segment_array);
+	static_assert(ApplicationJumpTable::bytes_before_segment_array % sizeof(Flash::nativeType) == 0, "Jump table is not suitable for this MCU's flash layout.");
 
 	static_assert(sizeof(ApplicationJumpTable) <= smallestPageSize, "The application jump table must fit within one page of flash.");
 
