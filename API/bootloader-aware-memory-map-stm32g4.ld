@@ -25,8 +25,9 @@ JumpTableSize = 2K;
 MEMORY
 {
 
-/* Use only SRAM1, here called RAM*/
-RAM (xrw)              : ORIGIN = 0x20000000, LENGTH = 80K
+/* Use only SRAM1, for the purpose of this script also called RAM*/
+SRAM1 (xrw)              : ORIGIN = 0x20000000, LENGTH = 80K
+RAM (xrw)                : ORIGIN = ORIGIN(SRAM1), LENGTH = LENGTH(SRAM1)
 SRAM2 (xrw)              : ORIGIN = 0x20014000, LENGTH = 16K
 CCM_RAM   (xrw)              : ORIGIN = 0x20018000, LENGTH = 16K /*CCM*/
 }
