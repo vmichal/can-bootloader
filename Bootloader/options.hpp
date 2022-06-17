@@ -281,7 +281,7 @@ namespace boot {
 		 * STW (FSE10 assembled into the steering wheel) - 8 MHz
 		 * STW (FSE10 testing, naked board) - 12 MHz
 		 * PDL (DV01) - 12 MHz
-		 * PDL (FSE10) - 8 MHz
+		 * PDL (FSE10, FSE11) - 8 MHz
 		 * DSH (FSE10) - 12 MHz
 		 * FSB (FSE10) - 8 MHz
 		 * EBSS (DV01) - 12 MHz
