@@ -219,6 +219,14 @@ namespace boot {
 		Timestamp const hardfaultEntryTime = Timestamp::Now();
 
 		for (;;) {
+			if (ufsel::bit::all_set(SysTick->CTRL, SysTick_CTRL_TICKINT_Msk)) {
+				// When invoked from HF handler, SysTick interrupt would never occur
+				// This way time keeping is preserved at all times
+				// TODO consider disabling interrupts
+				ufsel::bit::clear(std::ref(SysTick->CTRL), SysTick_CTRL_TICKINT_Msk);
+				SysTick_Handler();
+			}
+
 			if constexpr (boot::rebootAfterHardfault) {
 				if (hardfaultEntryTime.TimeElapsed(boot::rebootDelayHardfault))
 					resetTo(BackupDomain::magic::bootloader);
