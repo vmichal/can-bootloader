@@ -35,8 +35,8 @@ namespace boot {
 
 	namespace impl {
 		extern "C" {
-			extern boot_control_register_t BootControlBackupRegisterAddress[];
-			extern BootloaderMetadata bootloader_metadata_address[];
+			extern boot_control_register_t volatile BootControlBackupRegisterAddress[];
+			extern BootloaderMetadata volatile bootloader_metadata_address[];
 		}
 	}
 
@@ -113,7 +113,7 @@ namespace boot {
 		;
 
 		[[nodiscard]]
-		bool are_magics_valid() const {
+		bool are_magics_valid() const volatile {
 			return magic0 == expected_magics[0] && magic1 == expected_magics[1] && magic2 == expected_magics[2];
 		}
 	};
@@ -123,7 +123,7 @@ namespace boot {
 	__attribute__((section("bootloaderMetadataSection"))) extern const BootloaderMetadata bootloaderMetadata;
 #else
 	// Define only a reference for reading. No object is created, so the compiler does not attempt to initialize it
-	inline BootloaderMetadata const& bootloaderMetadata = *impl::bootloader_metadata_address;
+	inline BootloaderMetadata const volatile& bootloaderMetadata = *impl::bootloader_metadata_address;
 #endif
 
 	[[noreturn]]
