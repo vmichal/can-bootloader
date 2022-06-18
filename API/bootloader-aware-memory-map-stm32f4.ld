@@ -22,5 +22,7 @@ JumpTableSize = 16K;
 /* Specify the memory areas */
 MEMORY
 {
-RAM (xrw)                : ORIGIN = 0x20001000, LENGTH = 252K /*TODO this is a temporary workaround for error in FSEX.PDL SRAM (cell 0x20'00'04cc cannot be written by the MCU)*/
+/*TODO this is a temporary workaround for error in FSEX.PDL SRAM (cell 0x20'00'04cc cannot be written by the MCU)*/
+/*TODO, in reality, e.g. PDL has two times more RAM, but this size is compatible with FSB with 128K only*/
+RAM (xrw)                : ORIGIN = 0x20001000, LENGTH = 124K
 }
