@@ -139,6 +139,15 @@ namespace boot {
 				//TODO implement for firmware dumping
 				return 0;
 				});
+
+			// Respond to pings as well
+			Bootloader_Ping_on_receive([](Bootloader_Ping_t * ping) -> int {
+				if (ping->Target != customization::thisUnit)
+					return 2;
+
+				canManager.SendPingResponse(ping->BootloaderRequested);
+				return 0;
+			});
 		}
 
 		void switchFromStartupCheckToRegularOperation() {
