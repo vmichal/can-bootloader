@@ -649,7 +649,7 @@ class FlashMaster:
 			ev = self.get_next_message()
 
 			if time.time() - last_print > 10:
-				print(f'Awaited response {expected_id} was not received for {time.time() - entry_time:.2f} seconds.', file=self.output_file)
+				print(f'Awaited response 0x{expected_id:03x} was not received for {time.time() - entry_time:.2f} seconds.', file=self.output_file)
 				last_print = time.time()
 
 			if ev.id.value in (self.SoftwareBuild.identifier, self.Beacon.identifier):
@@ -840,8 +840,9 @@ class FlashMaster:
 
 		#wait for the target unit to show up
 		while not is_bootloader_active(self.target) and not is_application_active(self.target):
-			time.sleep(0.05)
-		
+			self.send_generic_message_and_await_response(self.Ping.identifier, [self.target, True], 0, False)
+			time.sleep(0.2)
+
 		if args.verbose:
 			print("Target's presence on the CAN bus confirmed.", file=self.output_file)
 
