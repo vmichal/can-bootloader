@@ -957,12 +957,12 @@ class FlashMaster:
 		block_biggest = max(map(lambda block: len(block.data), physical_memory_map))
 
 		if block_smallest == block_biggest: #all blocks have the same size
-			memory_map_str = f"{len(physical_memory_map)} blocks {len(physical_memory_map[0].data)} bytes long from {hex(physical_memory_map[0].address)}."
+			memory_map_str = f"{len(physical_memory_map)} blocks {len(physical_memory_map[0].data)} bytes long from {physical_memory_map[0].address:08x}."
 		else: #the blocks are not equally long
 			memory_map_str = ''
 			for index in range(0, len(physical_memory_map), memory_map_print_elems_per_line):
 				memory_map_str += f'\n\t{index:3}:'
-				memory_map_str +=''.join(map(lambda block: f" [{hex(block.address)}-{hex(block.address + len(block.data)-1)}]", physical_memory_map[index:index+memory_map_print_elems_per_line]))
+				memory_map_str +=''.join(map(lambda block: f" [0x{block.address:08x}-0x{block.address + len(block.data)-1:08x}]", physical_memory_map[index:index+memory_map_print_elems_per_line]))
 		print(f'Available memory map: {memory_map_str}')
 
 		#receive terminal transaction magic
@@ -984,12 +984,12 @@ class FlashMaster:
 			consecutive_block_start = 0
 			for index, (prev, this) in enumerate(zip(used_physical_memory[:-1], used_physical_memory[1:]), 1):
 				if this.address != prev.address + len(prev.data): #we have found a hole
-					print(f'\t{index - consecutive_block_start} pages in range [{hex(start_address)}, {hex(prev.address + len(prev.data))}] ({(prev.address + len(prev.data) - start_address)/1024:.2f} KiB)')
+					print(f'\t{index - consecutive_block_start} pages in range [0x{start_address:08x}, {prev.address + len(prev.data):08x}] ({(prev.address + len(prev.data) - start_address)/1024:.2f} KiB)')
 					start_address = this.address
 					consecutive_block_start = index
 
 			last_block = used_physical_memory[-1]
-			print(f'\t{len(used_physical_memory) - consecutive_block_start} pages in range [{hex(start_address)}, {hex(last_block.address + len(last_block.data))}] ({(last_block.address + len(last_block.data) - start_address)/1024:.2f} KiB)')
+			print(f'\t{len(used_physical_memory) - consecutive_block_start} pages in range [0x{start_address:08x}, 0x{last_block.address + len(last_block.data):08x}] ({(last_block.address + len(last_block.data) - start_address)/1024:.2f} KiB)')
 
 		##Transmission of logical memory map
 
