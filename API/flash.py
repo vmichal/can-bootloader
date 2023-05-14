@@ -335,6 +335,7 @@ def enumerator_by_name(enumerator, enum):
 	except:
 		raise Exception(f"Enumerator {enum.name}::{enumerator} does not exist!")
 
+# For documentation of the Intel HEX format, see https://en.wikipedia.org/wiki/Intel_HEX
 class HexRecord:
 	def __init__(self, line):
 		if line[0] != ':':
@@ -359,7 +360,7 @@ class HexRecord:
 			assert self.length == 0
 		elif self.isExtendedLinearAddressRecord() or self.isExtendedSegmentAddressRecord():
 			assert self.length == 2
-		elif self.isStartLinearAddressRecord():
+		elif self.isStartLinearAddressRecord() or self.isStartSegmentAddressRecord():
 			assert self.length == 4
 
 	def isDataRecord(self):
@@ -370,6 +371,10 @@ class HexRecord:
 
 	def isExtendedSegmentAddressRecord(self):
 		return self.type == 2
+
+	# Supported only experimentally, as Daník's toolchain keeps generating this type of record
+	def isStartSegmentAddressRecord(self):
+		return self.type == 3
 
 	def isExtendedLinearAddressRecord(self):
 		return self.type == 4
@@ -458,7 +463,7 @@ class Firmware:
 	@staticmethod
 	def process_hex_records(records : list):
 		if not records.pop().isEofRecord(): # EOF record must be the last thing in the file
-			raise Exception('Input file was not terminated by OEF hex record!')
+			raise Exception('Input file was not terminated by EOF hex record!')
 
 		logical_memory_map = []
 
@@ -467,10 +472,14 @@ class Firmware:
 		base_address = 0 # set by extended linear address record
 
 
-		for record in records:
+		for index, record in enumerate(records, start=1):
 
 			if record.isStartLinearAddressRecord(): #we have address of the entry point
 				entry_point = int(record.data, 16) #store it to send it to the bootloader later
+				continue
+			elif record.isStartSegmentAddressRecord():
+				entry_point = int(record.data, 16)
+				print(f"Received entry point 0x{entry_point:08x} from StartSegmentAddress record (type 3). This is an experimental feature, contact Vojtěch Michal!")
 				continue
 			elif record.isExtendedLinearAddressRecord():
 				base_address = int(record.data, 16) << 16
@@ -479,7 +488,7 @@ class Firmware:
 				base_address = int(record.data, 16) << 4
 				continue
 			elif record.isEofRecord():
-				raise Exception('There shall not be multiple eof records in a valid input file.')
+				raise Exception(f'There shall not be multiple eof records in a valid input file (spotted on line {index}).')
 
 			#We have data record
 			assert record.isDataRecord()
