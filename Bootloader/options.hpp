@@ -272,6 +272,10 @@ namespace boot {
 #error "This MCU is not supported"
 #endif
 
+#define CONCAT(a, b) a ## b
+#define GENERATE_ECU_NAME(a) CONCAT(Bootloader_BootTarget_, a)
+#define GENERATE_HSE_FREQ(a) CONCAT(a, _MHz)
+
 		/////////////////////////////////////////////////////////////////////
 		//                  CUSTOMIZATION POINT
 		/////////////////////////////////////////////////////////////////////
@@ -292,13 +296,12 @@ namespace boot {
 
 		// FSE10 DSH has remaped CAN2!
 
-
 		//Bootloader target identification
-		constexpr Bootloader_BootTarget thisUnit = Bootloader_BootTarget_Disruptor;
+		constexpr Bootloader_BootTarget thisUnit = GENERATE_ECU_NAME(ECU_NAME);
 		//Frequency of used external oscillator
-		constexpr Frequency HSE = 12_MHz;
+		constexpr Frequency HSE = GENERATE_HSE_FREQ(HSE_FREQ);
 #ifdef BOOT_STM32F1 //currently supprted only in STM32F1 mode
-		constexpr bool remapCAN2 = false; //Governs whether the CAN2 is remapped. Only in FSE10 DSH
+		constexpr bool remapCAN2 = REMAP_CAN2; //Governs whether the CAN2 is remapped. Only in FSE10 DSH
 #endif
 
 
