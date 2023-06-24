@@ -8,7 +8,7 @@
 #include <ufsel/units.hpp>
 #include <ufsel/bit.hpp>
 
-constexpr Frequency can1_frequency = 500'000_Hz;
+constexpr Frequency can1_frequency = GENERATE_CAN_FREQ(CAN1_FREQ);
 constexpr Frequency can2_frequency = 1'000'000_Hz;
 
 namespace bsp::can {

@@ -2,11 +2,11 @@
 # Example call: ./compile.sh f1 AMS 8
 ARGC=$#
 
-if [ $ARGC -lt 3 ] || [ $ARGC -gt 4   ]
+if [ $ARGC -lt 4 ] || [ $ARGC -gt 5   ]
 then
-  echo "Expected 3 or 4 arguments, received $ARGC."
-  echo "Command signature: ./compile.sh mcu-series ECU-name hse-freq_mhz"
-  echo "Example call ./compile.sh f1 AMS 8"
+  echo "Expected 4 or 5 arguments, received $ARGC."
+  echo "Command signature: ./compile.sh mcu-series ECU-name hse-freq_mhz can1-freq-khz"
+  echo "Example call ./compile.sh f1 AMS 8 1000"
   exit
 fi
 
@@ -33,10 +33,11 @@ fi
 mcu=$1
 ecu=$2
 hse=$3
-if [ $ARGC == 3 ]
+can1=$4
+if [ $ARGC == 4 ]
 then
   remap_can2=0
-elif [ $ARGC == 4 ] && [ $ARGC = "remap_can2" ]
+elif [ $ARGC == 5 ] && [ $5 = "remap_can2" ]
 then
   remap_can2=1
 fi
@@ -44,7 +45,7 @@ mkdir -p build
 mkdir -p build/stm32$mcu
 
 cd build/stm32$mcu
-cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=stm32$mcu.cmake -DMCU=$mcu -DECU_NAME=$ecu -DHSE_FREQ=$hse -DREMAP_CAN2=$remap_can2 ../..
+cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=stm32$mcu.cmake -DMCU=$mcu -DECU_NAME=$ecu -DHSE_FREQ=$hse -DCAN1_FREQ=$can1 -DREMAP_CAN2=$remap_can2 ../..
 ninja
 
 

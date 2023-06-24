@@ -275,6 +275,7 @@ namespace boot {
 #define CONCAT(a, b) a ## b
 #define GENERATE_ECU_NAME(a) CONCAT(Bootloader_BootTarget_, a)
 #define GENERATE_HSE_FREQ(a) CONCAT(a, _MHz)
+#define GENERATE_CAN_FREQ(a) CONCAT(a, _kHz)
 
 		/////////////////////////////////////////////////////////////////////
 		//                  CUSTOMIZATION POINT

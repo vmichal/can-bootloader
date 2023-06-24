@@ -8,8 +8,9 @@ include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Assert.cmake")
 
 add_definitions(-DECU_NAME=${ECU_NAME})
 add_definitions(-DHSE_FREQ=${HSE_FREQ})
+add_definitions(-DCAN1_FREQ=${CAN1_FREQ})
 add_definitions(-DREMAP_CAN2=${REMAP_CAN2})
-message(STATUS "Generating build files for ${ECU_NAME} running on stm32${MCU} with ${HSE_FREQ} MHz HSE. CAN2 remap active ${REMAP_CAN2}")
+message(STATUS "Generating build files for ${ECU_NAME} running on stm32${MCU} with ${HSE_FREQ} MHz HSE. CAN2 remap active ${REMAP_CAN2}, CAN1 baudrate ${CAN1_FREQ} kbitps")
 
 set(SRC
         API/BLdriver.cpp
