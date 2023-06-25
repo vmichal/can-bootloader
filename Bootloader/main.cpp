@@ -144,6 +144,11 @@ namespace boot {
 			Bootloader_Ping_on_receive([](Bootloader_Ping_t * ping) -> int {
 				if (ping->Target != customization::thisUnit)
 					return 2;
+				// TODO Do not respond to pings for now, only send beacon and software build
+				canManager.SendSoftwareBuild();
+				canManager.SendBeacon(bootloader.stalled() ? Status::ComunicationStalled: bootloader.status(), bootloader.entryReason());
+
+				return 0;
 
 				canManager.SendPingResponse(ping->BootloaderRequested);
 				return 0;
@@ -197,7 +202,6 @@ namespace boot {
 
 			if (need_to_send<Bootloader_SoftwareBuild_t>())
 				canManager.SendSoftwareBuild();
-
 			if (need_to_send<Bootloader_Beacon_t>())
 				canManager.SendBeacon(bootloader.stalled() ? Status::ComunicationStalled: bootloader.status(), bootloader.entryReason());
 
