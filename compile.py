@@ -1,4 +1,4 @@
-#!/bin/python3.9
+#!/bin/python3
 import sys, os, collections, subprocess
 
 if len(sys.argv) != 3:
