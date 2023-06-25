@@ -99,8 +99,47 @@ namespace boot {
 		UFSEL_ASSERT_INTERNAL(where == BackupDomain::magic::app_skip_can_check || where == BackupDomain::magic::app_perform_can_check
 		                      || where == BackupDomain::magic::bootloader || where == BackupDomain::magic::app_fatal_error);
 
+		// TODO clean this up one day :D
+		// Inserts some small delay to let the backup domain unlock
+		// Without this hack, FSE12 FSB would never reset to the bootloader.
+		__DSB();
+		__NOP();
+		__NOP();
+		__NOP();
+		__NOP();
+		__ISB();
+		__DSB();
+		__ISB();
+		__NOP();
+		__NOP();
+		__NOP();
+		__NOP();
 		BackupDomain::unlock();
+		__DSB();
+		__NOP();
+		__NOP();
+		__NOP();
+		__NOP();
+		__ISB();
+		__DSB();
+		__ISB();
+		__NOP();
+		__NOP();
+		__NOP();
+		__NOP();
 		BackupDomain::bootControlRegister = static_cast<boot_control_register_t>(where);
+		__DSB();
+		__NOP();
+		__NOP();
+		__NOP();
+		__NOP();
+		__ISB();
+		__DSB();
+		__ISB();
+		__NOP();
+		__NOP();
+		__NOP();
+		__NOP();
 
 		NVIC_SystemReset();
 		for (;;);
