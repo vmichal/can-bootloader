@@ -1,10 +1,10 @@
 #include "can_Bootloader.h"
 #include <string.h>
 
-//CANdb code model v2 (enhanced) generated for Bootloader on 03. 12. 2021 (dd. mm. yyyy) at 13.51.38 (hh.mm.ss)
+//CANdb code model v2 (enhanced) generated for Bootloader on 25. 06. 2023 (dd. mm. yyyy) at 13.12.28 (hh.mm.ss)
 
 
-CAN_ID_t const candb_sent_messages[10] = {
+CAN_ID_t const candb_sent_messages[9] = {
    Bootloader_Handshake_id,
    Bootloader_HandshakeAck_id,
    Bootloader_CommunicationYield_id,
@@ -14,7 +14,6 @@ CAN_ID_t const candb_sent_messages[10] = {
    Bootloader_PingResponse_id,
    Bootloader_ExitAck_id,
    Bootloader_SoftwareBuild_id,
-   CarDiagnostics_RecoveryModeBeacon_id,
 };
 
 CAN_ID_t const candb_received_messages[8] = {
@@ -46,7 +45,6 @@ CAN_msg_status_t Bootloader_Beacon_status;
 Bootloader_Beacon_t Bootloader_Beacon_data;
 int32_t Bootloader_Beacon_last_sent;
 int32_t Bootloader_SoftwareBuild_last_sent;
-int32_t CarDiagnostics_RecoveryModeBeacon_last_sent;
 
 void candbInit(void) {
     canInitMsgStatus(&Bootloader_Handshake_status, bus_UNDEFINED, -1);
@@ -59,7 +57,6 @@ void candbInit(void) {
     canInitMsgStatus(&Bootloader_Beacon_status, bus_UNDEFINED, Bootloader_Beacon_timeout);
     Bootloader_Beacon_last_sent = -1;
     Bootloader_SoftwareBuild_last_sent = -1;
-    CarDiagnostics_RecoveryModeBeacon_last_sent = -1;
 }
 
 int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out) {
@@ -132,6 +129,10 @@ candb_bus_t Bootloader_Handshake_get_rx_bus(void) {
     return Bootloader_Handshake_status.rx_bus;
 }
 
+candb_bus_t Bootloader_Handshake_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_Handshake_tx_bus;
+}
+
 int Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootloader_HandshakeAck_t* data_out) {
     if (length < 6)
         return 0;
@@ -202,6 +203,10 @@ candb_bus_t Bootloader_HandshakeAck_get_rx_bus(void) {
     return Bootloader_HandshakeAck_status.rx_bus;
 }
 
+candb_bus_t Bootloader_HandshakeAck_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_HandshakeAck_tx_bus;
+}
+
 int Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out) {
     if (length < 1)
         return 0;
@@ -254,6 +259,10 @@ void Bootloader_CommunicationYield_on_receive(int (*callback)(Bootloader_Communi
 
 candb_bus_t Bootloader_CommunicationYield_get_rx_bus(void) {
     return Bootloader_CommunicationYield_status.rx_bus;
+}
+
+candb_bus_t Bootloader_CommunicationYield_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_CommunicationYield_tx_bus;
 }
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out) {
@@ -328,6 +337,10 @@ candb_bus_t Bootloader_Data_get_rx_bus(void) {
     return Bootloader_Data_status.rx_bus;
 }
 
+candb_bus_t Bootloader_Data_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_Data_tx_bus;
+}
+
 int Bootloader_decode_DataAck_s(const uint8_t* bytes, size_t length, Bootloader_DataAck_t* data_out) {
     if (length < 4)
         return 0;
@@ -388,6 +401,10 @@ void Bootloader_DataAck_on_receive(int (*callback)(Bootloader_DataAck_t* data)) 
 
 candb_bus_t Bootloader_DataAck_get_rx_bus(void) {
     return Bootloader_DataAck_status.rx_bus;
+}
+
+candb_bus_t Bootloader_DataAck_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_DataAck_tx_bus;
 }
 
 int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out) {
@@ -559,6 +576,10 @@ candb_bus_t Bootloader_Beacon_get_rx_bus(void) {
     return Bootloader_Beacon_status.rx_bus;
 }
 
+candb_bus_t Bootloader_Beacon_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_Beacon_tx_bus;
+}
+
 bool Bootloader_Beacon_has_timed_out(void) {
     return Bootloader_Beacon_status.timeout != -1 && (txGetTimeMillis() - (uint32_t)Bootloader_Beacon_status.timestamp) > (uint32_t)Bootloader_Beacon_timeout;
 }
@@ -585,6 +606,10 @@ int Bootloader_send_PingResponse(enum Bootloader_BootTarget Target, uint8_t Boot
     return rc;
 }
 
+candb_bus_t Bootloader_PingResponse_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_PingResponse_tx_bus;
+}
+
 int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data) {
     uint8_t buffer[1];
     buffer[0] = (data->Target & 0x0F) | (data->Confirmed ? 16 : 0);
@@ -597,6 +622,10 @@ int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed
     buffer[0] = (Target & 0x0F) | (Confirmed ? 16 : 0);
     int rc = txSendCANMessage(Bootloader_ExitReq_status.rx_bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
     return rc;
+}
+
+candb_bus_t Bootloader_ExitAck_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_ExitAck_tx_bus;
 }
 
 int Bootloader_send_SoftwareBuild_s(const Bootloader_SoftwareBuild_t* data) {
@@ -635,34 +664,8 @@ bool Bootloader_SoftwareBuild_need_to_send(void) {
     return (Bootloader_SoftwareBuild_last_sent == -1) || ((txGetTimeMillis() - (uint32_t)Bootloader_SoftwareBuild_last_sent) >=  (uint32_t)Bootloader_SoftwareBuild_period);
 }
 
-int CarDiagnostics_send_RecoveryModeBeacon_s(const CarDiagnostics_RecoveryModeBeacon_t* data) {
-    uint8_t buffer[2];
-    buffer[0] = (data->ECU & 0x07) | ((data->ClockState & 0x07) << 3) | ((data->NumFatalFirmwareErrors & 0x03) << 6);
-    buffer[1] = (data->FirmwareState & 0x0F) | (data->WillEnterBootloader ? 16 : 0) | ((data->SEQ & 0x07) << 5);
-    int rc = txSendCANMessage(CarDiagnostics_RecoveryModeBeacon_tx_bus, CarDiagnostics_RecoveryModeBeacon_id, buffer, sizeof(buffer));
-
-    if (rc == 0) {
-        CarDiagnostics_RecoveryModeBeacon_last_sent = txGetTimeMillis();
-    }
-
-    return rc;
-}
-
-int CarDiagnostics_send_RecoveryModeBeacon(enum CarDiagnostics_ECU ECU, enum CarDiagnostics_ClockState ClockState, uint8_t NumFatalFirmwareErrors, enum CarDiagnostics_FirmwareState FirmwareState, uint8_t WillEnterBootloader, uint8_t SEQ) {
-    uint8_t buffer[2];
-    buffer[0] = (ECU & 0x07) | ((ClockState & 0x07) << 3) | ((NumFatalFirmwareErrors & 0x03) << 6);
-    buffer[1] = (FirmwareState & 0x0F) | (WillEnterBootloader ? 16 : 0) | ((SEQ & 0x07) << 5);
-    int rc = txSendCANMessage(CarDiagnostics_RecoveryModeBeacon_tx_bus, CarDiagnostics_RecoveryModeBeacon_id, buffer, sizeof(buffer));
-
-    if (rc == 0) {
-        CarDiagnostics_RecoveryModeBeacon_last_sent = txGetTimeMillis();
-    }
-
-    return rc;
-}
-
-bool CarDiagnostics_RecoveryModeBeacon_need_to_send(void) {
-    return (CarDiagnostics_RecoveryModeBeacon_last_sent == -1) || ((txGetTimeMillis() - (uint32_t)CarDiagnostics_RecoveryModeBeacon_last_sent) >=  (uint32_t)CarDiagnostics_RecoveryModeBeacon_period);
+candb_bus_t Bootloader_SoftwareBuild_get_tx_bus(void) {
+    return (candb_bus_t)Bootloader_SoftwareBuild_tx_bus;
 }
 
 void candbHandleMessage(uint32_t timestamp, int bus, CAN_ID_t id, const uint8_t* payload, size_t payload_length) {

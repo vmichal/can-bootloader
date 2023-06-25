@@ -245,22 +245,11 @@ namespace boot {
 					resetTo(BackupDomain::magic::bootloader);
 			}
 
-			if (need_to_send<CarDiagnostics_RecoveryModeBeacon_t>()) {
+			if (need_to_send<Bootloader_Beacon_t>()) {
 				//Periodically notify the human that this ship is sinking.
-				static std::uint8_t seq = 0;
-				CarDiagnostics_RecoveryModeBeacon_t const msg {
-						.ECU = CarDiagnostics_ECU_Bootloader,
-						.ClockState = CarDiagnostics_ClockState_fully_operational,
-						.NumFatalFirmwareErrors = 1,
-						.FirmwareState = assertFailed ? CarDiagnostics_FirmwareState_failedAssertion
-								: CarDiagnostics_FirmwareState_fatalError,
-						.WillEnterBootloader = boot::rebootAfterHardfault,
-						.SEQ = seq++
-				};
-				send(msg);
 
-				//Append information about the software build to simplify the debugging
 				canManager.SendBeacon(Status::Error, Bootloader::entryReason());
+				//Append information about the software build to simplify the debugging
 				canManager.SendSoftwareBuild();
 			}
 
