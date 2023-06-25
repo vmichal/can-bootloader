@@ -301,10 +301,6 @@ namespace boot {
 		constexpr Bootloader_BootTarget thisUnit = GENERATE_ECU_NAME(ECU_NAME);
 		//Frequency of used external oscillator
 		constexpr Frequency HSE = GENERATE_HSE_FREQ(HSE_FREQ);
-#ifdef BOOT_STM32F1 //currently supprted only in STM32F1 mode
-		constexpr bool remapCAN2 = REMAP_CAN2; //Governs whether the CAN2 is remapped. Only in FSE10 DSH
-#endif
-
 
 		// Governs the bootloader's behaviour when valid application is stored in memory.
 		// When set to false, application is initialized right away
