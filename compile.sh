@@ -40,6 +40,9 @@ then
 elif [ $ARGC == 5 ] && [ $5 = "remap_can2" ]
 then
   remap_can2=1
+else
+  echo "Unknown fifth argument $5, either elide it or use remap_can2!"
+  exit
 fi
 mkdir -p build
 mkdir -p build/stm32$mcu
