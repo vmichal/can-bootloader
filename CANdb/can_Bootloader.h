@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced) generated for Bootloader on 25. 06. 2023 (dd. mm. yyyy) at 13.12.28 (hh.mm.ss)
+//CANdb code model v2 (enhanced) generated for Bootloader on 25. 06. 2023 (dd. mm. yyyy) at 18.33.25 (hh.mm.ss)
 
 typedef enum {
     bus_CAN1 = 0,
@@ -60,10 +60,12 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_STW = 5,
     /* Emergency Brake System Supervisor (DV only) */
     Bootloader_BootTarget_EBSS = 6,
-    /* SiC motor controller */
-    Bootloader_BootTarget_DRT = 7,
+    /* SiC motor controller front */
+    Bootloader_BootTarget_DRTF = 7,
     /* Steering Actuator (DV only) */
     Bootloader_BootTarget_SA = 8,
+    /* SiC motor controller rear */
+    Bootloader_BootTarget_DRTR = 9,
 };
 
 enum Bootloader_Command {
