@@ -37,7 +37,7 @@ namespace bsp::gpio {
 			ufsel::bit::modify(std::ref(reg), mask, static_cast<std::uint32_t>(p.mode_), shift);
 		}
 
-		if constexpr (CAN2_RX.pin == 6) // If CAN2 is remapped
+		if constexpr (CAN2_RX.pin == 5 && CAN2_TX.pin == 6) // If CAN2 is remapped
 			ufsel::bit::modify(std::ref(AFIO->MAPR), ufsel::bit::bitmask_of_width(1), 1, std::countr_zero(AFIO_MAPR_CAN2_REMAP)); //remap CAN2
 
 

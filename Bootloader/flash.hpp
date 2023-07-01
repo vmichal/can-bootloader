@@ -161,8 +161,8 @@ namespace boot {
 			std::size_t records_consumed = 1;
 			for (; num_bytes_to_write < sizeof(nativeType) && records_consumed < writeBuffer_.size(); ++records_consumed) {
 				auto const record = writeBuffer_.peek(records_consumed);
-				num_bytes_to_write += record.size_;
 				data_to_write |= shift_data(record.data_, record.size_, num_bytes_to_write);
+				num_bytes_to_write += record.size_;
 
 				assert(record.address_ == prev_record.address_ + prev_record.size_); // records must be contiguous
 				prev_record = record;

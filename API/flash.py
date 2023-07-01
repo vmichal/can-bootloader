@@ -1126,12 +1126,12 @@ class FlashMaster:
 		self.report_handshake_response(self.send_transaction_magic())
 
 		if args.verbose:
-			print('Sending interrupt vector ... ', end = '', file=self.output_file)
+			print(f'Sending interrupt vector 0x{self.firmware.logical_memory_map[0].address:08x}... ', end = '', file=self.output_file)
 		#TODO make sure this is really the interrupt vector
 		self.report_handshake_response(self.send_handshake('InterruptVector', "None", self.firmware.logical_memory_map[0].address))
 
 		if args.verbose:
-			print('Sending entry point address ... ', end = '', file=self.output_file)
+			print(f'Sending entry point address 0x{self.firmware.entry_point:08x} ... ', end = '', file=self.output_file)
 		self.report_handshake_response(self.send_handshake('EntryPoint', "None", self.firmware.entry_point))
 
 		if args.verbose:
