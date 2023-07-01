@@ -184,10 +184,14 @@ namespace bsp::can {
 
 		//Initialize peripherals
 		constexpr bit_time_config bit_time_config1{
-			.nominal_prescaler = 12, .data_prescaler = 12, .sjw = 1, .bs1 = 3, .bs2 = 2
+			.nominal_prescaler = static_cast<int>(boot::SYSCLK / can1_baudrate.nominal / 6),
+			.data_prescaler = static_cast<int>(boot::SYSCLK / can1_baudrate.data / 6),
+			.sjw = 1, .bs1 = 3, .bs2 = 2
 		};
 		constexpr bit_time_config bit_time_config2{
-			.nominal_prescaler = 6, .data_prescaler = 6, .sjw = 1, .bs1 = 3, .bs2 = 2
+			.nominal_prescaler = static_cast<int>(boot::SYSCLK / can2_baudrate.nominal / 6),
+			.data_prescaler = static_cast<int>(boot::SYSCLK / can2_baudrate.data / 6),
+			.sjw = 1, .bs1 = 3, .bs2 = 2
 		};
 		// Sanity checks that the configuration is valid:
 		static_assert(verify_bit_time_config(bit_time_config1, can1_baudrate));

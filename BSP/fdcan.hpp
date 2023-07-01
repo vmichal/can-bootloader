@@ -45,7 +45,7 @@ namespace bsp::can {
 	};
 
 	constexpr auto kernel_clock_frequency = boot::SYSCLK;
-	constexpr bus_baudrate can1_baudrate{.nominal = 500_kHz, .data = 500_kHz};
+	constexpr bus_baudrate can1_baudrate{.nominal = GENERATE_CAN_FREQ(CAN1_FREQ), .data = GENERATE_CAN_FREQ(CAN1_FREQ)};
 	constexpr bus_baudrate can2_baudrate{.nominal = 1'000_kHz, .data = 1'000_kHz};
 	constexpr int time_quanta_per_bit = 6;
 
