@@ -24,6 +24,8 @@ build_data = [
 	# TODO decide which disruptor will be front and rear
 	('FSE12', 'DRTR', 'g4', 12, 1000, ('B', 8), ('B', 9), ('B', 5), ('B', 6)), # corresponds to Disruptor V1
 	('FSE12', 'DRTF', 'g4', 12, 1000, ('D', 0), ('D', 1), ('B', 5), ('B', 6)), # corresponds to Disruptor V1_1
+	('FSE12', 'MBOXL', 'f4', 12, 1000, ('A', 11), ('A', 12), ('B', 5), ('B', 6)),
+	('FSE12', 'MBOXR', 'f4', 12, 1000, ('A', 11), ('A', 12), ('B', 5), ('B', 6)),
 ]
 
 for data in build_data:
