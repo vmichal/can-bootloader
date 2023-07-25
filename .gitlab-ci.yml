@@ -7,7 +7,7 @@ build:
     GIT_SUBMODULE_STRATEGY: recursive
 
   script:
-    - bash ./compile.sh all
+    - bash ./compile.py all
 
   artifacts:
     paths:

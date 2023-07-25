@@ -1,12 +1,28 @@
 #!/bin/python3
 import sys, os, collections, subprocess
 
-if len(sys.argv) != 3:
-	print(f'Expected 2 arguments, got {len(sys.argv)}.\nCall signature: compile.sh formula ECU')
-	sys.exit(1)
+def build_configuration(data):
+	formula, ECU, mcu, hse, can1_freq, can1_rx_pin, can1_tx_pin, can2_rx_pin, can2_tx_pin = data
 
-formula = sys.argv[1]
-ECU = sys.argv[2]
+	try:
+		os.mkdir(f'build')
+	except FileExistsError:
+		pass
+
+	try:
+		os.mkdir(f'build/{formula}_{ECU}')
+	except FileExistsError:
+		pass
+
+	format_pin = lambda x: f'\'{x[0]}\', {x[1]}'
+
+	subprocess.run(['cmake', '-GNinja', f'-DCMAKE_TOOLCHAIN_FILE=stm32{mcu}.cmake', f'-DMCU={mcu}', f'-DECU_NAME={ECU}', f'-DHSE_FREQ={hse}', f'-DCAN1_FREQ={can1_freq}', f'-DCAN1_RX_pin={format_pin(can1_rx_pin)}', f'-DCAN1_TX_pin={format_pin(can1_tx_pin)}', f'-DCAN2_RX_pin={format_pin(can2_rx_pin)}', f'-DCAN2_TX_pin={format_pin(can2_tx_pin)}', '../..'], cwd=f'./build/{formula}_{ECU}')
+	subprocess.run('ninja', cwd=f'./build/{formula}_{ECU}')
+
+
+if len(sys.argv) != 3 and (len(sys.argv) != 2 or sys.argv[1].lower() != 'all'):
+	print(f'Expected 1 argument "all" or 2 arguments, got {len(sys.argv) - 1}.\nCall signature: "compile.py formula ECU" or "compile.py all"')
+	sys.exit(1)
 
 Pin = collections.namedtuple('Pin', ['port', 'pin'])
 
@@ -27,27 +43,21 @@ build_data = [
 	('FSE12', 'MBOXR', 'f4', 12, 1000, ('A', 11), ('A', 12), ('B', 5), ('B', 6)),
 ]
 
-for data in build_data:
-	if data[0] == formula and data[1] == ECU:
-		break
+if len(sys.argv) == 2 and sys.argv[1].lower() == 'all':
+	# build all of them!
+	for data in reversed(build_data):
+		build_configuration(data)
 else:
-	print(f'Could not find configuration for {formula} {ECU}')
-	sys.exit(1)
+	formula = sys.argv[1]
+	ECU = sys.argv[2]
 
-_,_,mcu, hse, can1_freq, can1_rx_pin, can1_tx_pin, can2_rx_pin, can2_tx_pin = data
+	for data in build_data:
+		if data[0] == formula and data[1] == ECU:
+			build_configuration(data)
+			break
+	else:
+		print(f'Could not find configuration for {formula} {ECU}')
+		sys.exit(1)
 
-try:
-	os.mkdir(f'build')
-except FileExistsError:
-	pass
 
-try:
-	os.mkdir(f'build/{formula}_{ECU}')
-except FileExistsError:
-	pass
-
-format_pin = lambda x: f'\'{x[0]}\', {x[1]}'
-
-subprocess.run(['cmake', '-GNinja', f'-DCMAKE_TOOLCHAIN_FILE=stm32{mcu}.cmake', f'-DMCU={mcu}', f'-DECU_NAME={ECU}', f'-DHSE_FREQ={hse}', f'-DCAN1_FREQ={can1_freq}', f'-DCAN1_RX_pin={format_pin(can1_rx_pin)}', f'-DCAN1_TX_pin={format_pin(can1_tx_pin)}', f'-DCAN2_RX_pin={format_pin(can2_rx_pin)}', f'-DCAN2_TX_pin={format_pin(can2_tx_pin)}', '../..'], cwd=f'./build/{formula}_{ECU}')
-subprocess.run('ninja', cwd=f'./build/{formula}_{ECU}')
 
