@@ -9,11 +9,12 @@ include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Assert.cmake")
 add_definitions(-DECU_NAME=${ECU_NAME})
 add_definitions(-DHSE_FREQ=${HSE_FREQ})
 add_definitions(-DCAN1_FREQ=${CAN1_FREQ})
-add_definitions(-DREMAP_CAN2=${REMAP_CAN2})
 add_definitions(-DCAN1_RX_pin=${CAN1_RX_pin})
 add_definitions(-DCAN1_TX_pin=${CAN1_TX_pin})
+add_definitions(-DCAN1_used=${CAN1_used})
 add_definitions(-DCAN2_RX_pin=${CAN2_RX_pin})
 add_definitions(-DCAN2_TX_pin=${CAN2_TX_pin})
+add_definitions(-DCAN2_used=${CAN2_used})
 message(STATUS "Generating build files for ${ECU_NAME} running on stm32${MCU} with ${HSE_FREQ} MHz HSE. CAN1 baudrate ${CAN1_FREQ} kbitps, CAN1 pins RX ${CAN1_RX_pin}, TX ${CAN1_TX_pin}, CAN2 pins RX ${CAN2_RX_pin}, TX ${CAN2_TX_pin}")
 
 set(SRC

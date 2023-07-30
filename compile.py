@@ -14,9 +14,9 @@ def build_configuration(data):
 	except FileExistsError:
 		pass
 
-	format_pin = lambda x: f'\'{x[0]}\', {x[1]}'
+	format_pin = lambda x: f'\'{x[0]}\', {x[1]}' if x is not None else 'None'
 
-	subprocess.run(['cmake', '-GNinja', f'-DCMAKE_TOOLCHAIN_FILE=stm32{mcu}.cmake', f'-DMCU={mcu}', f'-DECU_NAME={ECU}', f'-DHSE_FREQ={hse}', f'-DCAN1_FREQ={can1_freq}', f'-DCAN1_RX_pin={format_pin(can1_rx_pin)}', f'-DCAN1_TX_pin={format_pin(can1_tx_pin)}', f'-DCAN2_RX_pin={format_pin(can2_rx_pin)}', f'-DCAN2_TX_pin={format_pin(can2_tx_pin)}', '../..'], cwd=f'./build/{formula}_{ECU}')
+	subprocess.run(['cmake', '-GNinja', f'-DCMAKE_TOOLCHAIN_FILE=stm32{mcu}.cmake', f'-DMCU={mcu}', f'-DECU_NAME={ECU}', f'-DHSE_FREQ={hse}', f'-DCAN1_FREQ={can1_freq}', f'-DCAN1_RX_pin={format_pin(can1_rx_pin)}', f'-DCAN1_TX_pin={format_pin(can1_tx_pin)}', f'-DCAN1_used={1 if can1_rx_pin is not None and can1_tx_pin is not None else 0}', f'-DCAN2_RX_pin={format_pin(can2_rx_pin)}', f'-DCAN2_TX_pin={format_pin(can2_tx_pin)}', f'-DCAN2_used={1 if can2_rx_pin is not None and can2_tx_pin is not None else 0}', '../..'], cwd=f'./build/{formula}_{ECU}')
 	subprocess.run('ninja', cwd=f'./build/{formula}_{ECU}')
 
 
@@ -39,8 +39,8 @@ build_data = [
 	('FSE12', 'STW', 'f7', 12, 1000, ('A', 11), ('A', 12), ('B', 12), ('B', 13)),
 	('FSE12', 'DRTR', 'g4', 12, 1000, ('D', 0), ('D', 1), ('B', 5), ('B', 6)), # corresponds to Disruptor V1_1
 	('FSE12', 'DRTF', 'g4', 12, 1000, ('D', 0), ('D', 1), ('B', 5), ('B', 6)), # corresponds to Disruptor V1_1
-	('FSE12', 'MBOXL', 'f4', 12, 1000, ('A', 11), ('A', 12), ('B', 5), ('B', 6)),
-	('FSE12', 'MBOXR', 'f4', 12, 1000, ('A', 11), ('A', 12), ('B', 5), ('B', 6)),
+	('FSE12', 'MBOXL', 'f4', 12, 1000, ('A', 11), ('A', 12), None, None),
+	('FSE12', 'MBOXR', 'f4', 12, 1000, ('A', 11), ('A', 12), None, None),
 ]
 
 if len(sys.argv) == 2 and sys.argv[1].lower() == 'all':

@@ -77,15 +77,23 @@ namespace bsp::can {
 		//enable peripheral clock to CAN1, CAN2
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_CAN1EN, RCC_APB1ENR_CAN2EN);
 		//wake up both peripherals and send them to initialization mode
+#if CAN1_used
 		peripheralRequestInitialization(*CAN1);
+#endif
+#if CAN2_used
 		peripheralRequestInitialization(*CAN2);
+#endif
 
 		constexpr Frequency APB1_frequency = boot::SYSCLK;
 		constexpr int quanta_per_bit = 6;
 
 		//Initialize peripherals
+#if CAN1_used
 		peripheralInit(*CAN1, APB1_frequency / can1_frequency / quanta_per_bit);
+#endif
+#if CAN2_used
 		peripheralInit(*CAN2, APB1_frequency / can2_frequency / quanta_per_bit);
+#endif
 
 		assert(std::ranges::all_of(candb_received_messages,[](unsigned id) {
 			// Make sure all received messages match the input filter (= they share the shared prefix)
@@ -117,8 +125,12 @@ namespace bsp::can {
 		NVIC_EnableIRQ(CAN2_RX0_IRQn);
 
 		//make sure CAN peripherals have snychronized with the bus
+#if CAN1_used
 		peripheralAwaitSynchronization(*CAN1);
+#endif
+#if CAN2_used
 		peripheralAwaitSynchronization(*CAN2);
+#endif
 	}
 }
 
@@ -144,8 +156,8 @@ extern "C" {
 	int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
 		using namespace ufsel;
 		if (bus == bus_BOTH) {
-			int rc1 = txSendCANMessage(bus_connected_to_CAN1, id, data, length);
-			int rc2 = txSendCANMessage(bus_connected_to_CAN2, id, data, length);
+			int rc1 = CAN1_used ? txSendCANMessage(bus_connected_to_CAN1, id, data, length) : 1;
+			int rc2 = CAN2_used ? txSendCANMessage(bus_connected_to_CAN2, id, data, length) : 1;
 			return rc1 && rc2;
 		}
 		assert(bus == bus_connected_to_CAN1 || bus == bus_connected_to_CAN2);

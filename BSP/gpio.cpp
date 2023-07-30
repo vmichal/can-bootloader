@@ -28,8 +28,14 @@ namespace bsp::gpio {
 		//from the STM32f105 reference manual
 		constexpr unsigned configBits = 4;
 
-		for (Pin const& p : { CAN1_RX, CAN2_RX, CAN1_TX, CAN2_TX }) {
-
+		for (Pin const& p : {
+#if CAN1_used
+			CAN1_RX, CAN1_TX,
+#endif
+#if CAN2_used
+			CAN2_RX, CAN2_TX 
+#endif
+		}) {
 			auto const shift = (p.pin % 8) * configBits;
 			auto const mask = ufsel::bit::bitmask_of_width(configBits);
 			auto volatile &reg  = p.pin < 8 ? p.gpio()->CRL : p.gpio()->CRH;
@@ -65,7 +71,14 @@ namespace bsp::gpio {
 			RCC_AHB1ENR_GPIOBEN);
 
 #endif
-		for (Pin const& p : { CAN1_RX, CAN2_RX, CAN1_TX, CAN2_TX }) {
+		for (Pin const& p : {
+#if CAN1_used
+			CAN1_RX, CAN1_TX,
+#endif
+#if CAN2_used
+			CAN2_RX, CAN2_TX 
+#endif
+		}) {
 			auto volatile & gpio = *p.gpio();
 
 			bit::modify(std::ref(gpio.MODER), ufsel::bit::bitmask_of_width(2), 0b10, p.pin * 2);
