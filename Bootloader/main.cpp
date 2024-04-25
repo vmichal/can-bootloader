@@ -21,6 +21,8 @@
 #include <BSP/gpio.hpp>
 #include <BSP/timer.hpp>
 
+// TODO get rid of library. Timers are already in ufsel, move pin there as well possibly.
+
 namespace boot {
 
 	CanManager canManager;

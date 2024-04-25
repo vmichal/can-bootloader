@@ -28,8 +28,8 @@ Pin = collections.namedtuple('Pin', ['port', 'pin'])
 
 # List of tuples (formula name, ECU name, HSE freq [MHz], CAN1 freq [kbitps], CAN1_RX pin, CAN1_TX pin, CAN2_RX pin, CAN2_TX pin
 build_data = [
-	('FSE10', 'AMS', 'f1', 8, 1000, ('A', 11), ('A', 12), ('B', 12), ('B', 13)),
-	('FSE10', 'DSH', 'f1', 8, 1000, ('A', 11), ('A', 12), ('B', 5), ('B', 6)),
+	('FSE10', 'AMS', 'f1', 8, 500, ('A', 11), ('A', 12), ('B', 12), ('B', 13)),
+	('FSE10', 'DSH', 'f1', 8, 500, ('A', 11), ('A', 12), ('B', 5), ('B', 6)),
 
 	# FSE12
 	('FSE12', 'DSH', 'f1', 12, 1000, ('A', 11), ('A', 12), ('B', 5), ('B', 6)),
