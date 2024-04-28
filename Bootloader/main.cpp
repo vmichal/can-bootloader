@@ -42,7 +42,7 @@ namespace boot {
 			Timestamp const start = Timestamp::Now();
 #if defined BOOT_STM32G4
 			//if there are ack errors on the bus, there is no other unit, so flush is pointless
-			constexpr auto has_pending_transmission = [](FDCAN_GlobalTypeDef * const can) { return !ufsel::bit::all_cleared(FDCAN1->TXBRP, FDCAN_TXBRP_TRP_Msk); };
+			constexpr auto has_pending_transmission = [](FDCAN_GlobalTypeDef * const can) { return !ufsel::bit::all_cleared(can->TXBRP, FDCAN_TXBRP_TRP_Msk); };
 
 			// Wait until the peripheral transmits all messages (has_pending_transmission would go to false)
 			// or the receiver is disconnected (has_ack_error would go to true) or the time runs out
