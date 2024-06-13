@@ -103,7 +103,7 @@ namespace bsp::can {
 			// Ignore transmitter delay compensation
 
 			// Enable the "not empty" interrupt of RX FIFO 0 and Bus Off status change
-			bit::set(std::ref(can->IE), FDCAN_IE_BOE, FDCAN_IE_EWE, FDCAN_IE_RF0NE);
+			bit::set(std::ref(can->IE), FDCAN_IE_BOE, FDCAN_IE_RF0NE);
 
 			bit::set(std::ref(can->ILS),
 					// Generate RX FIFO 0 interrupts on interrupt line 0 (default)
@@ -334,6 +334,21 @@ namespace bsp::can {
 		ufsel::bit::set(std::ref(peripheral->IR), FDCAN_IR_RF0N); // clear the interrupt flag
 		txReceiveCANMessage(bus_info.candb_bus, msg.id, msg.data.data(), msg.length);
 	}
+
+	void handle_bus_off_warning(bus_info_t const& bus_info) {
+		using namespace ufsel;
+		FDCAN_GlobalTypeDef * const peripheral = bus_info.get_peripheral();
+
+
+		if (bit::all_set(peripheral->IR, FDCAN_IR_BO)){
+			bit::clear(std::ref(peripheral->CCCR), FDCAN_CCCR_INIT);
+		}
+		else {
+			assert_unreachable();
+		}
+		// TODO document what this assignment is
+		peripheral->IR = 0xff'ff'ff'00;
+	}
 }
 
 extern "C" {
@@ -376,6 +391,18 @@ extern "C" void FDCAN2_IT0_IRQHandler(void) {
 
 extern "C" void FDCAN3_IT0_IRQHandler(void) {
 	bsp::can::handle_interrupt(bsp::can::find_bus_info_by_peripheral(FDCAN3_BASE));
+}
+
+extern "C" void FDCAN1_IT1_IRQHandler(void) {
+	bsp::can::handle_bus_off_warning(bsp::can::find_bus_info_by_peripheral(FDCAN1_BASE));
+}
+
+extern "C" void FDCAN2_IT1_IRQHandler(void) {
+	bsp::can::handle_bus_off_warning(bsp::can::find_bus_info_by_peripheral(FDCAN2_BASE));
+}
+
+extern "C" void FDCAN3_IT1_IRQHandler(void) {
+	bsp::can::handle_bus_off_warning(bsp::can::find_bus_info_by_peripheral(FDCAN3_BASE));
 }
 
 #endif
