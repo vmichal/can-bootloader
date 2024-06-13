@@ -1,10 +1,13 @@
 #!/bin/python3
-import sys, os, collections, subprocess, dataclasses
+import sys, os, collections, subprocess, dataclasses, argparse
+
+from typing import Optional
 
 @dataclasses.dataclass
 class Pin:
 	port : int
 	pin : int
+	AF : Optional[int] = None
 
 @dataclasses.dataclass
 class CAN:
@@ -19,8 +22,8 @@ class Config:
 	ecu : str
 	mcu : str
 	hse_mhz : int
-	can1 : CAN
-	can2 : CAN
+	can1 : Optional[CAN]
+	can2 : Optional[CAN]
 
 def build_configuration(data : Config):
 	try:
@@ -33,7 +36,19 @@ def build_configuration(data : Config):
 	except FileExistsError:
 		pass
 
-	format_pin = lambda x: f"'{x.port}', {x.pin}" if x is not None else 'None'
+	def format_pin(pin):
+		# All "old" (pre-CTU24 ECUs) had their CAN peripherals allocated such that the pin alternate function was always 9
+		old_design_af = 9
+		# This was common to all of (used) STM32F1, F4, F7 in all designs of FSE10, FSE11 and FSE12.
+		# With the recent transition to unified MCU STM32G4, we gor rid of half the problem, but another arose:
+		# Mapping of individual peripherals to vehicle CAN buses became ECU specific.
+		# To lift the metaprogramming burden off of BL software (where it would require horrible macros/templates), this
+		# script specifies all of:
+		#   - what peripheral is connected to the given vehicle bus
+		#   - CAN bus bitrate (for now assuming all are FD-incapable. This will introduce yet another headache later.
+		#   - TX and RX pin
+		#   - their alternate functions
+		return f"'{pin.port}', {pin.pin}, {pin.AF if pin.AF is not None else old_design_af}" if pin is not None else 'None'
 
 	can1_used = data.can1 is not None
 	can2_used = data.can2 is not None
@@ -59,45 +74,53 @@ def build_configuration(data : Config):
 		], cwd=f'./build/{data.car}_{data.ecu}')
 	subprocess.run('ninja', cwd=f'./build/{data.car}_{data.ecu}')
 
+def parse_args():
+	parser = argparse.ArgumentParser(description="Build eForce Prague Formula bootloader.")
 
-if len(sys.argv) != 3 and (len(sys.argv) != 2 or sys.argv[1].lower() != 'all'):
-	print(f'Expected 1 argument "all" or 2 arguments, got {len(sys.argv) - 1}.\nCall signature: "compile.py formula ECU" or "compile.py all"')
-	sys.exit(1)
+	# Add mutually exclusive group
+	parser.add_argument('--all', action='store_true', help="If set, process all cars and vehicles.")
+	parser.add_argument('car', nargs='?', help="Provide a car name.")
+	parser.add_argument('ecu', nargs='?', help="Provide an ECU name.")
+
+	return parser.parse_args()
 
 
+if __name__ == '__main__':
 
-# List of tuples (formula name, ECU name, HSE freq [MHz], CAN1 freq [kbitps], CAN1_RX pin, CAN1_TX pin, CAN2_RX pin, CAN2_TX pin
-build_data : list[Config] = [
-	Config(car='FSE10', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
-	Config(car='FSE10', ecu='DSH', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
 
-	# FSE12
-	Config(car='FSE12', ecu='DSH', mcu='f1', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
-	Config(car='FSE12', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
-	Config(car='FSE12', ecu='PDL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
-	Config(car='FSE12', ecu='FSB', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='B', pin=8), TX=Pin(port='B', pin=9)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
-	Config(car='FSE12', ecu='STW', mcu='f7', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
-	Config(car='FSE12', ecu='DRTR', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0), TX=Pin(port='D', pin=1)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))), # corresponds to Disruptor V1_1
-	Config(car='FSE12', ecu='DRTF', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0), TX=Pin(port='D', pin=1)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))), # corresponds to Disruptor V1_1
-	Config(car='FSE12', ecu='MBOXL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
-	Config(car='FSE12', ecu='MBOXR', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
-]
+	# List of tuples (formula name, ECU name, HSE freq [MHz], CAN1 freq [kbitps], CAN1_RX pin, CAN1_TX pin, CAN2_RX pin, CAN2_TX pin
+	build_data : list[Config] = [
+		Config(car='FSE10', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
+		Config(car='FSE10', ecu='DSH', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
 
-if len(sys.argv) == 2 and sys.argv[1].lower() == 'all':
-	# build all of them!
-	for data in reversed(build_data):
-		build_configuration(data)
-else:
-	car = sys.argv[1]
-	ECU = sys.argv[2]
+		# FSE12
+		Config(car='FSE12', ecu='DSH', mcu='f1', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
+		Config(car='FSE12', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
+		Config(car='FSE12', ecu='PDL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
+		Config(car='FSE12', ecu='FSB', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='B', pin=8), TX=Pin(port='B', pin=9)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
+		Config(car='FSE12', ecu='STW', mcu='f7', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
+		Config(car='FSE12', ecu='DRTR', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0), TX=Pin(port='D', pin=1)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))), # corresponds to Disruptor V1_1
+		Config(car='FSE12', ecu='DRTF', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0), TX=Pin(port='D', pin=1)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))), # corresponds to Disruptor V1_1
+		Config(car='FSE12', ecu='MBOXL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
+		Config(car='FSE12', ecu='MBOXR', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
+	]
 
-	for data in build_data:
-		if data.car == car and data.ecu == ECU:
+	args = parse_args()
+
+	if args.all:
+		for data in reversed(build_data):
 			build_configuration(data)
-			break
 	else:
-		print(f'Could not find configuration for {car} {ECU}')
-		sys.exit(1)
+
+		if None in (args.car, args.ecu):
+			print('Missing name of car or ECU.')
+
+		for data in build_data:
+			if data.car == args.car and data.ecu == args.ecu:
+				build_configuration(data)
+				break
+		else:
+			print(f'Could not find configuration for {args.car} {args.ecu}')
 
 
 

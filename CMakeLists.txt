@@ -23,7 +23,7 @@ add_definitions(-DCAN2_PERIPHERAL=${CAN2_PERIPHERAL})
 add_definitions(-DCAN2_RX_pin=${CAN2_RX_pin})
 add_definitions(-DCAN2_TX_pin=${CAN2_TX_pin})
 add_definitions(-DCAN2_used=${CAN2_used})
-message(STATUS "Generating build files for ${ECU_NAME} running on stm32${MCU} with ${HSE_FREQ} MHz HSE. CAN1 baudrate ${CAN1_BITRATE}, CAN1 pins RX ${CAN1_RX_pin}, TX ${CAN1_TX_pin}, CAN2 baudrate ${CAN2_BITRATE}, pins RX ${CAN2_RX_pin}, TX ${CAN2_TX_pin}")
+message(STATUS "Generating build files for ${ECU_NAME} running on stm32${MCU} with ${HSE_FREQ} MHz HSE. CAN1 baudrate ${CAN1_BITRATE}, CAN1 pins RX (${CAN1_RX_pin}), TX (${CAN1_TX_pin}), CAN2 baudrate ${CAN2_BITRATE}, pins RX (${CAN2_RX_pin}), TX (${CAN2_TX_pin})")
 
 set(SRC
         API/BLdriver.cpp

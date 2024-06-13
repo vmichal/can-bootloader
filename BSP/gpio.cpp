@@ -92,7 +92,7 @@ namespace bsp::gpio {
 
 			bit::modify(std::ref(gpio.MODER), ufsel::bit::bitmask_of_width(2), 0b10, p.pin * 2);
 			//alternate function pins
-			bit::modify(std::ref(gpio.AFR[p.pin >= 8]), ufsel::bit::bitmask_of_width(4), 9, (p.pin % 8) * 4);
+			bit::modify(std::ref(gpio.AFR[p.pin >= 8]), ufsel::bit::bitmask_of_width(4), p.alternate_function, (p.pin % 8) * 4);
 
 			bit::modify(std::ref(gpio.OSPEEDR), ufsel::bit::bitmask_of_width(2), 0b01, p.pin * 2);
 		}

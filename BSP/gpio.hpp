@@ -3,19 +3,40 @@
 #ifndef __GPIO_H
 #define __GPIO_H
 
-#include <library/pin.hpp>
 #include <Bootloader/options.hpp>
 
 /* Outputs */
 
 namespace bsp::gpio {
 
+	enum class PinMode { //These two mode are sufficient to control CAN peripheral.
+#ifdef BOOT_STM32F1
+		input_floating = 0b0100,
+	af_pushpull = 0b1010
+#elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2 || defined BOOT_STM32G4
+		alternate_function
+#else
+#error MCU not specified!
+#endif
+	};
+
+	struct Pin {
+		GPIO_TypeDef* gpio() const {
+			return reinterpret_cast<GPIO_TypeDef*>(address);
+		}
+
+		std::uintptr_t address;
+		int pin;
+		int alternate_function;
+		PinMode mode_;
+	};
+
 	namespace pins {
 
-		inline constexpr Pin P(char port, unsigned short pin, PinMode mode) {
+		inline constexpr Pin P(char port, unsigned short pin, int alternate_function, PinMode mode) {
 			std::uintptr_t ports[4] = {GPIOA_BASE,GPIOB_BASE, GPIOC_BASE, GPIOD_BASE};
 
-			return Pin { ports[port - 'A'], pin , mode};
+			return Pin { ports[port - 'A'], pin , alternate_function, mode};
 		}
 
 
