@@ -39,6 +39,26 @@ enum {
 void canInitMsgStatus(CAN_msg_status_t*, int default_bus, int timeout);
 void canUpdateMsgStatusOnReceive(CAN_msg_status_t*, int bus_origin, uint32_t timestamp);
 
+#define FIELD_IDENTIFIER(unit_msg_field, iden) unit_msg_field ## _ ## iden
+
+#define CanConversionConstants(unit_msg_field) FIELD_IDENTIFIER(unit_msg_field, OFFSET), \
+	FIELD_IDENTIFIER(unit_msg_field, FACTOR), FIELD_IDENTIFIER(unit_msg_field, MIN), FIELD_IDENTIFIER(unit_msg_field, MAX)
+
+inline float helper_ConvertValueToCAN(float value, float offset, float factor, float min, float max) {
+
+	auto const clamped = value < min ? min : value > max ? max : value;
+	auto const normalized = clamped - offset;
+	return normalized / factor;
+}
+
+inline float helper_ConvertValueFromCAN(float value, float offset, float factor) {
+	return value * factor + offset;
+}
+
+#define ConvertValueToCAN(unit_msg_field, value) helper_ConvertValueToCAN(value, CanConversionConstants(unit_msg_field))
+#define ConvertValueFromCAN(unit_msg_field, value) helper_ConvertValueFromCAN(value, FIELD_IDENTIFIER(unit_msg_field, OFFSET), FIELD_IDENTIFIER(unit_msg_field, FACTOR))
+
+
 #ifdef __cplusplus
 }
 #endif

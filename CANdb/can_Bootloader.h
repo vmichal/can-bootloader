@@ -9,14 +9,17 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced) generated for Bootloader on 20. 07. 2023 (dd. mm. yyyy) at 15.37.08 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 12. 06. 2024 (dd. mm. yyyy) at 16.13.29 (hh.mm.ss)
 
 typedef enum {
+    // Vehicle CAN buses
     bus_CAN1 = 0,
     bus_CAN2 = 1,
-    bus_BOTH = 3,
-    bus_UNDEFINED = 4,
-    } candb_bus_t;
+    bus_UNDEFINED = 12,
+    // Other constants useful to the software
+    bus_ALL = 13, // Send to all vehicle buses (e.g. unit SoftwareBuild)
+    bus_FORWARD = 14, // Represents a local CAN the ECU forwards messages to (e.g. CTU24 PDL, VDCU and QUAD LV Conn).
+} candb_bus_t;
 
 enum { Bootloader_Handshake_id          = STD_ID(0x620) };
 enum { Bootloader_Handshake_tx_bus      = bus_UNDEFINED };
@@ -33,14 +36,14 @@ enum { Bootloader_Ping_id               = STD_ID(0x626) };
 enum { Bootloader_Beacon_id             = STD_ID(0x627) };
 enum { Bootloader_Beacon_timeout        = 1000 };
 enum { Bootloader_Beacon_period         = 500 };
-enum { Bootloader_Beacon_tx_bus         = bus_BOTH };
+enum { Bootloader_Beacon_tx_bus         = bus_ALL };
 enum { Bootloader_PingResponse_id       = STD_ID(0x629) };
 enum { Bootloader_PingResponse_tx_bus   = bus_UNDEFINED };
 enum { Bootloader_ExitAck_id            = STD_ID(0x62A) };
 enum { Bootloader_ExitAck_tx_bus        = bus_UNDEFINED };
 enum { Bootloader_SoftwareBuild_id      = STD_ID(0x62D) };
 enum { Bootloader_SoftwareBuild_period  = 1000 };
-enum { Bootloader_SoftwareBuild_tx_bus  = bus_BOTH };
+enum { Bootloader_SoftwareBuild_tx_bus  = bus_ALL };
 
 extern CAN_ID_t const candb_sent_messages[9];
 extern CAN_ID_t const candb_received_messages[8];
@@ -70,6 +73,10 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_MBOXL = 10,
     /* Right wing Measurebox */
     Bootloader_BootTarget_MBOXR = 11,
+    /* Danil's beloved telemetry */
+    Bootloader_BootTarget_TLM = 12,
+    /* Vehicle Dynamics Control Unit */
+    Bootloader_BootTarget_VDCU = 13,
 };
 
 enum Bootloader_Command {

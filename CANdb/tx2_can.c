@@ -1,12 +1,13 @@
 
 #include <tx2/can.h>
 #include <tx2/ringbuf.h>
-#include "can_Bootloader.h"
 
 #include <stdbool.h>
 
 #ifndef TX_RECV_BUFFER_SIZE
-enum { TX_RECV_BUFFER_SIZE = 2048 };
+enum { TX_RECV_BUFFER_SIZE = 1024 };
+#endif
+#ifndef MAX_MESSAGES_IN_A_ROW
 enum { MAX_MESSAGES_IN_A_ROW = TX_RECV_BUFFER_SIZE / 8 / (8+8) };
 #endif
 

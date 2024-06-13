@@ -6,8 +6,13 @@ int ringbufCanRead(volatile const ringbuf_t* rb, size_t length) {
 }
 
 int ringbufCanWrite(volatile const ringbuf_t* rb, size_t length) {
-	return length < ringbufFreeSpace(rb);
+	return length <= ringbufFreeSpace(rb);
 }
+
+size_t ringbufEmpty(volatile const ringbuf_t * rb) {
+	return rb->readpos == rb->writepos;
+}
+
 
 size_t ringbufSize(volatile const ringbuf_t * rb) {
 	const size_t readpos = rb->readpos;

@@ -24,6 +24,7 @@ int ringbufCanRead(volatile const ringbuf_t* rb, size_t length);
 int ringbufCanWrite(volatile const ringbuf_t* rb, size_t length);
 
 size_t ringbufSize(volatile const ringbuf_t * rb);
+size_t ringbufEmpty(volatile const ringbuf_t * rb);
 size_t ringbufFreeSpace(volatile const ringbuf_t * rb);
 
 /* returns number of bytes read */
