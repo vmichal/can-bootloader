@@ -2,7 +2,6 @@
 #if !defined BOOT_STM32G4
 
 #include "can.hpp"
-#include "timer.hpp"
 
 #include <bit>
 #include <cstring>
@@ -11,7 +10,7 @@
 
 
 #include <ufsel/assert.hpp>
-#include <ufsel/units.hpp>
+#include <ufsel/time.hpp>
 #include <CANdb/tx2/tx.h>
 #include <CANdb/can_Bootloader.h>
 
@@ -43,7 +42,7 @@ namespace bsp::can {
 				rflm = false,
 				txfp = true;
 
-			constexpr unsigned sjw = 1, bs1 = 3, bs2 = 2;
+			constexpr unsigned sjw = 1, bs1 = 13, bs2 = 2;
 			constexpr bool silent = false, loopback = false;
 
 			bit::set(std::ref(can.MCR),
@@ -71,7 +70,7 @@ namespace bsp::can {
 		}
 	}
 
-	void Initialize() {
+	void initialize() {
 		using namespace ufsel;
 
 		//enable peripheral clock to CAN1, CAN2
@@ -85,7 +84,7 @@ namespace bsp::can {
 #endif
 
 		constexpr Frequency APB1_frequency = boot::SYSCLK;
-		constexpr int quanta_per_bit = 6;
+		constexpr int quanta_per_bit = 16;
 
 		//Initialize peripherals
 #if CAN1_used
@@ -146,7 +145,7 @@ static_assert(bus_connected_to_CAN2 != bus_UNDEFINED);
 
 extern "C" {
 	uint32_t txGetTimeMillis() {
-		return SystemTimer::GetUptime().toMilliseconds();
+		return systemStartupTime.TimeElapsed().toMilliseconds();
 	}
 
 	int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length) {
@@ -155,7 +154,7 @@ extern "C" {
 
 	int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
 		using namespace ufsel;
-		if (bus == bus_BOTH) {
+		if (bus == bus_ALL) {
 			int rc1 = CAN1_used ? txSendCANMessage(bus_connected_to_CAN1, id, data, length) : 1;
 			int rc2 = CAN2_used ? txSendCANMessage(bus_connected_to_CAN2, id, data, length) : 1;
 			return rc1 && rc2;

@@ -8,8 +8,13 @@
 #include <ufsel/units.hpp>
 #include <ufsel/bit.hpp>
 
-constexpr Frequency can1_frequency = GENERATE_CAN_FREQ(CAN1_FREQ);
-constexpr Frequency can2_frequency = 1'000'000_Hz;
+#if CAN1_used
+constexpr Frequency can1_frequency = CAN1_BITRATE;
+#endif
+
+#if CAN2_used
+constexpr Frequency can2_frequency = CAN2_BITRATE;
+#endif
 
 namespace bsp::can {
 
@@ -20,7 +25,7 @@ namespace bsp::can {
 		constexpr unsigned mustMatch = ufsel::bit::bitmask_of_width(8) << 3;
 	}
 
-	void Initialize();
+	void initialize();
 
 }
 

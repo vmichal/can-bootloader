@@ -2,30 +2,29 @@
 #if defined BOOT_STM32G4
 
 #include "fdcan.hpp"
-#include "timer.hpp"
+#include <ufsel/time.hpp>
+
+#include <Drivers/stm32g4xx.h>
 
 #include <cstring>
 
 #include <ufsel/bit_operations.hpp>
 #include <ufsel/assert.hpp>
+#include <ufsel/itertools.hpp>
 
 #include <can_Bootloader.h>
-constexpr auto bus_connected_to_CAN1 = bus_CAN1;
-constexpr auto bus_connected_to_CAN2 = bus_CAN2;
-
 
 namespace bsp::can {
 	namespace {
-
 		struct bit_time_config {
 			int nominal_prescaler, data_prescaler, sjw, bs1, bs2;
 
 			[[nodiscard]]
 			constexpr bool configuration_valid() const {
 				return
-					1 <= sjw && sjw <= 16 && sjw < bs2 &&
-					1 <= bs2 && bs2 <= 16 &&
-					1 <= bs1 && bs1 <= 32;
+						1 <= sjw && sjw <= 16 && sjw < bs2 &&
+						1 <= bs2 && bs2 <= 16 &&
+						1 <= bs1 && bs1 <= 32;
 			}
 
 			[[nodiscard]]
@@ -44,20 +43,19 @@ namespace bsp::can {
 			}
 		};
 
-		void peripheralRequestInitialization(FDCAN_GlobalTypeDef & can) {
+		void request_peripheral_initialization(FDCAN_GlobalTypeDef * const can) {
 			using namespace ufsel;
 
 			// enter initialization
-			bit::set(std::ref(can.CCCR), FDCAN_CCCR_INIT, FDCAN_CCCR_CCE);
+			bit::set(std::ref(can->CCCR), FDCAN_CCCR_INIT, FDCAN_CCCR_CCE);
 		}
 
 		//wait for FDCAN to synchronize with the bus (leave initialization)
-		void peripheralAwaitSynchronization(FDCAN_GlobalTypeDef & can) {
-			//TODO does this work with FDCAN as well? I only know this process with bxCAN
-			ufsel::bit::wait_until_cleared(can.CCCR, FDCAN_CCCR_INIT);
+		void await_peripheral_synchronization(FDCAN_GlobalTypeDef * const can) {
+			ufsel::bit::wait_until_cleared(can->CCCR, FDCAN_CCCR_INIT);
 		}
 
-		void peripheralInit(FDCAN_GlobalTypeDef * const can, bit_time_config const bit_time_config) {
+		void initialize_peripheral(FDCAN_GlobalTypeDef * const can, bit_time_config const bit_time_config) {
 			using namespace ufsel;
 			//await acknowledge that the peripheral entered initialization mode
 			bit::wait_until_set(can->CCCR, FDCAN_CCCR_INIT);
@@ -74,11 +72,11 @@ namespace bsp::can {
 
 			bit::set(std::ref(can->CCCR),
 					// keep ISO CANFD operation
-					FDCAN_CCCR_TXP // insert a delay of 2 bit times after successful frame TX
+					FDCAN_CCCR_TXP, // insert a delay of 2 bit times after successful frame TX // TODO make this a customization point in the future
 					// edge filtering disabled
 					// protocol exception handling disabled
-					// disable bit rate switching
-					// disable FD operation
+					FDCAN_CCCR_BRSE, // permit bit rate switching
+					FDCAN_CCCR_FDOE // permit FD operation
 					// disabled test mode
 					// disabled bus monitoring mode
 					// no clock stop request, no power down
@@ -104,16 +102,18 @@ namespace bsp::can {
 
 			// Ignore transmitter delay compensation
 
-			// Enable the "not empty" interrupt of RX FIFO 0
-			bit::set(std::ref(can->IE), FDCAN_IE_RF0NE);
+			// Enable the "not empty" interrupt of RX FIFO 0 and Bus Off status change
+			bit::set(std::ref(can->IE), FDCAN_IE_BOE, FDCAN_IE_EWE, FDCAN_IE_RF0NE);
 
 			bit::set(std::ref(can->ILS),
 					// Generate RX FIFO 0 interrupts on interrupt line 0 (default)
-					0
+					// Generate Protocol errors (such as bus off and warning ) on interrupt line 1
+					FDCAN_ILS_PERR
 			);
 
 			// Enable CAN interrupt line 0 (for RX FIFO interrupts)
-			bit::set(std::ref(can->ILE), FDCAN_ILE_EINT0);
+			// Enable CAN interrupt line 1 (for Bus Off)
+			bit::set(std::ref(can->ILE), FDCAN_ILE_EINT0, FDCAN_ILE_EINT1);
 
 			// Dont use XIDAM register (default value of all zeros => masking is not active)
 
@@ -129,48 +129,74 @@ namespace bsp::can {
 			// Nothing to configure in TX FIFO status reg, cancellation request reg, buffer add request etc
 		}
 
-		void filtersInit(FDCAN_GlobalTypeDef * const can) {
-			using namespace ufsel;
+		void init_filters(FDCAN_GlobalTypeDef * const can) {
 			MessageRAM_TypeDef * const ram = get_message_ram_for_periph(can);
+			constexpr auto has_std_id = [](auto const id) { return IS_STD_ID(id); };
+			constexpr auto has_ext_id = [](auto const id) { return IS_EXT_ID(id); };
+			using namespace ufsel;
+			// Filter initialization
+			std::size_t const rx_ext_id_count = std::ranges::count_if(candb_received_messages, has_ext_id);
+			std::size_t const rx_std_id_count = std::ranges::count_if(candb_received_messages, has_std_id);
+			assert(rx_ext_id_count + rx_std_id_count == std::size(candb_received_messages));
 
-			assert(std::ranges::all_of(candb_received_messages, [](unsigned id) {
-				// Make sure all received messages match the input filter (= they share the shared prefix)
-				return (id & filter::sharedPrefix) == filter::sharedPrefix;
-			}));
+			constexpr int ids_per_filter = 2;
+			// The number of std and ext filters to be activated
+			std::size_t const std_filter_count = (rx_std_id_count + ids_per_filter - 1) / ids_per_filter;
+			std::size_t const ext_filter_count = (rx_ext_id_count + ids_per_filter - 1) / ids_per_filter;
+
+
+			constexpr int max_ext_filters = 8, max_std_filters = 28;
+			static_assert(std::extent_v<decltype(candb_received_messages)> < (max_ext_filters + max_std_filters) * ids_per_filter,
+					"Identifier list filtering method requires more filters than the hardware exposes. Use mask/range filtering!");
+			assert(ext_filter_count <= max_ext_filters);
+			assert(std_filter_count <= max_std_filters);
 
 			bit::set(std::ref(can->RXGFC),
-					0 << FDCAN_RXGFC_LSE_Pos, // only one standard filter
-					1 << FDCAN_RXGFC_LSS_Pos,
+					ext_filter_count << FDCAN_RXGFC_LSE_Pos, // configure the length of extended filter list
+					std_filter_count << FDCAN_RXGFC_LSS_Pos, // configure the length of standard filter list
 					// RXFIFO0 operates in blocking mode (default)
 					0b10 << FDCAN_RXGFC_ANFS_Pos,// reject non-matching standard frames
 					0b10 << FDCAN_RXGFC_ANFE_Pos,// reject non-matching extended frames
 					FDCAN_RXGFC_RRFS, // reject standard remote frames
 					FDCAN_RXGFC_RRFE // reject extended remote frames
 			);
-
 			// Initialize standard filters
 			bit::sliceable_with_deffered_writeback filter(ram->std_filter[0].S0);
-			filter[bit::slice::for_mask(STD_Filter::S0_SFT_Msk)] = 0b10; // Classic filter with mask
-			filter[bit::slice::for_mask(STD_Filter::S0_SFEC_Msk)] = 0b001; // Store to RX FIFO 0 without priority
-			filter[bit::slice::for_mask(STD_Filter::S0_SFID1_Msk)] = filter::sharedPrefix; // Prefix shared by all bootloader messages
-			filter[bit::slice::for_mask(STD_Filter::S0_SFID2_Msk)] = filter::mustMatch; // "Must match mask"
+			filter[bit::slice::for_mask(message_RAM::STD_Filter::S0_SFT_Msk)] = 0b10; // Classic filter with mask
+			filter[bit::slice::for_mask(message_RAM::STD_Filter::S0_SFEC_Msk)] = 0b001; // Store to RX FIFO 0 without priority
+			filter[bit::slice::for_mask(message_RAM::STD_Filter::S0_SFID1_Msk)] = filter::sharedPrefix; // Prefix shared by all bootloader messages
+			filter[bit::slice::for_mask(message_RAM::STD_Filter::S0_SFID2_Msk)] = filter::mustMatch; // "Must match mask"
 
 			// Ignore extended filters (bootloader only uses standard IDs)
 		}
 
-		constexpr bool verify_bit_time_config(bit_time_config const config, bus_baudrate const baudrate) {
-			return
-				config.time_quanta_per_bit() == time_quanta_per_bit &&
-				config.kernel_clock_to_nominal_bit_time_ratio() * baudrate.nominal == kernel_clock_frequency &&
-				config.kernel_clock_to_data_bit_time_ratio() * baudrate.data == kernel_clock_frequency;
-		}
+		template<std::size_t N, bit_time_config config>
+		struct bit_time_config_ok_helper {
+			constexpr static bus_info_t bus = bus_info[N];
+			// Using 16 time quanta is suggested (among others) here http://www.bittiming.can-wiki.info/ for normal CAN. We lack experience for CANFD.
+			static_assert(config.time_quanta_per_bit() == 16, "Ideally use 16 Tq per bit to ensure the best sampling point position (87.5 %). Check the CAN bus number in this struct's template argument.");
+			static_assert(config.kernel_clock_to_nominal_bit_time_ratio() * bus.bitrate_nominal == kernel_clock_frequency, "The specified prescaler does not yield the correct NOMINAL BITRATE. Check the CAN bus number in this struct's template argument.");
+			static_assert(config.kernel_clock_to_data_bit_time_ratio() * bus.bitrate_data == kernel_clock_frequency, "The specified prescaler does not yield the correct DATA BITRATE. Check the CAN bus number in this struct's template argument.");
+			static constexpr bool value = N == 0 ? true : bit_time_config_ok_helper<N - 1, config>::value;
+
+		};
+
+		template<bit_time_config config>
+		struct bit_time_config_ok_helper<0, config> : std::true_type {};
+
+		template<bit_time_config config>
+		struct bit_time_config_ok : bit_time_config_ok_helper<std::size(bus_info) - 1, config> {};
 	}
 
-	void Initialize() {
+	void initialize() {
 		using namespace ufsel;
 
 		bit::set(std::ref(RCC->APB1ENR1), RCC_APB1ENR1_FDCANEN); // enable FDCAN clock
-		bit::set(std::ref(RCC->CCIPR), 0b10 << RCC_CCIPR_FDCANSEL_Pos); // clock FDCAN from PCLK (36 MHz)
+
+		bit::set(std::ref(RCC->CCIPR),
+				0b10 << RCC_CCIPR_FDCANSEL_Pos // FDCAN clocked from APB
+		);
+
 #if 0
 		// No clock input prescaling is used
 		constexpr int periph_clock_prescaler = bsp::clock::bus_speed::APB1 / can_clock_frequency;
@@ -178,48 +204,53 @@ namespace bsp::can {
 		// Prescale CAN kernel clock frequency
 		bit::modify(std::ref(FDCAN_CONFIG->CKDIV), FDCAN_CKDIV_PDIV_Msk, prescaler_reg_value);
 #endif
-		//wake up both peripherals and send them to initialization mode
-		peripheralRequestInitialization(*FDCAN1);
-		peripheralRequestInitialization(*FDCAN2);
+		//wake up peripherals and send them to initialization mode
+		for (auto bus : bus_info)
+			request_peripheral_initialization(bus.get_peripheral());
 
-		//Initialize peripherals
-		constexpr bit_time_config bit_time_config1{
-			.nominal_prescaler = static_cast<int>(boot::SYSCLK / can1_baudrate.nominal / 6),
-			.data_prescaler = static_cast<int>(boot::SYSCLK / can1_baudrate.data / 6),
-			.sjw = 1, .bs1 = 3, .bs2 = 2
-		};
-		constexpr bit_time_config bit_time_config2{
-			.nominal_prescaler = static_cast<int>(boot::SYSCLK / can2_baudrate.nominal / 6),
-			.data_prescaler = static_cast<int>(boot::SYSCLK / can2_baudrate.data / 6),
-			.sjw = 1, .bs1 = 3, .bs2 = 2
+		//Initialize peripherals. 16 time quanta per bit are really heavilly recommended, hence it will be used for all periphs
+		// Using 16 time quanta is suggested (among others) here http://www.bittiming.can-wiki.info/ for normal CAN. We lack experience for CANFD.
+		constexpr bit_time_config bit_time_config{
+				.nominal_prescaler = 2, .data_prescaler = 2, .sjw = 1, .bs1 = 13, .bs2 = 2
 		};
 		// Sanity checks that the configuration is valid:
-		static_assert(verify_bit_time_config(bit_time_config1, can1_baudrate));
-		static_assert(verify_bit_time_config(bit_time_config2, can2_baudrate));
+		static_assert(bit_time_config_ok<bit_time_config>::value);
 
-		peripheralInit(FDCAN1, bit_time_config1);
-		peripheralInit(FDCAN2, bit_time_config2);
+		for (auto bus : bus_info)
+			initialize_peripheral(bus.get_peripheral(), bit_time_config);
 
+		// Enable interrupts for all peripherals. If some peripheral isn't used,
+		// it will not be initialized and hence will not fire any IRQ.
 		NVIC_EnableIRQ(FDCAN1_IT0_IRQn);
+		NVIC_EnableIRQ(FDCAN1_IT1_IRQn);
 		NVIC_EnableIRQ(FDCAN2_IT0_IRQn);
+		NVIC_EnableIRQ(FDCAN2_IT1_IRQn);
+		NVIC_EnableIRQ(FDCAN3_IT0_IRQn);
+		NVIC_EnableIRQ(FDCAN3_IT1_IRQn);
+		NVIC_SetPriority(FDCAN1_IT0_IRQn, 10); // Low priority
+		NVIC_SetPriority(FDCAN1_IT1_IRQn, 10); // Low priority
+		NVIC_SetPriority(FDCAN2_IT0_IRQn, 10); // Low priority
+		NVIC_SetPriority(FDCAN2_IT1_IRQn, 10); // Low priority
+		NVIC_SetPriority(FDCAN3_IT0_IRQn, 10); // Low priority
+		NVIC_SetPriority(FDCAN3_IT1_IRQn, 10); // Low priority
 
 		//Filters, intialize the same set for both peripherals such that it does
 		// not matter what bus the transmitter uses
 
-		filtersInit(FDCAN1);
-		filtersInit(FDCAN2);
+		for (auto bus : bus_info)
+			init_filters(bus.get_peripheral());
 
 		// Exit the initialization mode on both peripherals
-		bit::clear(std::ref(FDCAN1->CCCR), FDCAN_CCCR_CCE, FDCAN_CCCR_INIT);
-		bit::clear(std::ref(FDCAN2->CCCR), FDCAN_CCCR_CCE, FDCAN_CCCR_INIT);
+		for (auto bus : bus_info)
+			bit::clear(std::ref(bus.get_peripheral()->CCCR), FDCAN_CCCR_CCE, FDCAN_CCCR_INIT);
 
 		//make sure CAN peripherals have snychronized with the bus
-		peripheralAwaitSynchronization(*FDCAN1);
-		peripheralAwaitSynchronization(*FDCAN2);
+		for (auto bus : bus_info)
+			await_peripheral_synchronization(bus.get_peripheral());
 	}
 
 	//Read message data (and then release it) from the FIFO0 of given peripheral.
-	MessageData extractPendingMessage(FDCAN_GlobalTypeDef * const can) {
+	MessageData read_message(FDCAN_GlobalTypeDef * const can) {
 		MessageRAM_TypeDef * const ram = get_message_ram_for_periph(can);
 		using namespace ufsel;
 		// Get the read pointer into the reception queue
@@ -227,23 +258,24 @@ namespace bsp::can {
 
 		auto const& rx_buffer = ram->rx_fifo0[get_index];
 		bit::sliceable_value const R0{rx_buffer.R0};
-		bool const is_extended = R0[bit::slice::for_mask(RX_FIFO::R0_XTD_Msk)];
+		bool const is_extended = R0[bit::slice::for_mask(message_RAM::RX_FIFO::R0_XTD_Msk)];
 		// ignore ESI and remote frames (they are rejected)
 		std::uint32_t const message_id = [&]() -> CAN_ID_t {
 			if (is_extended)
-				return EXT_ID(R0[bit::slice::for_mask(RX_FIFO::R0_ID_Msk_EXT)]);
+				return EXT_ID(R0[bit::slice::for_mask(message_RAM::RX_FIFO::R0_ID_Msk_EXT)]);
 			else
-				return STD_ID(R0[bit::slice::for_mask(RX_FIFO::R0_ID_Msk_STD)]);
+				return STD_ID(R0[bit::slice::for_mask(message_RAM::RX_FIFO::R0_ID_Msk_STD)]);
 		}();
 
 		bit::sliceable_value const R1{rx_buffer.R1};
 		// Ignore matched filter index
 		// Ignore frame format, bitrate switching
-		std::uint32_t const length = DLC_to_length(R1[bit::slice::for_mask(RX_FIFO::R1_DLC_Msk)]);
+		std::uint32_t const length = DLC_to_length(R1[bit::slice::for_mask(message_RAM::RX_FIFO::R1_DLC_Msk)]);
 		// ignore RX timestamp
-		std::uint32_t const word_count = (length + sizeof(std::uint32_t) - 1) / sizeof(std::uint32_t);
+		int const word_count = (length + sizeof(std::uint32_t) - 1) / sizeof(std::uint32_t);
 
 		MessageData result {.id = message_id, .length = length};
+
 		// Copy the message data from Message RAM
 		// Cannot use std::copy here since it is strictly necessary to use word accesses
 		for (int word = 0; word < word_count; ++word)
@@ -254,10 +286,11 @@ namespace bsp::can {
 		return result;
 	}
 
-	void insertMessageForTransmission(FDCAN_GlobalTypeDef * const can, MessageData const& msg) {
+	void write_message_for_transmission(bus_info_t const &bus, MessageData const& msg) {
+		FDCAN_GlobalTypeDef * const can = bus.get_peripheral();
 		MessageRAM_TypeDef * const ram = get_message_ram_for_periph(can);
 		using namespace ufsel;
-		assert(hasEmptyMailbox(can));
+		assert(has_empty_mailbox(can));
 		// Get the write pointer into the reception queue
 		int const write_index = bit::get(can->TXFQS,FDCAN_TXFQS_TFQPI) >> FDCAN_TXFQS_TFQPI_Pos;
 
@@ -265,90 +298,85 @@ namespace bsp::can {
 		bool const is_extended = IS_EXT_ID(msg.id);
 		{
 			bit::sliceable_value T0(0);
-			T0[bit::slice::for_mask(is_extended ? TX_Buffer::T0_ID_Msk_EXT : TX_Buffer::T0_ID_Msk_STD)] = msg.id;
-			T0[bit::slice::for_mask(TX_Buffer::T0_XTD_Msk)] = is_extended;
+			T0[bit::slice::for_mask(is_extended ? message_RAM::TX_Buffer::T0_ID_Msk_EXT : message_RAM::TX_Buffer::T0_ID_Msk_STD)] = msg.id;
+			T0[bit::slice::for_mask(message_RAM::TX_Buffer::T0_XTD_Msk)] = is_extended;
 			tx_buffer.T0 = T0.value();
 		}
 		auto const DLC = length_to_DLC(msg.length);
 		assert(DLC.has_value() && "You attempted to transmit a message of unsupported length!");
 		{
 			bit::sliceable_value T1(0);
-			T1[bit::slice::for_mask(TX_Buffer::T1_MM_Msk)] = 0; // ignore message marker (keep zero)
-			T1[bit::slice::for_mask(TX_Buffer::T1_EFC_Msk)] = 0; // do not store TX event
-			T1[bit::slice::for_mask(TX_Buffer::T1_FDF_Msk)] = 0; // normal (non-FD) frame
-			T1[bit::slice::for_mask(TX_Buffer::T1_BRS_Msk)] = 0; // no bit rate switching
-			T1[bit::slice::for_mask(TX_Buffer::T1_DLC_Msk)] = DLC.value();
+			// TODO here we have to permit FD frames, bitrate switching etc.
+			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_MM_Msk)] = 0; // ignore message marker (keep zero)
+			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_EFC_Msk)] = 0; // do not store TX event // TODO support this at least for Ocarina global timing synchronization
+			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_FDF_Msk)] = bus.fd_frame; // normal or FD frame
+			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_BRS_Msk)] = bus.bitrate_switching; // bit rate switching
+			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_DLC_Msk)] = DLC.value();
 			tx_buffer.T1 = T1.value();
 		}
 		int const word_count = (msg.length + sizeof(std::uint32_t) - 1) / sizeof(std::uint32_t);
 		// Copy the message data into Message RAM
 		// Cannot use std::copy here since it is strictly necessary to use word accesses
+		// and std::copy had the tendency to fall back to memcpy which resulted in some byte accesses.
 		for (int word = 0; word < word_count; ++word)
 			tx_buffer.data[word] = msg.data[word];
 
 		// Add request for this TX buffer element
 		can->TXBAR = bit::bit(write_index);
 	}
+
+	void handle_interrupt(bus_info_t const& bus_info) {
+		FDCAN_GlobalTypeDef * const peripheral = bus_info.get_peripheral();
+
+		assert(ufsel::bit::all_set(peripheral->IR, FDCAN_IR_RF0N));
+
+		MessageData const msg = read_message(peripheral);
+		ufsel::bit::set(std::ref(peripheral->IR), FDCAN_IR_RF0N); // clear the interrupt flag
+		txReceiveCANMessage(bus_info.candb_bus, msg.id, msg.data.data(), msg.length);
+	}
 }
-
-
-/* Implementation of function required by tx library.
-   These functions must use C linkage, because they are used by the code generated from CANdb (which is pure C). */
-
 
 extern "C" {
-	uint32_t txGetTimeMillis() {
-		return SystemTimer::GetUptime().toMilliseconds();
-	}
-
-	int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length) {
-		return 0; //all messages are filtered by hardware
-	}
-
-	int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
-		if (bus == bus_BOTH) {
-			int const can1 = txSendCANMessage(bus_CAN1, id, data, length);
-			int const can2 = txSendCANMessage(bus_CAN2, id, data, length);
-			return can1 && can2;
-		}
-
-		using namespace ufsel;
-		assert(bus == bus_connected_to_CAN1 || bus == bus_connected_to_CAN2);
-
-		FDCAN_GlobalTypeDef * const peripheral = bus == bus_connected_to_CAN1 ? FDCAN1 : FDCAN2;
-
-		if (!bsp::can::hasEmptyMailbox(peripheral))
-			return -TX_SEND_BUFFER_OVERFLOW; //There is no empty mailbox
-
-		bsp::can::MessageData message {.id = id, .length = length};
-		std::memcpy(message.data.data(), data, length);
-
-		bsp::can::insertMessageForTransmission(peripheral, message);
-		return 0;
-	}
+uint32_t txGetTimeMillis() {
+	return systemStartupTime.TimeElapsed().toMilliseconds();
 }
 
-extern "C" void FDCAN1_IT0_IRQHandler(void)
-{
-	using namespace bsp::can;
-	assert(ufsel::bit::all_set(FDCAN1->IR, FDCAN_IR_RF0N));
-
-	MessageData const msg = extractPendingMessage(FDCAN1);
-	ufsel::bit::set(std::ref(FDCAN1->IR), FDCAN_IR_RF0N); // clear the interrupt flag
-	txReceiveCANMessage(bus_connected_to_CAN1, msg.id, msg.data.data(), msg.length);
+int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length) {
+	return 0; //all messages are filtered by hardware
 }
 
-extern "C" void FDCAN2_IT0_IRQHandler(void)
-{
-	using namespace bsp::can;
-	assert(ufsel::bit::all_set(FDCAN2->IR, FDCAN_IR_RF0N));
+int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
+	if (bus == bus_ALL) {
+		int const can1 = txSendCANMessage(bus_CAN1, id, data, length);
+		int const can2 = txSendCANMessage(bus_CAN2, id, data, length);
+		return can1 && can2;
+	}
 
-	MessageData const msg = extractPendingMessage(FDCAN2);
-	ufsel::bit::set(std::ref(FDCAN2->IR), FDCAN_IR_RF0N); // clear the interrupt flag
-	txReceiveCANMessage(bus_connected_to_CAN2, msg.id, msg.data.data(), msg.length);
+	using namespace ufsel;
+	auto& bus_info = bsp::can::find_bus_info_by_bus((candb_bus_t)bus);
+
+	if (!bsp::can::has_empty_mailbox(bus_info.get_peripheral()))
+		return -TX_SEND_BUFFER_OVERFLOW; //There is no empty mailbox
+
+	bsp::can::MessageData message {.id = id, .length = length};
+	std::memcpy(message.data.data(), data, length);
+
+	bsp::can::write_message_for_transmission(bus_info, message);
+	return 0;
+}
 }
 
+extern "C" void FDCAN1_IT0_IRQHandler(void) {
+	bsp::can::handle_interrupt(bsp::can::find_bus_info_by_peripheral(FDCAN1_BASE));
+}
 
+extern "C" void FDCAN2_IT0_IRQHandler(void) {
+	bsp::can::handle_interrupt(bsp::can::find_bus_info_by_peripheral(FDCAN2_BASE));
+}
+
+extern "C" void FDCAN3_IT0_IRQHandler(void) {
+	bsp::can::handle_interrupt(bsp::can::find_bus_info_by_peripheral(FDCAN3_BASE));
+}
 
 #endif
 /* END OF FILE */
