@@ -15,11 +15,21 @@
 #include "tx2/tx.h"
 #include "can_Bootloader.h"
 
-#include <library/timer.hpp>
+#include <ufsel/time.hpp>
 #include <BSP/can.hpp>
 #include <BSP/fdcan.hpp>
 #include <BSP/gpio.hpp>
-#include <BSP/timer.hpp>
+
+/*After consulting with Patrik, disassembly proved that this variable is initialized as part of .data init.
+It is therefore available even before SystemInit is called and thus can be trusted to be valid before almost everything else.*/
+//Variable counting system interrupts. Can be queried by HAL_GetTick()
+__IO std::uint32_t SystemTicks = ufsel::time::systemStartTick;
+
+namespace ufsel::time {
+	Timestamp Timestamp::Now() {
+		return Timestamp{SystemTicks};
+	}
+}
 
 // TODO get rid of library. Timers are already in ufsel, move pin there as well possibly.
 
@@ -46,8 +56,13 @@ namespace boot {
 
 			// Wait until the peripheral transmits all messages (has_pending_transmission would go to false)
 			// or the receiver is disconnected (has_ack_error would go to true) or the time runs out
-			while (!start.TimeElapsed(timeout) && !bsp::can::hasAckError(FDCAN1) && has_pending_transmission(FDCAN1));
-			while (!start.TimeElapsed(timeout) && !bsp::can::hasAckError(FDCAN2) && has_pending_transmission(FDCAN2));
+
+			for (auto & b : bsp::can::bus_info) {
+				if (b.candb_bus == bus) {
+					FDCAN_GlobalTypeDef * const periph = b.get_peripheral();
+					while (!start.TimeElapsed(timeout) && !bsp::can::has_ack_error(periph) && has_pending_transmission(periph));
+				}
+			}
 
 #else
 			if (bus == bus_CAN1)
@@ -194,7 +209,7 @@ namespace boot {
 			txProcess();
 
 			if (bootloader.startupCheckInProgress()) {
-				if (SystemTimer::GetUptime() > customization::startupCanBusCheckDuration) {
+				if (systemStartupTime.TimeElapsed() > customization::startupCanBusCheckDuration) {
 					// Enough time elapsed without receiving any BL request. Start the application
 					resetTo(BackupDomain::magic::app_skip_can_check);
 				}
@@ -239,7 +254,7 @@ namespace boot {
 				// This way time keeping is preserved at all times
 				// TODO consider disabling interrupts
 				ufsel::bit::clear(std::ref(SysTick->CTRL), SysTick_CTRL_TICKINT_Msk);
-				SysTick_Handler();
+				++SystemTicks;
 			}
 
 			if constexpr (boot::rebootAfterHardfault) {
@@ -264,4 +279,15 @@ namespace boot {
 	}
 }
 
+namespace ufsel::assertion {
+
+	// Provide implementation of handlers for ufsel::assert
+	[[noreturn]] void assertionFailedHandler(char const * const file, char const * const function, int line) {
+		boot::EverythingsFuckedUpHandler(true);
+	}
+
+	[[noreturn]] void unreachableCodeHandler(char const * const file, char const * const function, int line) {
+		boot::EverythingsFuckedUpHandler(true);
+	}
+}
 

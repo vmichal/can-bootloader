@@ -274,33 +274,15 @@ namespace boot {
 
 #define CONCAT(a, b) a ## b
 #define GENERATE_ECU_NAME(a) CONCAT(Bootloader_BootTarget_, a)
-#define GENERATE_HSE_FREQ(a) CONCAT(a, _MHz)
-#define GENERATE_CAN_FREQ(a) CONCAT(a, _kHz)
 
 		/////////////////////////////////////////////////////////////////////
 		//                  CUSTOMIZATION POINT
 		/////////////////////////////////////////////////////////////////////
-		/*
-		 * List of HSE frequencies:
-		 * AMS (FSE09, FSE10, DV01) - 8MHz
-		 * STW (FSE10 assembled into the steering wheel) - 8 MHz
-		 * STW (FSE10 testing, naked board) - 12 MHz
-		 * PDL (DV01) - 12 MHz
-		 * PDL (FSE10, FSE11 EV1) - 8 MHz
-		 * PDL (FSE11 EV2) - 12 MHz
-		 * DSH (FSE10, FSE11) - 12 MHz
-		 * FSB (FSE10) - 8 MHz
-		 * EBSS (DV01) - 12 MHz
-		 * SA (DV01) - 12 MHz
-		 * Disruptor - 12 MHz
-		 */
-
-		// FSE10 DSH has remaped CAN2!
 
 		//Bootloader target identification
 		constexpr Bootloader_BootTarget thisUnit = GENERATE_ECU_NAME(ECU_NAME);
 		//Frequency of used external oscillator
-		constexpr Frequency HSE = GENERATE_HSE_FREQ(HSE_FREQ);
+		constexpr Frequency HSE = HSE_FREQ;
 
 		// Governs the bootloader's behaviour when valid application is stored in memory.
 		// When set to false, application is initialized right away
@@ -338,7 +320,7 @@ namespace boot {
 	constexpr bool rebootAfterHardfault = true;
 	constexpr auto rebootDelayHardfault = 10_s;
 
-	constexpr Frequency SYSCLK = 36_MHz;
+	constexpr Frequency SYSCLK = 32_MHz;
 
 	constexpr std::uint32_t isrVectorAlignmentMask = ufsel::bit::bitmask_of_width(customization::isrVectorAlignmentBits);
 

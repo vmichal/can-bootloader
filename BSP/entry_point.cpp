@@ -10,14 +10,16 @@
 #include <Bootloader/bootloader.hpp>
 #include <Bootloader/options.hpp>
 #include <ufsel/bit_operations.hpp>
+#include <ufsel/time.hpp>
 
 #include "gpio.hpp"
 #include "can.hpp"
 #include "fdcan.hpp"
-#include "timer.hpp"
 
 #include <cstdint>
 #include <bit>
+
+extern __IO uint32_t SystemTicks;
 
 extern "C" {
 	//The following is taken from linker.ld:
@@ -293,12 +295,25 @@ extern "C" void Reset_Handler() {
 
 	configure_system_clock();
 	//Configure and start system milisecond clock
-	SystemTimer::Initialize();
+	constexpr int systick_div = boot::SYSCLK / 1_kHz;
+	static_assert(systick_div * 1_kHz == boot::SYSCLK, "Cannot achieve the required SysTick frequency using an integral prescaler and the configured AHB clock.");
+	SysTick->LOAD = systick_div - 1;
+	SysTick->VAL = 0; //clear the count register and the COUNT flag
+	bit::set(std::ref(SysTick->CTRL),
+			SysTick_CTRL_CLKSOURCE_Msk, //clock systick from ahb
+			SysTick_CTRL_TICKINT_Msk, //enable the interrupt generation
+			SysTick_CTRL_ENABLE_Msk //enable systick
+	);
 	__libc_init_array(); //Branch to static constructors
 
 	boot::Bootloader::setEntryReason(reason);
 	bsp::gpio::Initialize();
-	bsp::can::Initialize();
+	bsp::can::initialize();
 
 	boot::main();
 }
+
+extern "C" void SysTick_Handler() {
+	++SystemTicks;
+}
+

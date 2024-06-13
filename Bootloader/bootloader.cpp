@@ -12,7 +12,7 @@
 
 #include <ufsel/assert.hpp>
 #include <ufsel/units.hpp>
-#include <library/timer.hpp>
+#include <ufsel/time.hpp>
 namespace boot {
 
 	namespace {

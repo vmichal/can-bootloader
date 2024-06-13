@@ -4,18 +4,26 @@ project(Bootloader CXX C ASM)
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/QueryRepositoryState.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/BitOperations.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Units.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Itertools.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Assert.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Time.cmake")
+string(APPEND CMAKE_CXX_FLAGS " -DUFSEL_USING_TIME")
 
 add_definitions(-DECU_NAME=${ECU_NAME})
 add_definitions(-DHSE_FREQ=${HSE_FREQ})
-add_definitions(-DCAN1_FREQ=${CAN1_FREQ})
+
+add_definitions(-DCAN1_BITRATE=${CAN1_BITRATE})
+add_definitions(-DCAN1_PERIPHERAL=${CAN1_PERIPHERAL})
 add_definitions(-DCAN1_RX_pin=${CAN1_RX_pin})
 add_definitions(-DCAN1_TX_pin=${CAN1_TX_pin})
 add_definitions(-DCAN1_used=${CAN1_used})
+
+add_definitions(-DCAN2_BITRATE=${CAN2_BITRATE})
+add_definitions(-DCAN2_PERIPHERAL=${CAN2_PERIPHERAL})
 add_definitions(-DCAN2_RX_pin=${CAN2_RX_pin})
 add_definitions(-DCAN2_TX_pin=${CAN2_TX_pin})
 add_definitions(-DCAN2_used=${CAN2_used})
-message(STATUS "Generating build files for ${ECU_NAME} running on stm32${MCU} with ${HSE_FREQ} MHz HSE. CAN1 baudrate ${CAN1_FREQ} kbitps, CAN1 pins RX ${CAN1_RX_pin}, TX ${CAN1_TX_pin}, CAN2 pins RX ${CAN2_RX_pin}, TX ${CAN2_TX_pin}")
+message(STATUS "Generating build files for ${ECU_NAME} running on stm32${MCU} with ${HSE_FREQ} MHz HSE. CAN1 baudrate ${CAN1_BITRATE}, CAN1 pins RX ${CAN1_RX_pin}, TX ${CAN1_TX_pin}, CAN2 baudrate ${CAN2_BITRATE}, pins RX ${CAN2_RX_pin}, TX ${CAN2_TX_pin}")
 
 set(SRC
         API/BLdriver.cpp
@@ -28,7 +36,6 @@ set(SRC
         BSP/can.cpp
         BSP/fdcan.cpp
         BSP/gpio.cpp
-        BSP/timer.cpp
 
         Drivers/core_cm3.h
         Drivers/core_cm4.h

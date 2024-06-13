@@ -5,8 +5,8 @@
 #include "options.hpp"
 #include "bootloader.hpp"
 
-#include <BSP/timer.hpp>
 #include <ufsel/assert.hpp>
+#include <ufsel/time.hpp>
 #include <ufsel/sw_build.hpp>
 #include <ufsel/bit.hpp>
 
