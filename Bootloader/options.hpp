@@ -320,7 +320,7 @@ namespace boot {
 	constexpr bool rebootAfterHardfault = true;
 	constexpr auto rebootDelayHardfault = 10_s;
 
-	constexpr Frequency SYSCLK = 32_MHz;
+	constexpr Frequency SYSCLK = 64_MHz;
 
 	constexpr std::uint32_t isrVectorAlignmentMask = ufsel::bit::bitmask_of_width(customization::isrVectorAlignmentBits);
 

@@ -197,7 +197,7 @@ namespace {
 		// we want 12 MHz SYSCLK, APBx and AHBx run at max frequency. Therefore output of VCO shall be 24 MHz
 		// and SYSCLK (VCO / PLLR) will run at 12 MHz
 
-		constexpr auto PLL_input = 1_MHz;
+		constexpr auto PLL_input = 2_MHz;
 		constexpr auto desired_VCO = boot::SYSCLK * 2; // PLLR must divide at least by 2
 
 		constexpr unsigned PLLM = boot::customization::HSE / PLL_input; //pre PLL divisor
@@ -224,6 +224,8 @@ namespace {
 				(PLLM-1) << RCC_PLLCFGR_PLLM_Pos, // configure the divider on PLL input
 				RCC_PLLCFGR_PLLSRC_HSE // connect HSE to PLL input
 				);
+
+		bit::modify(std::ref(FLASH->ACR), FLASH_ACR_LATENCY, 2); //Flash latency one wait state, because the SYSCLK is somewhat fast as fuck.
 
 		bit::set(std::ref(RCC->CR), RCC_CR_PLLON); //start PLL
 		bit::wait_until_set(RCC->CR, RCC_CR_PLLRDY);

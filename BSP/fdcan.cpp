@@ -211,7 +211,7 @@ namespace bsp::can {
 		//Initialize peripherals. 16 time quanta per bit are really heavilly recommended, hence it will be used for all periphs
 		// Using 16 time quanta is suggested (among others) here http://www.bittiming.can-wiki.info/ for normal CAN. We lack experience for CANFD.
 		constexpr bit_time_config bit_time_config{
-				.nominal_prescaler = 2, .data_prescaler = 2, .sjw = 1, .bs1 = 13, .bs2 = 2
+				.nominal_prescaler = 4, .data_prescaler = 4, .sjw = 1, .bs1 = 13, .bs2 = 2
 		};
 		// Sanity checks that the configuration is valid:
 		static_assert(bit_time_config_ok<bit_time_config>::value);
