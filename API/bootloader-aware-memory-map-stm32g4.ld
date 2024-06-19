@@ -15,8 +15,8 @@ FlashSize = 512K;
 between BL and application during system resets.*/
 BootControlBackupRegisterAddress = 0x40002400 + 0x100; /* BKP domain (in TAMP), reg one used.*/
 
-/* BL's requirements. 18K for BL code and 2k for firmware jump table.*/
-CompleteBootloaderSize = 20K;
+/* BL's requirements. 22K for BL code and 2k for firmware jump table.*/
+CompleteBootloaderSize = 22K;
 JumpTableSize = 2K;
 
 
