@@ -131,16 +131,16 @@ namespace boot {
 				if (!bootloader.transactionInProgress())
 					return 2; //The transaction has not started yet, this Data is not for us.
 
-				std::uint32_t const address = data->Address << 2;
+				std::uint32_t volatile address = data->Address << 2;
 
 				lastReceivedData = Timestamp::Now();
-				WriteStatus const ret = data->HalfwordAccess
+				WriteStatus volatile ret = data->HalfwordAccess
 					? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
 					: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
 
 				if (ret == WriteStatus::Ok || ret == WriteStatus::InsufficientData)
 					return 0;
-				else if (ret == WriteStatus::DiscontinuousWriteAccess) {
+				else if (ret == WriteStatus::DiscontinuousWriteAccess || ret == WriteStatus::NotInFlash) {
 					auto const expectedWriteLocation = bootloader.expectedWriteLocation();
 					assert(expectedWriteLocation.has_value());
 					canManager.RestartDataFrom(*expectedWriteLocation);
@@ -223,10 +223,8 @@ namespace boot {
 				canManager.SendBeacon(bootloader.stalled() ? Status::ComunicationStalled: bootloader.status(), bootloader.entryReason());
 
 			bool const some_data_received_long_time_ago = lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s);
-			if (bootloader.status() == Status::DownloadingFirmware && some_data_received_long_time_ago && !bootloader.stalled()) {
+			if (auto const expectedAddress = bootloader.expectedWriteLocation(); expectedAddress.has_value() && some_data_received_long_time_ago && !bootloader.stalled()) {
 				if (static SysTickTimer lastRequest; lastRequest.RestartIfTimeElapsed(500_ms)) { //limit the frequency of requests
-					auto const expectedAddress = bootloader.expectedWriteLocation();
-					assert(expectedAddress.has_value());
 					canManager.RestartDataFrom(*expectedAddress);
 				}
 			}
