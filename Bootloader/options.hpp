@@ -224,9 +224,9 @@ namespace boot {
 		//Controls, whether the flash memory consists of blocks of the same size (f1xx or g4xx flash pages) or different sizes (f4xx/f7xx/f2xx sectors)
 		constexpr PhysicalBlockSizes physicalBlockSizePolicy = PhysicalBlockSizes::same;
 
-		// In case of Disruptor, the bootloader occupies 12K and 4K for jump table
+		// In case of Disruptor, the bootloader occupies 22K and 2K for jump table
 		//TODO this must be checked once in a while, whether it is correct...
-		constexpr std::uint32_t firstBlockAvailableToApplication = 4;
+		constexpr std::uint32_t firstBlockAvailableToApplication = 12;
 		constexpr std::uint32_t firstBlockAvailableToBootloader = 0;
 
 		//Fill this array with memory blocks iff the memory blocks have unequal sizes
