@@ -28,6 +28,7 @@ MEMORY
 /* Use only SRAM1, for the purpose of this script also called RAM*/
 SRAM1 (xrw)              : ORIGIN = 0x20000000, LENGTH = 80K
 SRAM2 (xrw)              : ORIGIN = 0x20014000, LENGTH = 16K
+CCM_RAM_CoreOnly (xrw)   : ORIGIN = 0x10000000, LENGTH = 32K /*CCM*/
 CCM_RAM   (xrw)          : ORIGIN = 0x20018000, LENGTH = 32K /*CCM*/
 RAM (xrw)                : ORIGIN = ORIGIN(SRAM1), LENGTH = LENGTH(SRAM1) + LENGTH(SRAM2) + LENGTH(CCM_RAM)
 }

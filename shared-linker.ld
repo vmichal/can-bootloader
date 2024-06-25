@@ -22,11 +22,11 @@ jumpTable_end = ORIGIN(JumpTableFlash) + LENGTH(JumpTableFlash);
 application_start = ORIGIN(ApplicationFlash);
 application_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
 
-ram_start = ORIGIN(RAM);
-ram_end = ORIGIN(RAM) + LENGTH(RAM);
+ram_start = ORIGIN(CCM_RAM_CoreOnly);
+ram_end = ORIGIN(CCM_RAM_CoreOnly) + LENGTH(CCM_RAM_CoreOnly);
 
 /* Highest address of the user mode stack */
-_estack = ORIGIN(RAM) + LENGTH(RAM); /* end of RAM */
+_estack = ORIGIN(CCM_RAM_CoreOnly) + LENGTH(CCM_RAM_CoreOnly); /* end of RAM */
 
 /* Define output sections */
 SECTIONS
@@ -42,7 +42,7 @@ SECTIONS
     KEEP(*(.isr_vector)) /* Startup code */
     _eisr_vector = .;
     . = ALIGN(4);
-  } > RAM AT> BootloaderISR
+  } > CCM_RAM_CoreOnly AT> BootloaderISR
 
     .bootloaderMetadataSection :
     {
@@ -67,7 +67,7 @@ SECTIONS
 
     . = ALIGN(4);
     _etext = .;        /* define a global symbols at end of code */
-  } > RAM AT> BootloaderFlash
+  } > CCM_RAM_CoreOnly AT> BootloaderFlash
 
     /* .ctors .dtors are used for c++ constructors/destructors */
     .ctors :
@@ -100,7 +100,7 @@ SECTIONS
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
     . = ALIGN(4);
     _erodata = .;
-  } > RAM AT> BootloaderFlash
+  } > CCM_RAM_CoreOnly AT> BootloaderFlash
 
   .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >BootloaderFlash
   .ARM : {
@@ -171,7 +171,7 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
-  } >RAM
+  } >CCM_RAM_CoreOnly
 
   .jumpTableSection(NOLOAD) :
   {
