@@ -8,7 +8,7 @@
 enum { TX_RECV_BUFFER_SIZE = 1024 };
 #endif
 #ifndef MAX_MESSAGES_IN_A_ROW
-enum { MAX_MESSAGES_IN_A_ROW = 64 };
+enum { MAX_MESSAGES_IN_A_ROW = TX_RECV_BUFFER_SIZE / 8 / (8+8) };
 #endif
 
 static uint8_t recv_buf[TX_RECV_BUFFER_SIZE];

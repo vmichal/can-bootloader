@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 12. 06. 2024 (dd. mm. yyyy) at 16.13.29 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 25. 06. 2024 (dd. mm. yyyy) at 06.32.28 (hh.mm.ss)
 
 typedef enum {
     // Vehicle CAN buses
@@ -34,8 +34,8 @@ enum { Bootloader_DataAck_tx_bus        = bus_UNDEFINED };
 enum { Bootloader_ExitReq_id            = STD_ID(0x625) };
 enum { Bootloader_Ping_id               = STD_ID(0x626) };
 enum { Bootloader_Beacon_id             = STD_ID(0x627) };
-enum { Bootloader_Beacon_timeout        = 1000 };
-enum { Bootloader_Beacon_period         = 500 };
+enum { Bootloader_Beacon_timeout        = 200 };
+enum { Bootloader_Beacon_period         = 50 };
 enum { Bootloader_Beacon_tx_bus         = bus_ALL };
 enum { Bootloader_PingResponse_id       = STD_ID(0x629) };
 enum { Bootloader_PingResponse_tx_bus   = bus_UNDEFINED };
@@ -77,6 +77,10 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_TLM = 12,
     /* Vehicle Dynamics Control Unit */
     Bootloader_BootTarget_VDCU = 13,
+    /* Anti-roll bar control unit */
+    Bootloader_BootTarget_ARB = 14,
+    /* Brake balance control */
+    Bootloader_BootTarget_BB = 15,
 };
 
 enum Bootloader_Command {
