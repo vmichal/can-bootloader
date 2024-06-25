@@ -106,7 +106,7 @@ if __name__ == '__main__':
 		Config(car='FSE12', ecu='MBOXL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
 		Config(car='FSE12', ecu='MBOXR', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
 
-		# CTU24
+		# CTU24 (this information is also listed in the thread https://discord.com/channels/1141355470108499979/1250739945052704779)
 		Config(car='CTU24', ecu='DRTR', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0, AF=9), TX=Pin(port='D', pin=1, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5, AF=9), TX=Pin(port='B', pin=6, AF=9))), # corresponds to Disruptor V1_1
 		Config(car='CTU24', ecu='DRTF', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0, AF=9), TX=Pin(port='D', pin=1, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5, AF=9), TX=Pin(port='B', pin=6, AF=9))), # corresponds to Disruptor V1_1
 		Config(car='CTU24', ecu='AMS', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11, AF=9), TX=Pin(port='A', pin=12, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12, AF=9), TX=Pin(port='B', pin=13, AF=9))),
