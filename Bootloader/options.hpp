@@ -293,7 +293,7 @@ namespace boot {
 		// When configuring this, keep in mind that the actual PCB this MCU sits upon will be left without digital control,
 		// as the bootloader only initializes CAN pins and leaves all other pins floating. This should not be an issue if the HW
 		// is designed correctly, but better safe than sorry.
-		constexpr Duration startupCanBusCheckDuration = 400_ms;
+		constexpr Duration startupCanBusCheckDuration = 1000_ms;
 	}
 
 	auto constexpr getMemoryBlocks() {

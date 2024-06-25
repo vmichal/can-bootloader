@@ -143,7 +143,8 @@ namespace boot {
 				else if (ret == WriteStatus::DiscontinuousWriteAccess || ret == WriteStatus::NotInFlash) {
 					auto const expectedWriteLocation = bootloader.expectedWriteLocation();
 					assert(expectedWriteLocation.has_value());
-					canManager.RestartDataFrom(*expectedWriteLocation);
+					if (static SysTickTimer t; t.RestartIfTimeElapsed(50_ms))
+						canManager.RestartDataFrom(*expectedWriteLocation);
 					return 1;
 				}
 
@@ -187,9 +188,8 @@ namespace boot {
 				if (ping->Target != customization::thisUnit)
 					return 2;
 
-				canManager.SendPingResponse(ping->BootloaderRequested);
 				if (ping->BootloaderRequested)
-					switchFromStartupCheckToRegularOperation();
+					resetTo(BackupDomain::magic::bootloader);
 				return 0;
 			});
 		}

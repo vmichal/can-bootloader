@@ -53,7 +53,7 @@ def build_configuration(data : Config):
 	can1_used = data.can1 is not None
 	can2_used = data.can2 is not None
 
-	subprocess.run([
+	args = [
 		'cmake',
 		'-GNinja',
 		f'-DCMAKE_TOOLCHAIN_FILE=stm32{data.mcu}.cmake',
@@ -71,7 +71,9 @@ def build_configuration(data : Config):
 		f'-DCAN2_RX_pin={format_pin(data.can2.RX) if can2_used else ""}',
 		f'-DCAN2_TX_pin={format_pin(data.can2.TX) if can2_used else ""}',
 		'../..'
-		], cwd=f'./build/{data.car}_{data.ecu}')
+	]
+	print(' '.join(f'\"{arg}\"' for arg in args))
+	subprocess.run(args, cwd=f'./build/{data.car}_{data.ecu}')
 	subprocess.run('ninja', cwd=f'./build/{data.car}_{data.ecu}')
 
 def parse_args():
