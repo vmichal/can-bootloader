@@ -66,6 +66,11 @@ namespace boot {
 		Bootloader_Handshake_t update();
 
 		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
+
+		void reset() {
+			status_ = Status::uninitialized;
+			blocks_sent_ = 0;
+		}
 	};
 
 	class LogicalMemoryMapReceiver : public BootloaderSubtransactionBase {
@@ -98,6 +103,13 @@ namespace boot {
 		HandshakeResponse receive(Register reg, Command com, std::uint32_t value);
 
 		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
+
+		void reset() {
+			remaining_bytes_ = 0;
+			blocks_received_ = 0;
+			blocks_expected_ = 0;
+			status_ = Status::uninitialized;
+		}
 	};
 
 	class PhysicalMemoryBlockEraser : public BootloaderSubtransactionBase {
@@ -124,6 +136,12 @@ namespace boot {
 		HandshakeResponse tryErasePage(std::uint32_t address);
 
 		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
+
+		void reset() {
+			status_ = Status::uninitialized;
+			erased_pages_count_ = 0;
+			expectedPageCount_ = 0;
+		}
 	};
 
 	class FirmwareDownloader : public BootloaderSubtransactionBase {
@@ -274,6 +292,16 @@ namespace boot {
 		}
 
 		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
+
+		void reset() {
+			status_ = Status::unitialized;
+			firmware_size_ = 0_B;
+			written_bytes_ = 0_B;
+			checksum_ = 0;
+
+			current_block_index_ = 0;
+			blockOffset_ = 0;
+		}
 	};
 
 	class MetadataReceiver : public BootloaderSubtransactionBase {
@@ -299,6 +327,12 @@ namespace boot {
 		[[nodiscard]] std::uint32_t isr_vector() const { return isr_vector_; }
 
 		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
+
+		void reset() {
+			status_ = Status::unitialized;
+			entry_point_ = 0;
+			isr_vector_ = 0;
+		}
 	};
 
 
@@ -382,6 +416,18 @@ namespace boot {
 			firmwareDownloader_{*this},
 			metadataReceiver_{*this},
 				can_{can} {}
+
+		void reset() {
+			status_ = Status::Ready;
+			stall_ = false;
+			transactionType_ = TransactionType::Unknown;
+			physicalMemoryMapTransmitter_.reset();
+			logicalMemoryMapReceiver_.reset();
+			physicalMemoryBlockEraser_.reset();
+			firmwareDownloader_.reset();
+			metadataReceiver_.reset();
+			Flash::writeBuffer_.reset();
+		}
 	};
 
 	static_assert(Bootloader::transactionMagic == 0x696c6548); //This value is stated in the protocol description

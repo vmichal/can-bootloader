@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 25. 06. 2024 (dd. mm. yyyy) at 06.32.28 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 28. 06. 2024 (dd. mm. yyyy) at 02.21.47 (hh.mm.ss)
 
 typedef enum {
     // Vehicle CAN buses
@@ -53,8 +53,8 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_AMS = 0,
     /* Dashboard */
     Bootloader_BootTarget_DSH = 1,
-    /* Accumulator Charger */
-    Bootloader_BootTarget_CHG = 2,
+    /* QUAD MC enclosure connector PCB */
+    Bootloader_BootTarget_QUADCONN = 2,
     /* Pedal Box */
     Bootloader_BootTarget_PDL = 3,
     /* Fuse Box */

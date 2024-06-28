@@ -78,11 +78,6 @@ namespace boot {
 				if (data->Target != customization::thisUnit)
 					return 2;
 
-				// The startup CAN check can be skipped in this case, because we have just received flash master's command to exit the bootloader.
-				// It is therefore reasonable to assume that the master won't ask us to enter bootloader in 50 ms
-				BackupDomain::magic const destination = data->InitializeApplication
-					? BackupDomain::magic::app_skip_can_check : BackupDomain::magic::bootloader;
-
 				if (!data->Force && bootloader.transactionInProgress()) {
 					canManager.SendExitAck(false);
 					return 1;
@@ -90,9 +85,19 @@ namespace boot {
 				//We want to abort any ongoing transaction or no transaction in progress
 
 				canManager.SendExitAck(true);
-				flushCAN(get_rx_bus<Bootloader_ExitReq_t>(), 500_ms);
-
-				resetTo(destination);
+				if (data->InitializeApplication) {
+					flushCAN(get_rx_bus<Bootloader_ExitReq_t>(), 500_ms);
+					// The startup CAN check can be skipped in this case, because we have just received flash master's command to exit the bootloader.
+					// It is therefore reasonable to assume that the master won't ask us to enter bootloader in 50 ms
+					resetTo(BackupDomain::magic::app_skip_can_check);
+				}
+				else {
+					// We cannot reset the MCU here! We may be in the middle of bootloader update transaction when
+					// the flash memory is erased and the only copy of BL lives in RAM.
+					bootloader.reset();
+					lastReceivedData.reset();
+				}
+				return 0;
 				});
 
 			Bootloader_Handshake_on_receive([](Bootloader_Handshake_t* data) -> int {
@@ -188,7 +193,7 @@ namespace boot {
 				if (ping->Target != customization::thisUnit)
 					return 2;
 
-				if (ping->BootloaderRequested)
+				if (ping->BootloaderRequested && !bootloader.updatingBootloader())
 					resetTo(BackupDomain::magic::bootloader);
 				return 0;
 			});

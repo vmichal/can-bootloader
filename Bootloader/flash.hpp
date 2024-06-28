@@ -73,6 +73,10 @@ namespace boot {
 		record buffer[capacity];
 		ringbuf_t ringbuf {.data = reinterpret_cast<std::uint8_t*>(buffer), .size = CAPACITY, .readpos = 0, .writepos = 0};
 
+		void reset() {
+			ringbuf.readpos = ringbuf.writepos = 0;
+		}
+
 
 		void push(std::uint32_t address, WriteableIntegral auto data, std::size_t const length) {
 			assert(ringbufCanWrite(&ringbuf, sizeof(record)));
