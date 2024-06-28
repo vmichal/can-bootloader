@@ -317,7 +317,8 @@ namespace boot {
 				return HandshakeResponse::HandshakeSequenceError;
 
 			//We are about to erase one of the pages of flash. It meas that we are really commited
-			Flash::Unlock();
+			if (ufsel::bit::all_set(FLASH->CR, FLASH_CR_LOCK))
+				Flash::Unlock();
 
 			//Invalidate the jump table only when the application is updated. When updating bootloader, preserve all information.
 			if (!bootloader_.updatingBootloader())
@@ -383,7 +384,8 @@ namespace boot {
 				return HandshakeResponse::BinaryTooBig;
 
 			firmware_size_ = InformationSize::fromBytes(value);
-			Flash::Unlock();
+			if (ufsel::bit::all_set(FLASH->CR, FLASH_CR_LOCK))
+				Flash::Unlock();
 			status_ = Status::receivingData;
 			return HandshakeResponse::Ok;
 
