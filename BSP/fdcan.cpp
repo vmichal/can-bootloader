@@ -362,9 +362,9 @@ int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* dat
 
 int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
 	if (bus == bus_ALL) {
-		int const can1 = txSendCANMessage(bus_CAN1, id, data, length);
-		int const can2 = txSendCANMessage(bus_CAN2, id, data, length);
-		return can1 && can2;
+		int rc1 = CAN1_used ? txSendCANMessage(bus_CAN1, id, data, length) : 1;
+		int rc2 = CAN2_used ? txSendCANMessage(bus_CAN2, id, data, length) : 1;
+		return rc1 && rc2;
 	}
 
 	using namespace ufsel;

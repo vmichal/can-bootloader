@@ -15,6 +15,7 @@
 #include <ufsel/assert.hpp>
 #include <ufsel/bit_operations.hpp>
 #include <array>
+#include <optional>
 #include <Drivers/stm32g4xx.h>
 
 #include <Bootloader/options.hpp>
