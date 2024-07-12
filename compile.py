@@ -119,6 +119,7 @@ if __name__ == '__main__':
 		Config(car='CTU24', ecu='TLM', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN3', bitrate_khz=1000, RX=Pin(port='B', pin=3, AF=11), TX=Pin(port='B', pin=4, AF=11)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5, AF=9), TX=Pin(port='B', pin=6, AF=9))),
 		Config(car='CTU24', ecu='MBOXL', mcu='g4', hse_mhz=12, can1=None, can2=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11, AF=9), TX=Pin(port='A', pin=12, AF=9))),
 		Config(car='CTU24', ecu='MBOXR', mcu='g4', hse_mhz=12, can1=None, can2=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11, AF=9), TX=Pin(port='A', pin=12, AF=9))),
+		Config(car='CTU24', ecu='STW', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11, AF=9), TX=Pin(port='A', pin=12, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12, AF=9), TX=Pin(port='B', pin=13, AF=9))),
 
 		# TODO fill
 		Config(car='CTU24', ecu='DSH', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0, AF=9), TX=Pin(port='D', pin=1, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5, AF=9), TX=Pin(port='B', pin=6, AF=9))),
