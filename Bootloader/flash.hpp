@@ -55,7 +55,8 @@ namespace boot {
 		AlreadyWritten,
 		NotReady,
 		DiscontinuousWriteAccess,
-		InsufficientData
+		InsufficientData,
+		OtherError
 	};
 
 	template<typename T>

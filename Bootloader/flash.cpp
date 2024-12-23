@@ -75,6 +75,7 @@ namespace boot {
 		auto const page_id = getEnclosingBlockId(pageAddress);
 		bit::sliceable_reference CR{FLASH->CR};
 		CR[FLASH_CR_PER_Pos] = true;
+		CR[FLASH_CR_PG_Pos] = false;
 		CR[bit::slice::for_mask(FLASH_CR_PNB)] = page_id.block_index;
 		CR[FLASH_CR_BKER_Pos] = page_id.bank_num;
 		CR[FLASH_CR_STRT_Pos] = true; // start page erase
@@ -128,7 +129,7 @@ namespace boot {
 		ufsel::bit::set(std::ref(FLASH->SR), FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
 		ufsel::bit::access_register<nativeType>(address) = data; //Write one word of data
 
-		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
+		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_PGSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::OtherError;
 #elif defined BOOT_STM32G4
 		static_assert(std::is_same_v<nativeType, std::uint64_t>, "STM32G4 flash must be written with 64 bit granularity.");
 		AwaitEndOfOperation();
@@ -143,7 +144,7 @@ namespace boot {
 
 		AwaitEndOfOperation(); // Wait for end of programming
 
-		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_SIZERR, FLASH_SR_PGSERR, FLASH_SR_PROGERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
+		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_SIZERR, FLASH_SR_PGSERR, FLASH_SR_PROGERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::OtherError;
 
 #elif defined BOOT_STM32F7
 		static_assert(std::is_same_v<nativeType, std::uint32_t>, "STM32F7 flash is currently hardcoded to use 32bit writes.");
@@ -158,7 +159,7 @@ namespace boot {
 		ufsel::bit::access_register<nativeType>(address) = data; //Write one word of data
 		AwaitEndOfOperation();
 
-		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::MemoryProtected; //TODO make this more concrete
+		return ufsel::bit::all_cleared(cachedResult, FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR) ? WriteStatus::Ok : WriteStatus::OtherError;
 
 #else
 #error "This MCU is not supported"

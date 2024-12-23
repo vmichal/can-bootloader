@@ -29,6 +29,7 @@ namespace {
 
 		case boot::WriteStatus::DiscontinuousWriteAccess:
 		case boot::WriteStatus::NotReady:
+		case boot::WriteStatus::OtherError:
 			return Bootloader_WriteResult_Timeout;
 		}
 		assert_unreachable();
