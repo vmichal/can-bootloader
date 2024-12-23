@@ -112,4 +112,11 @@ namespace boot {
 		ComunicationStalled = Bootloader_State_CommunicationStalled
 	};
 
+	enum class AbortCode {
+		ProcessYield = 0,
+		MemoryMapTransmit_Update_UninitPending = 1,
+		MemoryMapTransmit_Update_DoneYield = 2,
+		MemoryMapTransmit_Update_Error = 3,
+		FlashWrite = 4
+	};
 }

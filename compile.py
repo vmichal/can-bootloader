@@ -89,8 +89,6 @@ def parse_args():
 
 if __name__ == '__main__':
 
-
-	# List of tuples (formula name, ECU name, HSE freq [MHz], CAN1 freq [kbitps], CAN1_RX pin, CAN1_TX pin, CAN2_RX pin, CAN2_TX pin
 	build_data : list[Config] = [
 		Config(car='FSE10', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
 		Config(car='FSE10', ecu='DSH', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),

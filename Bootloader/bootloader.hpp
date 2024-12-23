@@ -433,7 +433,7 @@ namespace boot {
 	static_assert(Bootloader::transactionMagic == 0x696c6548); //This value is stated in the protocol description
 
 	namespace handshake {
-		constexpr Bootloader_Handshake_t get(Register reg, Command com, std::uint32_t value) {
+		constexpr Bootloader_Handshake_t create(Register reg, Command com, std::uint32_t value) {
 			Bootloader_Handshake_t const msg{
 				.Register = static_cast<Bootloader_Register>(reg),
 				.Command = static_cast<Bootloader_Command>(com),
@@ -443,14 +443,12 @@ namespace boot {
 			return msg;
 		}
 
-		constexpr Bootloader_Handshake_t get(Command com, Register reg, std::uint32_t value) {
-			return get(reg, com, value);
-		}
-
-		constexpr Bootloader_Handshake_t transactionMagic = get(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
-		constexpr Bootloader_Handshake_t abort = get(Register::Command, Command::AbortTransaction, 0);
-		constexpr Bootloader_Handshake_t stall = get(Register::Command, Command::StallSubtransaction, 0);
-		constexpr Bootloader_Handshake_t resume = get(Register::Command, Command::ResumeSubtransaction, 0);
+		constexpr Bootloader_Handshake_t transactionMagic = create(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
+		constexpr Bootloader_Handshake_t stall = create(Register::Command, Command::StallSubtransaction, 0);
+		constexpr Bootloader_Handshake_t resume = create(Register::Command, Command::ResumeSubtransaction, 0);
+		constexpr auto abort = [](AbortCode abort_code, int aux_code) {
+			return create(Register::Command, Command::AbortTransaction, aux_code << 8 | static_cast<std::uint32_t>(abort_code));
+		};
 	}
 }
 

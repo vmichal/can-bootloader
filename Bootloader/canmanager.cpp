@@ -77,7 +77,7 @@ namespace boot {
 	}
 
 	void CanManager::SendTransactionMagic() const {
-		Bootloader_Handshake_t const msg = handshake::get(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
+		Bootloader_Handshake_t const msg = handshake::create(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
 
 		for (;send(msg););
 	}
@@ -108,7 +108,7 @@ namespace boot {
 	}
 
 	void CanManager::SendHandshake(Register reg, Command command, std::uint32_t value) {
-		return SendHandshake(handshake::get(reg, command, value));
+		return SendHandshake(handshake::create(reg, command, value));
 	}
 
 
@@ -123,7 +123,7 @@ namespace boot {
 	}
 
 	void CanManager::RestartDataFrom(std::uint32_t address) {
-		return SendHandshake(handshake::get(Register::Command, Command::RestartFromAddress, address));
+		return SendHandshake(handshake::create(Register::Command, Command::RestartFromAddress, address));
 	}
 
 }

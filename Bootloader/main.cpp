@@ -143,19 +143,26 @@ namespace boot {
 					? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
 					: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
 
-				if (ret == WriteStatus::Ok || ret == WriteStatus::InsufficientData)
-					return 0;
-				else if (ret == WriteStatus::DiscontinuousWriteAccess || ret == WriteStatus::NotInFlash) {
-					auto const expectedWriteLocation = bootloader.expectedWriteLocation();
-					assert(expectedWriteLocation.has_value());
-					if (static SysTickTimer t; t.RestartIfTimeElapsed(50_ms))
-						canManager.RestartDataFrom(*expectedWriteLocation);
-					return 1;
+				switch (ret) {
+					case WriteStatus::Ok:
+					case WriteStatus::InsufficientData:
+						return 0;
+					case WriteStatus::DiscontinuousWriteAccess:
+					case WriteStatus::NotInFlash: {
+						auto const expectedWriteLocation = bootloader.expectedWriteLocation();
+						assert(expectedWriteLocation.has_value());
+						if (static SysTickTimer t; t.RestartIfTimeElapsed(50_ms))
+							canManager.RestartDataFrom(*expectedWriteLocation);
+						return 1;
+					}
+
+					default:
+						//TODO kill the transaction for now
+						canManager.SendHandshake(handshake::abort(AbortCode::FlashWrite, static_cast<int>(ret)));
+						return 2;
 				}
 
-				//TODO kill the transaction for now
-				canManager.SendHandshake(handshake::abort);
-				return 1;
+				assert_unreachable();
 				});
 
 			Bootloader_DataAck_on_receive([](Bootloader_DataAck_t* data) -> int {

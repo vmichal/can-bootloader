@@ -149,7 +149,7 @@ namespace boot {
 		case Status::uninitialized:
 		case Status::pending: //Update function shall not be reached with these states
 			status_ = Status::error;
-			return handshake::abort;
+			return handshake::abort(AbortCode::MemoryMapTransmit_Update_UninitPending, static_cast<int>(status_));
 
 		case Status::masterYielded:
 			status_ = Status::sentInitialMagic;
@@ -157,7 +157,7 @@ namespace boot {
 
 		case Status::sentInitialMagic:
 			status_ = Status::sendingBlockAddress;
-			return handshake::get(Register::NumPhysicalMemoryBlocks, Command::None, pagesToSend);
+			return handshake::create(Register::NumPhysicalMemoryBlocks, Command::None, pagesToSend);
 
 		case Status::sendingBlockAddress: {
 			if (pagesToSend == blocks_sent_) { //we have sent all available blocks
@@ -166,21 +166,21 @@ namespace boot {
 			}
 			status_ = Status::sendingBlockLength;
 			auto const currentBlock = PhysicalMemoryMap::block(firstBlockIndex + blocks_sent_);
-			return handshake::get(Register::PhysicalBlockStart, Command::None, currentBlock.address);
+			return handshake::create(Register::PhysicalBlockStart, Command::None, currentBlock.address);
 
 		}
 		case Status::sendingBlockLength: {
 			status_ = Status::sendingBlockAddress;
 			auto const currentBlock = PhysicalMemoryMap::block(firstBlockIndex + blocks_sent_);
 			++blocks_sent_;
-			return handshake::get(Register::PhysicalBlockLength, Command::None, currentBlock.length);
+			return handshake::create(Register::PhysicalBlockLength, Command::None, currentBlock.length);
 		}
 		case Status::shouldYield:
 		case Status::done:
 			status_ = Status::error;
-			return handshake::abort;
+			return handshake::abort(AbortCode::MemoryMapTransmit_Update_DoneYield, static_cast<int>(status_));
 		case Status::error:
-			return handshake::abort;
+			return handshake::abort(AbortCode::MemoryMapTransmit_Update_Error, static_cast<int>(status_));
 		}
 		assert_unreachable();
 	}
@@ -492,7 +492,7 @@ namespace boot {
 			return physicalMemoryMapTransmitter_.update(); //send the initial transaction magic straight away
 		default:
 			status_ = Status::Error; //TODO make more concrete
-			return handshake::abort;
+			return handshake::abort(AbortCode::ProcessYield, static_cast<int>(status_));
 		}
 		assert_unreachable();
 	}
