@@ -1,7 +1,7 @@
 #include "can_Bootloader.h"
 #include <string.h>
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 28. 06. 2024 (dd. mm. yyyy) at 02.21.47 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 23. 12. 2024 (dd. mm. yyyy) at 14.58.01 (hh.mm.ss)
 
 
 CAN_ID_t const candb_sent_messages[9] = {
@@ -105,7 +105,7 @@ int Bootloader_send_Handshake_s(const Bootloader_Handshake_t* data) {
     buffer[3] = (data->Value >> 8);
     buffer[4] = (data->Value >> 16);
     buffer[5] = (data->Value >> 24);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_Handshake_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_Handshake_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -117,7 +117,7 @@ int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader
     buffer[3] = (Value >> 8);
     buffer[4] = (Value >> 16);
     buffer[5] = (Value >> 24);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_Handshake_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_Handshake_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -179,7 +179,7 @@ int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data) {
     buffer[3] = (data->Value >> 8);
     buffer[4] = (data->Value >> 16);
     buffer[5] = (data->Value >> 24);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -191,7 +191,7 @@ int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloa
     buffer[3] = (Value >> 8);
     buffer[4] = (Value >> 16);
     buffer[5] = (Value >> 24);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_HandshakeAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -242,14 +242,14 @@ uint32_t Bootloader_CommunicationYield_get_flags(void) {
 int Bootloader_send_CommunicationYield_s(const Bootloader_CommunicationYield_t* data) {
     uint8_t buffer[1];
     buffer[0] = (data->Target & 0x0F);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_CommunicationYield_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_CommunicationYield_id, buffer, sizeof(buffer));
     return rc;
 }
 
 int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target) {
     uint8_t buffer[1];
     buffer[0] = (Target & 0x0F);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_CommunicationYield_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_CommunicationYield_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -311,7 +311,7 @@ int Bootloader_send_Data_s(const Bootloader_Data_t* data) {
     buffer[5] = (data->Word >> 8);
     buffer[6] = (data->Word >> 16);
     buffer[7] = (data->Word >> 24);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_Data_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_Data_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -325,7 +325,7 @@ int Bootloader_send_Data(uint32_t Address, uint8_t HalfwordAccess, uint32_t Word
     buffer[5] = (Word >> 8);
     buffer[6] = (Word >> 16);
     buffer[7] = (Word >> 24);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_Data_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_Data_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -381,7 +381,7 @@ int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data) {
     buffer[1] = (data->Address >> 8);
     buffer[2] = (data->Address >> 16);
     buffer[3] = ((data->Address >> 24) & 0x3F) | ((data->Result & 0x03) << 6);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_DataAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_DataAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -391,7 +391,7 @@ int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result
     buffer[1] = (Address >> 8);
     buffer[2] = (Address >> 16);
     buffer[3] = ((Address >> 24) & 0x3F) | ((Result & 0x03) << 6);
-    int rc = txSendCANMessage(Bootloader_Handshake_status.rx_bus, Bootloader_DataAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Handshake_get_rx_bus(), Bootloader_DataAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -591,7 +591,7 @@ int Bootloader_send_PingResponse_s(const Bootloader_PingResponse_t* data) {
     buffer[2] = (data->BL_SoftwareBuild >> 8);
     buffer[3] = (data->BL_SoftwareBuild >> 16);
     buffer[4] = (data->BL_SoftwareBuild >> 24);
-    int rc = txSendCANMessage(Bootloader_Ping_status.rx_bus, Bootloader_PingResponse_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Ping_get_rx_bus(), Bootloader_PingResponse_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -602,7 +602,7 @@ int Bootloader_send_PingResponse(enum Bootloader_BootTarget Target, uint8_t Boot
     buffer[2] = (BL_SoftwareBuild >> 8);
     buffer[3] = (BL_SoftwareBuild >> 16);
     buffer[4] = (BL_SoftwareBuild >> 24);
-    int rc = txSendCANMessage(Bootloader_Ping_status.rx_bus, Bootloader_PingResponse_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_Ping_get_rx_bus(), Bootloader_PingResponse_id, buffer, sizeof(buffer));
     return rc;
 }
 
@@ -613,14 +613,14 @@ candb_bus_t Bootloader_PingResponse_get_tx_bus(void) {
 int Bootloader_send_ExitAck_s(const Bootloader_ExitAck_t* data) {
     uint8_t buffer[1];
     buffer[0] = (data->Target & 0x0F) | (data->Confirmed ? 16 : 0);
-    int rc = txSendCANMessage(Bootloader_ExitReq_status.rx_bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_ExitReq_get_rx_bus(), Bootloader_ExitAck_id, buffer, sizeof(buffer));
     return rc;
 }
 
 int Bootloader_send_ExitAck(enum Bootloader_BootTarget Target, uint8_t Confirmed) {
     uint8_t buffer[1];
     buffer[0] = (Target & 0x0F) | (Confirmed ? 16 : 0);
-    int rc = txSendCANMessage(Bootloader_ExitReq_status.rx_bus, Bootloader_ExitAck_id, buffer, sizeof(buffer));
+    int rc = txSendCANMessage(Bootloader_ExitReq_get_rx_bus(), Bootloader_ExitAck_id, buffer, sizeof(buffer));
     return rc;
 }
 

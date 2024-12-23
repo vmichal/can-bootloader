@@ -109,7 +109,9 @@ namespace boot {
 		/* Some error occured. //TODO make it more concrete */
 		Error = Bootloader_State_Error,
 		/* Bootloader is overwhelmed and has suspended the communication */
-		ComunicationStalled = Bootloader_State_CommunicationStalled
+		ComunicationStalled = Bootloader_State_CommunicationStalled,
+		/* Everything's fucked up */
+		EFU = Bootloader_State_EFU,
 	};
 
 	enum class AbortCode {
@@ -117,6 +119,9 @@ namespace boot {
 		MemoryMapTransmit_Update_UninitPending = 1,
 		MemoryMapTransmit_Update_DoneYield = 2,
 		MemoryMapTransmit_Update_Error = 3,
-		FlashWrite = 4
+		FlashWrite = 4,
+		Assert = 5,
+		UnreachableCode = 6,
+		HardFault = 6
 	};
 }

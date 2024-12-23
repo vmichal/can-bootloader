@@ -11,8 +11,6 @@
 
 #include <cstdint>
 
-extern "C" [[noreturn]] void EverythingsFuckedUpHandler(bool assertFailed);
-
 namespace ufsel {
 
 	namespace time {

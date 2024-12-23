@@ -254,8 +254,7 @@ namespace boot {
 
 	}
 
-
-	extern "C" [[noreturn]] void EverythingsFuckedUpHandler(bool const assertFailed) {
+	extern "C" [[noreturn]] void EverythingsFuckedUpHandler(Bootloader_Handshake_t abort_handshake) {
 		Timestamp const hardfaultEntryTime = Timestamp::Now();
 
 		for (;;) {
@@ -273,7 +272,8 @@ namespace boot {
 			if (need_to_send<Bootloader_Beacon_t>()) {
 				//Periodically notify the human that this ship is sinking.
 
-				canManager.SendBeacon(Status::Error, Bootloader::entryReason());
+				canManager.SendHandshake(abort_handshake);
+				canManager.SendBeacon(Status::EFU, Bootloader::entryReason());
 				//Append information about the software build to simplify the debugging
 				canManager.SendSoftwareBuild();
 			}
@@ -283,19 +283,19 @@ namespace boot {
 	}
 
 	extern "C" void HardFault_Handler() {
-		EverythingsFuckedUpHandler(false);
+		EverythingsFuckedUpHandler(handshake::abort(AbortCode::HardFault, 0));
 	}
-}
+} // end namespace boot
 
 namespace ufsel::assertion {
 
 	// Provide implementation of handlers for ufsel::assert
 	[[noreturn]] void assertionFailedHandler(char const * const file, char const * const function, int line) {
-		boot::EverythingsFuckedUpHandler(true);
+		boot::EverythingsFuckedUpHandler(boot::handshake::abort(boot::AbortCode::Assert, line));
 	}
 
 	[[noreturn]] void unreachableCodeHandler(char const * const file, char const * const function, int line) {
-		boot::EverythingsFuckedUpHandler(true);
+		boot::EverythingsFuckedUpHandler(boot::handshake::abort(boot::AbortCode::UnreachableCode, line));
 	}
 }
 

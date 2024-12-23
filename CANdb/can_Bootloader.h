@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 28. 06. 2024 (dd. mm. yyyy) at 02.21.47 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 23. 12. 2024 (dd. mm. yyyy) at 14.58.01 (hh.mm.ss)
 
 typedef enum {
     // Vehicle CAN buses
@@ -238,6 +238,8 @@ enum Bootloader_State {
     Bootloader_State_Error = 7,
     /* Bootloader is overwhelmed and has suspended the communication. */
     Bootloader_State_CommunicationStalled = 8,
+    /* Everything's fucked up */
+    Bootloader_State_EFU = 9,
 };
 
 enum Bootloader_WriteResult {

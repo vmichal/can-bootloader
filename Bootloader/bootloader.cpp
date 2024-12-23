@@ -601,6 +601,7 @@ namespace boot {
 			}
 			return result;
 		}
+		case Status::EFU:
 		case Status::Error:
 		case Status::ComunicationStalled:
 			return HandshakeResponse::BootloaderInError;
