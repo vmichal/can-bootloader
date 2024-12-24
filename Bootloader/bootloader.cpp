@@ -9,6 +9,7 @@
 
 #include "bootloader.hpp"
 #include "flash.hpp"
+#include "canmanager.hpp"
 
 #include <ufsel/assert.hpp>
 #include <ufsel/units.hpp>
@@ -91,7 +92,11 @@ namespace boot {
 		if (std::ranges::find(already_erased, enclosingBlock) != end(already_erased))
 			return HandshakeResponse::PageAlreadyErased;
 
-		Flash::ErasePage(address);
+		std::uint32_t const code = Flash::ErasePage(address);
+		if (!Flash::is_SR_ok(code)) {
+			canManager.SendHandshake(handshake::abort(AbortCode::FlashErase, code));
+			return HandshakeResponse::PageEraseFailed;
+		}
 		erased_pages_[erased_pages_count_++] = enclosingBlock;
 
 		return HandshakeResponse::Ok;
@@ -321,8 +326,12 @@ namespace boot {
 				Flash::Unlock();
 
 			//Invalidate the jump table only when the application is updated. When updating bootloader, preserve all information.
-			if (!bootloader_.updatingBootloader())
-				jumpTable.invalidate();
+			if (!bootloader_.updatingBootloader()) {
+				bool const ok = jumpTable.invalidate();
+				if (!ok)
+					return HandshakeResponse::PageEraseFailed;
+
+			}
 
 			if (HandshakeResponse const result = tryErasePage(value); result != HandshakeResponse::Ok)
 				return result;

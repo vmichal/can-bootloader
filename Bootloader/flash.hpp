@@ -135,9 +135,21 @@ namespace boot {
 			~RAII_unlock() { Lock(); }
 		};
 
+		static bool is_SR_ok(std::uint32_t SR) {
+#if defined BOOT_STM32G4
+			return ufsel::bit::all_cleared(SR, FLASH_SR_FASTERR, FLASH_SR_PGSERR, FLASH_SR_PGAERR, FLASH_SR_SIZERR, FLASH_SR_WRPERR, FLASH_SR_PROGERR, FLASH_SR_OPERR);
+#elif defined BOOT_STM32F2 || defined BOOT_STM32F4
+			return ufsel::bit::all_cleared(SR, FLASH_SR_PGSERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR);
+#elif defined BOOT_STM32F7
+			return ufsel::bit::all_cleared(SR, FLASH_SR_ERSERR, FLASH_SR_PGPERR, FLASH_SR_PGAERR, FLASH_SR_WRPERR, FLASH_SR_OPERR);
+#elif defined BOOT_STM32F1
+			return ufsel::bit::all_cleared(SR, FLASH_SR_PGERR, FLASH_SR_WRPRTERR);
+#endif
+		}
+
 		static void AwaitEndOfErasure();
 		static void AwaitEndOfOperation();
-		static bool ErasePage(std::uint32_t pageAddress);
+		static std::uint32_t ErasePage(std::uint32_t pageAddress);
 		static void ClearProgrammingErrors();
 
 		static WriteStatus Write(std::uint32_t address, nativeType data);
@@ -324,7 +336,7 @@ namespace boot {
 		bool has_valid_metadata() const;
 
 		//Clear the memory location with jump table
-		void invalidate();
+		bool invalidate();
 
 		void set_magics();
 		void set_metadata(InformationSize firmware_size, std::span<MemoryBlock const> logical_memory_blocks);

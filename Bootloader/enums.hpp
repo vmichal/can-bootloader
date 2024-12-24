@@ -68,6 +68,7 @@ namespace boot {
 		AddressNotInBootloader = Bootloader_HandshakeResponse_AddressNotInBootloader,
 		LogicalBlockTooLong = Bootloader_HandshakeResponse_LogicalBlockTooLong,
 		MustBeNonZero = Bootloader_HandshakeResponse_MustBeNonZero,
+		PageEraseFailed = Bootloader_HandshakeResponse_PageEraseFailed,
 	};
 
 	/*
@@ -122,6 +123,7 @@ namespace boot {
 		FlashWrite = 4,
 		Assert = 5,
 		UnreachableCode = 6,
-		HardFault = 6
+		HardFault = 6,
+		FlashErase = 7,
 	};
 }

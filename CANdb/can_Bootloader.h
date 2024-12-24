@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 23. 12. 2024 (dd. mm. yyyy) at 14.58.01 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 24. 12. 2024 (dd. mm. yyyy) at 00.20.10 (hh.mm.ss)
 
 typedef enum {
     // Vehicle CAN buses
@@ -186,6 +186,8 @@ enum Bootloader_HandshakeResponse {
     Bootloader_HandshakeResponse_LogicalBlockTooLong = 26,
     /* Specified register does not accept value zero (number of bytes, number of pages or something similar). */
     Bootloader_HandshakeResponse_MustBeNonZero = 27,
+    /* Erassure of flash page failed */
+    Bootloader_HandshakeResponse_PageEraseFailed = 28,
 };
 
 enum Bootloader_Register {

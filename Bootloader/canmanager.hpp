@@ -35,4 +35,6 @@ namespace boot {
 		Bootloader_Handshake_t const& lastSentHandshake() const { return lastSentHandshake_;}
 	};
 
+	inline CanManager canManager;
+
 }

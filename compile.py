@@ -134,7 +134,7 @@ if __name__ == '__main__':
 			print('Missing name of car or ECU.')
 
 		for data in build_data:
-			if data.car == args.car and data.ecu == args.ecu:
+			if data.car.lower() == args.car.lower() and data.ecu.lower() == args.ecu.lower():
 				build_configuration(data)
 				break
 		else:

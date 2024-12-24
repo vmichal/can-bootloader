@@ -35,7 +35,6 @@ namespace ufsel::time {
 
 namespace boot {
 
-	CanManager canManager;
 	Bootloader bootloader{ canManager };
 	std::optional<Timestamp> lastReceivedData;
 

@@ -1,4 +1,5 @@
 #include "flash.hpp"
+#include "bootloader.hpp"
 #include <ufsel/bit.hpp>
 
 #include <ufsel/assert.hpp>
@@ -56,9 +57,9 @@ namespace boot {
 #endif
 	}
 
-	bool Flash::ErasePage(std::uint32_t pageAddress) {
+	std::uint32_t Flash::ErasePage(std::uint32_t pageAddress) {
 		using namespace ufsel;
-		#if defined BOOT_STM32F1
+#if defined BOOT_STM32F1
 
 		AwaitEndOfOperation();
 		ClearProgrammingErrors();
@@ -66,7 +67,7 @@ namespace boot {
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_PER);
 		FLASH->AR = pageAddress;
 		ufsel::bit::set(std::ref(FLASH->CR), FLASH_CR_STRT);
-		return true;
+		return FLASH->SR;
 #elif defined BOOT_STM32G4
 
 		AwaitEndOfOperation();
@@ -80,7 +81,7 @@ namespace boot {
 		CR[FLASH_CR_BKER_Pos] = page_id.bank_num;
 		CR[FLASH_CR_STRT_Pos] = true; // start page erase
 		AwaitEndOfOperation();
-		return true;
+		return FLASH->SR;
 #elif defined BOOT_STM32F4 || defined BOOT_STM32F7 || defined BOOT_STM32F2
 
 		AwaitEndOfOperation();
@@ -100,7 +101,7 @@ namespace boot {
 		AwaitEndOfOperation();
 		FLASH->CR &= ~FLASH_CR_SER; //disable sector erase flag
 
-		return true;
+		return FLASH->SR;
 #else
 #error "This MCU is not supported"
 #endif
@@ -200,12 +201,16 @@ namespace boot {
 
 	}
 
-	void ApplicationJumpTable::invalidate() {
+	bool ApplicationJumpTable::invalidate() {
 		//This vv better hold if we want to preserve data integrity
 		assert(Flash::jumpTableAddress == reinterpret_cast<std::uint32_t>(&jumpTable));
 		assert(this == &jumpTable);
 
-		Flash::ErasePage(Flash::jumpTableAddress);
+		std::uint32_t const code = Flash::ErasePage(Flash::jumpTableAddress);
+		bool const ok = Flash::is_SR_ok(code);
+		if (!ok)
+			canManager.SendHandshake(handshake::abort(AbortCode::FlashErase, code));
+		return ok;
 	}
 
 	bool ApplicationJumpTable::isErased() const {
