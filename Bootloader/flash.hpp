@@ -350,5 +350,6 @@ namespace boot {
 
 	static_assert(sizeof(ApplicationJumpTable) <= smallestPageSize, "The application jump table must fit within one page of flash.");
 
+	static_assert(std::is_trivially_constructible_v<ApplicationJumpTable>, "If the jump table was not trivially constructible in order not to overwrite data present in flash memory.");
 	inline ApplicationJumpTable jumpTable __attribute__((section("jumpTableSection")));
 }
