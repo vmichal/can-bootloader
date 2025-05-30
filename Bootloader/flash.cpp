@@ -218,16 +218,14 @@ namespace boot {
 		return magic1_ == erased_value
 			&& magic2_ == erased_value
 			&& magic3_ == erased_value
-			&& magic4_ == erased_value
-			&& magic5_ == erased_value;
+			&& magic4_ == erased_value;
 	}
 
 	bool ApplicationJumpTable::magicValid() const {
 		return magic1_ == expected_magic1_value
 			&& magic2_ == expected_magic2_value
 			&& magic3_ == expected_magic3_value
-			&& magic4_ == expected_magic4_value
-			&& magic5_ == expected_magic5_value;
+			&& magic4_ == expected_magic4_value;
 	}
 
 	bool ApplicationJumpTable::has_valid_metadata() const {
@@ -239,7 +237,6 @@ namespace boot {
 		magic2_ = expected_magic2_value;
 		magic3_ = expected_magic3_value;
 		magic4_ = expected_magic4_value;
-		magic5_ = expected_magic5_value;
 	}
 
 	void ApplicationJumpTable::set_metadata(InformationSize const firmware_size, std::span<MemoryBlock const> const logical_memory_blocks) {

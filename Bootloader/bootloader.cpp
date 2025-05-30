@@ -133,7 +133,7 @@ namespace boot {
 
 		//The page must have been cleared before
 		constexpr auto empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
-		assert(jumpTable.magic1_ == empty && jumpTable.magic2_ == empty && jumpTable.magic3_ == empty && jumpTable.magic4_ == empty && jumpTable.magic5_ == empty);
+		assert(jumpTable.isErased());
 
 		//entry point is not stored as it can be derived from the isr vector
 		ApplicationJumpTable table;
