@@ -12,7 +12,6 @@ namespace boot {
 
 		extern char application_start[], application_end[];
 		extern char bootloader_start[], bootloader_end[];
-		extern char ram_start[], ram_end[];
 		extern char jumpTable_start[], jumpTable_end[];
 	}
 
@@ -177,9 +176,6 @@ namespace boot {
 		if (belongs_to_address_space(address, bootloader))
 			return AddressSpace::BootloaderFlash;
 
-		if (belongs_to_address_space(address, ram))
-			return AddressSpace::RAM;
-
 		return AddressSpace::Unknown;
 
 	}
@@ -193,9 +189,6 @@ namespace boot {
 
 		if (belongs_to_address_space(address, bootloader))
 			return AddressSpace::BootloaderFlash;
-
-		if (belongs_to_address_space(address, ram))
-			return AddressSpace::RAM;
 
 		return AddressSpace::Unknown;
 

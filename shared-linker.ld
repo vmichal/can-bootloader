@@ -22,9 +22,6 @@ jumpTable_end = ORIGIN(JumpTableFlash) + LENGTH(JumpTableFlash);
 application_start = ORIGIN(ApplicationFlash);
 application_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
 
-ram_start = ORIGIN(CCM_RAM_CoreOnly);
-ram_end = ORIGIN(CCM_RAM_CoreOnly) + LENGTH(CCM_RAM_CoreOnly);
-
 /* Highest address of the user mode stack */
 _estack = ORIGIN(CCM_RAM_CoreOnly) + LENGTH(CCM_RAM_CoreOnly); /* end of RAM */
 
@@ -171,7 +168,7 @@ SECTIONS
     . = . + _Min_Heap_Size;
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
-  } >CCM_RAM_CoreOnly
+  } >RAM
 
   .jumpTableSection(NOLOAD) :
   {

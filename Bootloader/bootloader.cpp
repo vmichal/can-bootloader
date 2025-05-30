@@ -47,7 +47,7 @@ namespace boot {
 		case AddressSpace::JumpTable:
 			return WriteStatus::MemoryProtected;
 
-		case AddressSpace::RAM: case AddressSpace::Unknown:
+		case AddressSpace::Unknown:
 			return WriteStatus::NotInFlash;
 		}
 
@@ -81,7 +81,6 @@ namespace boot {
 			[[fallthrough]];
 		case AddressSpace::JumpTable:
 			return HandshakeResponse::PageProtected;
-		case AddressSpace::RAM:
 		case AddressSpace::Unknown:
 			return HandshakeResponse::AddressNotInFlash;
 		}

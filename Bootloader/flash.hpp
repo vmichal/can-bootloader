@@ -43,7 +43,6 @@ namespace boot {
 		BootloaderFlash,
 		JumpTable,
 		ApplicationFlash,
-		RAM,
 		Unknown
 	};
 
