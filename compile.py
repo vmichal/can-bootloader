@@ -121,6 +121,9 @@ if __name__ == '__main__':
 
 		# TODO fill
 		Config(car='CTU24', ecu='DSH', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0, AF=9), TX=Pin(port='D', pin=1, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5, AF=9), TX=Pin(port='B', pin=6, AF=9))),
+
+		# CTU25 (this information is also listed in the thread https://discord.com/channels/1141355470108499979/1250739945052704779)
+		Config(car='CTU25', ecu='AMS', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11, AF=9), TX=Pin(port='A', pin=12, AF=9)), can2=CAN(peripheral='FDCAN3', bitrate_khz=1000, RX=Pin(port='B', pin=3, AF=11), TX=Pin(port='B', pin=4, AF=11))),
 	]
 
 	args = parse_args()
