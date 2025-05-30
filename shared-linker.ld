@@ -22,9 +22,6 @@ jumpTable_end = ORIGIN(JumpTableFlash) + LENGTH(JumpTableFlash);
 application_start = ORIGIN(ApplicationFlash);
 application_end = ORIGIN(ApplicationFlash) + LENGTH(ApplicationFlash);
 
-/* Highest address of the user mode stack */
-_estack = ORIGIN(CCM_RAM_CoreOnly) + LENGTH(CCM_RAM_CoreOnly); /* end of RAM */
-
 /* Define output sections */
 SECTIONS
 {
@@ -130,6 +127,18 @@ SECTIONS
   /* used by the startup to initialize data */
   _load_data = LOADADDR(.data);
 
+  /* User_heap_stack section, used to check that there is enough RAM left */
+  ._user_heap_stack :
+  {
+    . = ALIGN(8);
+    PROVIDE ( end = . );
+    PROVIDE ( _end = . );
+    . = . + _Min_Heap_Size;
+    . = . + _Min_Stack_Size;
+    . = ALIGN(8);
+    _estack = .;
+  } >RAM
+
   /* Initialized data sections goes into RAM, load LMA copy after code */
   .data :
   {
@@ -159,16 +168,7 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM
 
-  /* User_heap_stack section, used to check that there is enough RAM left */
-  ._user_heap_stack :
-  {
-    . = ALIGN(8);
-    PROVIDE ( end = . );
-    PROVIDE ( _end = . );
-    . = . + _Min_Heap_Size;
-    . = . + _Min_Stack_Size;
-    . = ALIGN(8);
-  } >RAM
+
 
   .jumpTableSection(NOLOAD) :
   {
