@@ -2,7 +2,7 @@
 <project version="4">
   <component name="CMakeSharedSettings">
     <configurations>
-      <configuration PROFILE_NAME="STM32G4" GENERATION_OPTIONS="&quot;-GNinja&quot; &quot;-DCMAKE_TOOLCHAIN_FILE=stm32g4.cmake&quot; &quot;-DMCU=g4&quot; &quot;-DECU_NAME=DRTF&quot; &quot;-DHSE_FREQ=12_MHz&quot; &quot;-DCAN1_used=1&quot; &quot;-DCAN2_used=1&quot; &quot;-DCAN1_BITRATE=1000_kHz&quot; &quot;-DCAN2_BITRATE=1000_kHz&quot; &quot;-DCAN1_PERIPHERAL=FDCAN1_BASE&quot; &quot;-DCAN2_PERIPHERAL=FDCAN2_BASE&quot; &quot;-DCAN1_RX_pin='D', 0, 9&quot; &quot;-DCAN1_TX_pin='D', 1, 9&quot; &quot;-DCAN2_RX_pin='B', 5, 9&quot; &quot;-DCAN2_TX_pin='B', 6, 9&quot; &quot;../..&quot;" GENERATION_DIR="build/FSE12_DRTF" ENABLED="true" />
+      <configuration PROFILE_NAME="STM32G4" GENERATION_OPTIONS="&quot;-GNinja&quot; &quot;-DCMAKE_TOOLCHAIN_FILE=stm32g4.cmake&quot; &quot;-DMCU=g4&quot; &quot;-DECU_NAME=DRTF&quot; &quot;-DHSE_FREQ=12_MHz&quot; &quot;-DCAN1_used=1&quot; &quot;-DCAN2_used=1&quot; &quot;-DCAN1_BITRATE=1000_kHz&quot; &quot;-DCAN2_BITRATE=1000_kHz&quot; &quot;-DCAN1_PERIPHERAL=FDCAN1_BASE&quot; &quot;-DCAN2_PERIPHERAL=FDCAN2_BASE&quot; &quot;-DCAN1_RX_pin='D', 0, 9&quot; &quot;-DCAN1_TX_pin='D', 1, 9&quot; &quot;-DCAN2_RX_pin='B', 5, 9&quot; &quot;-DCAN2_TX_pin='B', 6, 9&quot;" GENERATION_DIR="build/CTU25_DRTF" ENABLED="true" />
     </configurations>
   </component>
 </project>
