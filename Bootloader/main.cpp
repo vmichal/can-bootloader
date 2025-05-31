@@ -150,7 +150,7 @@ namespace boot {
 					case WriteStatus::NotInFlash: {
 						auto const expectedWriteLocation = bootloader.expectedWriteLocation();
 						assert(expectedWriteLocation.has_value());
-						if (static SysTickTimer t; t.RestartIfTimeElapsed(50_ms))
+						if (static SysTickTimer t; t.RestartIfTimeElapsed(10_ms))
 							canManager.RestartDataFrom(*expectedWriteLocation);
 						return 1;
 					}
@@ -235,7 +235,7 @@ namespace boot {
 
 			bool const some_data_received_long_time_ago = lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s);
 			if (auto const expectedAddress = bootloader.expectedWriteLocation(); expectedAddress.has_value() && some_data_received_long_time_ago && !bootloader.stalled()) {
-				if (static SysTickTimer lastRequest; lastRequest.RestartIfTimeElapsed(500_ms)) { //limit the frequency of requests
+				if (static SysTickTimer lastRequest; lastRequest.RestartIfTimeElapsed(10_ms)) { //limit the frequency of requests
 					canManager.RestartDataFrom(*expectedAddress);
 				}
 			}
