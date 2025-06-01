@@ -1,7 +1,7 @@
 #include "can_Bootloader.h"
 #include <string.h>
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 24. 12. 2024 (dd. mm. yyyy) at 00.20.10 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 01. 06. 2025 (dd. mm. yyyy) at 02.43.35 (hh.mm.ss)
 
 
 CAN_ID_t const candb_sent_messages[9] = {
@@ -270,17 +270,15 @@ int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Dat
         return 0;
 
     data_out->Address = bytes[0] | bytes[1] << 8 | bytes[2] << 16 | (bytes[3] & 0x3F) << 24;
-    data_out->HalfwordAccess = ((bytes[3] >> 7) & 0x01);
     data_out->Word = bytes[4] | bytes[5] << 8 | bytes[6] << 16 | bytes[7] << 24;
     return 1;
 }
 
-int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint8_t* HalfwordAccess_out, uint32_t* Word_out) {
+int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint32_t* Word_out) {
     if (length < 8)
         return 0;
 
     *Address_out = bytes[0] | bytes[1] << 8 | bytes[2] << 16 | (bytes[3] & 0x3F) << 24;
-    *HalfwordAccess_out = ((bytes[3] >> 7) & 0x01);
     *Word_out = bytes[4] | bytes[5] << 8 | bytes[6] << 16 | bytes[7] << 24;
     return 1;
 }
@@ -306,7 +304,7 @@ int Bootloader_send_Data_s(const Bootloader_Data_t* data) {
     buffer[0] = data->Address;
     buffer[1] = (data->Address >> 8);
     buffer[2] = (data->Address >> 16);
-    buffer[3] = ((data->Address >> 24) & 0x3F) | (data->HalfwordAccess ? 128 : 0);
+    buffer[3] = ((data->Address >> 24) & 0x3F);
     buffer[4] = data->Word;
     buffer[5] = (data->Word >> 8);
     buffer[6] = (data->Word >> 16);
@@ -315,12 +313,12 @@ int Bootloader_send_Data_s(const Bootloader_Data_t* data) {
     return rc;
 }
 
-int Bootloader_send_Data(uint32_t Address, uint8_t HalfwordAccess, uint32_t Word) {
+int Bootloader_send_Data(uint32_t Address, uint32_t Word) {
     uint8_t buffer[8];
     buffer[0] = Address;
     buffer[1] = (Address >> 8);
     buffer[2] = (Address >> 16);
-    buffer[3] = ((Address >> 24) & 0x3F) | (HalfwordAccess ? 128 : 0);
+    buffer[3] = ((Address >> 24) & 0x3F);
     buffer[4] = Word;
     buffer[5] = (Word >> 8);
     buffer[6] = (Word >> 16);

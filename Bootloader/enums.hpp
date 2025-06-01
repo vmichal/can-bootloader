@@ -69,6 +69,7 @@ namespace boot {
 		LogicalBlockTooLong = Bootloader_HandshakeResponse_LogicalBlockTooLong,
 		MustBeNonZero = Bootloader_HandshakeResponse_MustBeNonZero,
 		PageEraseFailed = Bootloader_HandshakeResponse_PageEraseFailed,
+		BufferTransferFailed = Bootloader_HandshakeResponse_BufferTransferFailed,
 	};
 
 	/*

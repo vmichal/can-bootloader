@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 24. 12. 2024 (dd. mm. yyyy) at 00.20.10 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 01. 06. 2025 (dd. mm. yyyy) at 02.43.35 (hh.mm.ss)
 
 typedef enum {
     // Vehicle CAN buses
@@ -188,6 +188,8 @@ enum Bootloader_HandshakeResponse {
     Bootloader_HandshakeResponse_MustBeNonZero = 27,
     /* Erassure of flash page failed */
     Bootloader_HandshakeResponse_PageEraseFailed = 28,
+    /* Failed to transfer buffered new bootloader code from RAM to Flash */
+    Bootloader_HandshakeResponse_BufferTransferFailed = 29,
 };
 
 enum Bootloader_Register {
@@ -308,9 +310,6 @@ typedef struct Bootloader_CommunicationYield_t {
 typedef struct Bootloader_Data_t {
 	/* Word aligned absolute address */
 	uint32_t	Address;
-
-	/* If set to true, only the lower 16 bits of Word will be flashed. */
-	uint8_t	HalfwordAccess;
 
 	/* Word to be written */
 	uint32_t	Word;
@@ -467,13 +466,13 @@ int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target);
 candb_bus_t Bootloader_CommunicationYield_get_tx_bus(void);
 
 int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
-int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint8_t* HalfwordAccess_out, uint32_t* Word_out);
+int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint32_t* Word_out);
 int Bootloader_send_Data_s(const Bootloader_Data_t* data);
 int Bootloader_get_Data(Bootloader_Data_t* data_out);
 uint32_t Bootloader_Data_get_flags(void);
 void Bootloader_Data_on_receive(int (*callback)(Bootloader_Data_t* data));
 candb_bus_t Bootloader_Data_get_rx_bus(void);
-int Bootloader_send_Data(uint32_t Address, uint8_t HalfwordAccess, uint32_t Word);
+int Bootloader_send_Data(uint32_t Address, uint32_t Word);
 candb_bus_t Bootloader_Data_get_tx_bus(void);
 
 int Bootloader_decode_DataAck_s(const uint8_t* bytes, size_t length, Bootloader_DataAck_t* data_out);

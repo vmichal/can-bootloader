@@ -21,6 +21,7 @@ namespace {
 		case boot::WriteStatus::MemoryProtected:
 		case boot::WriteStatus::NotInErasedMemory:
 		case boot::WriteStatus::NotInFlash:
+		case boot::WriteStatus::NotAligned:
 			return Bootloader_WriteResult_InvalidMemory;
 
 		case boot::WriteStatus::Ok:

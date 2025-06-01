@@ -35,7 +35,6 @@ namespace ufsel::time {
 
 namespace boot {
 
-	Bootloader bootloader{ canManager };
 	std::optional<Timestamp> lastReceivedData;
 
 
@@ -138,9 +137,7 @@ namespace boot {
 				std::uint32_t volatile address = data->Address << 2;
 
 				lastReceivedData = Timestamp::Now();
-				WriteStatus volatile ret = data->HalfwordAccess
-					? bootloader.write(address, static_cast<std::uint16_t>(data->Word))
-					: bootloader.write(address, static_cast<std::uint32_t>(data->Word));
+				WriteStatus volatile ret = bootloader.write(address, data->Word);
 
 				switch (ret) {
 					case WriteStatus::Ok:

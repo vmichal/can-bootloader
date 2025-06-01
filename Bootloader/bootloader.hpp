@@ -165,114 +165,44 @@ namespace boot {
 		std::size_t current_block_index_ = 0;
 		std::uint32_t blockOffset_ = 0;
 
-		std::uint32_t calculate_checksum(WriteableIntegral auto data) {
-			std::uint32_t result = 0;
-			int const half_words = sizeof(data) / sizeof(std::uint16_t);
-			for (int half = 0; half < half_words; ++half) {
-				int const shift = std::numeric_limits<std::uint16_t>::digits * half;
-				result += (data >> shift) & std::numeric_limits<std::uint16_t>::max();
-			}
-			return result;
-		}
+		std::uint32_t calculate_checksum(std::uint32_t const data);
 
-		static bool do_schedule_write(std::uint32_t const address, WriteableIntegral auto data) {
-			static_assert(sizeof(data) >= sizeof(Flash::nativeType));
-			if constexpr (sizeof(data) == sizeof(Flash::nativeType)) {
-				// No need to go through the for loop since only one element is written.
-				return Flash::ScheduleBufferedWrite(address, data);
-			}
-			else {
-				for (std::size_t offset = 0; offset < sizeof(data); offset += sizeof(Flash::nativeType)) {
-					if (bool const ret = Flash::ScheduleBufferedWrite<Flash::nativeType>(address + offset, data); !ret)
-						return false;
-					data >>= sizeof(Flash::nativeType) * 8;
-				}
-				return true;
-			}
-		}
+		static int calculate_padding_width(std::uint32_t address, std::uint32_t const data, MemoryBlock const * next_block);
 
-		static constexpr int calculate_padding_width(std::uint32_t address, WriteableIntegral auto const data, MemoryBlock const * next_block) {
-			std::uint32_t const data_end_address = address + sizeof(data); //this is the address one past last byte written
-			// The address one past the containing flash native type
-			std::uint32_t const native_type_end = (data_end_address + sizeof(Flash::nativeType) - 1) & ~(sizeof(Flash::nativeType) - 1);
-			// We either need to fill bytes from end of data to end of native type or less if the next block starts earlier
-			std::uint32_t const padding_end = next_block ? std::min(native_type_end, end(*next_block)) : native_type_end;
+		void schedule_data_write(std::uint32_t const address, std::uint32_t const data, bool is_last_write_in_logical_block);
 
-			return padding_end - data_end_address;
-		}
+		WriteStatus write(std::uint32_t const address, std::uint32_t const data);
 
-		constexpr void schedule_data_write(std::uint32_t const address, WriteableIntegral auto const data, bool is_last_write_in_logical_block) {
-			if constexpr (sizeof(data) >= sizeof(Flash::nativeType)) {
-				// there is no need to add padding
-				bool const success = do_schedule_write(address, data);
-				assert(success);
-			}
-			else {
-				// sizeof(data) < sizeof(Flash::nativeType)
-				if (!is_last_write_in_logical_block) {// more data to go, don't bother calculating padding yet
-					bool const scheduled = Flash::ScheduleBufferedWrite(address, data);
-					assert(scheduled);
-				}
-					// We are writing the last data of current logical memory block -> extend it to native flash type
-				else {
-					// We are writing a smaller integral type and no more data is comming... Padding should be added to data_to_write
-					MemoryBlock const * next_block = current_block_index_ + 1 < size(firmwareBlocks_) ? &firmwareBlocks_[current_block_index_ + 1] : nullptr;
+		WriteStatus transfer_bl_update_buffer();
 
-					int const padding_width = calculate_padding_width(address, data, next_block);
-					int const padding_offset = sizeof(data) * 8;
-
-					Flash::nativeType const padding = ufsel::bit::bitmask_of_width<Flash::nativeType>(padding_width * 8) << padding_offset;
-
-					bool const scheduled = Flash::ScheduleBufferedWrite(address, data | padding, sizeof(data) + padding_width);
-					assert(scheduled);
-				}
-			}
-		}
-
-		WriteStatus write(std::uint32_t const address, WriteableIntegral auto const data) {
-			assert(address % sizeof(data) == 0 && "Address not aligned.");
-
-			MemoryBlock const & current_block = firmwareBlocks_[current_block_index_];
-			bool const is_last_write_in_logical_block = blockOffset_ + sizeof(data)  == current_block.length;
-
-			schedule_data_write(address, data, is_last_write_in_logical_block);
-
-			int times_written = 0;
-			WriteStatus writeStatus;
-			for (; ;++times_written) {
-				writeStatus = Flash::tryPerformingBufferedWrite();
-				if (writeStatus != WriteStatus::Ok)
-					break;
-			}
-
-			if (is_last_write_in_logical_block) {
-				assert(times_written > 0);
-				assert(Flash::writeBufferIsEmpty());
-			}
-
-			// Update internal counters etc
-			checksum_ += calculate_checksum(data);
-			written_bytes_ += InformationSize::fromBytes(sizeof(data));
-			blockOffset_ += sizeof(data);
-			if (is_last_write_in_logical_block) {
-				blockOffset_ = 0;
-				if (++current_block_index_ == size(firmwareBlocks_))
-					status_ = Status::noMoreDataExpected;
-			}
-
-			return writeStatus;
-		}
+		static WriteStatus update_flash_write_buffer();
 
 	public:
 		WriteStatus checkAddressBeforeWrite(std::uint32_t address);
-		WriteStatus check_and_write(std::uint32_t address, WriteableIntegral auto data) {
+
+		WriteStatus check_and_write(std::uint32_t address, std::uint32_t const data) {
 			if (!data_expected())
 				return WriteStatus::NotReady;
 
 			if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
 				return ret;
 
-			return write(address, data);
+			if (address % sizeof(data) != 0)
+				return WriteStatus::NotAligned;
+
+			auto const write_status = write(address, data);
+
+			// Update internal counters etc
+			checksum_ += calculate_checksum(data);
+			written_bytes_ += InformationSize::fromBytes(sizeof(data));
+			blockOffset_ += sizeof(data);
+			if (blockOffset_ == firmwareBlocks_[current_block_index_].length) {
+				blockOffset_ = 0;
+				if (++current_block_index_ == size(firmwareBlocks_))
+					status_ = Status::noMoreDataExpected;
+			}
+
+			return write_status;
 		}
 
 		[[nodiscard]] bool done() const { return status_ == Status::done; }
@@ -293,15 +223,7 @@ namespace boot {
 
 		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
 
-		void reset() {
-			status_ = Status::unitialized;
-			firmware_size_ = 0_B;
-			written_bytes_ = 0_B;
-			checksum_ = 0;
-
-			current_block_index_ = 0;
-			blockOffset_ = 0;
-		}
+		void reset();
 	};
 
 	class MetadataReceiver : public BootloaderSubtransactionBase {
@@ -385,7 +307,7 @@ namespace boot {
 		[[nodiscard]]
 		bool transactionInProgress() const { return transactionType_ != TransactionType::Unknown && status_ != Status::Error && status_ != Status::Ready; }
 
-		WriteStatus write(std::uint32_t address, WriteableIntegral auto data) {
+		WriteStatus write(std::uint32_t address, std::uint32_t const data) {
 			assert(firmwareDownloader_.data_expected());
 			auto const ret = firmwareDownloader_.check_and_write(address, data);
 			if (firmwareDownloader_.expectedSize() == firmwareDownloader_.actualSize())
@@ -429,6 +351,8 @@ namespace boot {
 			Flash::writeBuffer_.reset();
 		}
 	};
+
+	inline Bootloader bootloader{ canManager };
 
 	static_assert(Bootloader::transactionMagic == 0x696c6548); //This value is stated in the protocol description
 

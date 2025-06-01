@@ -14,6 +14,11 @@
 #include <ufsel/assert.hpp>
 #include <ufsel/units.hpp>
 #include <ufsel/time.hpp>
+
+extern "C" {
+	extern std::uint32_t bootloader_update_buffer_begin[], bootloader_update_buffer_end[];
+}
+
 namespace boot {
 
 	namespace {
@@ -33,7 +38,6 @@ namespace boot {
 	}
 
 	WriteStatus FirmwareDownloader::checkAddressBeforeWrite(std::uint32_t const address) {
-		//TODO consider checking the alignment as well
 
 		AddressSpace const origin = Flash::addressOrigin(address);
 		switch (origin) {
@@ -91,10 +95,12 @@ namespace boot {
 		if (std::ranges::find(already_erased, enclosingBlock) != end(already_erased))
 			return HandshakeResponse::PageAlreadyErased;
 
-		std::uint32_t const code = Flash::ErasePage(address);
-		if (!Flash::is_SR_ok(code)) {
-			canManager.SendHandshake(handshake::abort(AbortCode::FlashErase, code));
-			return HandshakeResponse::PageEraseFailed;
+		if (!bootloader_.updatingBootloader()) {
+			std::uint32_t const code = Flash::ErasePage(address);
+			if (!Flash::is_SR_ok(code)) {
+				canManager.SendHandshake(handshake::abort(AbortCode::FlashErase, code));
+				return HandshakeResponse::PageEraseFailed;
+			}
 		}
 		erased_pages_[erased_pages_count_++] = enclosingBlock;
 
@@ -342,14 +348,17 @@ namespace boot {
 
 			if (reg != Register::PhysicalBlockToErase) {
 				auto const response = checkMagic(reg, value);
-				if (response == HandshakeResponse::Ok) {
-					//wait for all operations to finish and lock flash
-					Flash::AwaitEndOfErasure();
+				if (response != HandshakeResponse::Ok)
+					return response;
 
-					Flash::Lock();
-					status_ = Status::done;
-				}
-				return response;
+				//wait for all operations to finish and lock flash
+				Flash::AwaitEndOfErasure();
+
+				Flash::Lock();
+				status_ = Status::done;
+				if (erased_pages_count_ != expectedPageCount_)
+					return HandshakeResponse::ErasedPageCountMismatch;
+				return HandshakeResponse::Ok;
 			}
 
 			if (erased_pages_count_ == expectedPageCount_)
@@ -406,16 +415,38 @@ namespace boot {
 			if (value != checksum_)
 				return HandshakeResponse::ChecksumMismatch;
 
-			Flash::Lock();
 			status_ = Status::receivedChecksum;
+
+			if (bootloader_.updatingBootloader()) {
+				// Checksum is valid, actually update the flash memory
+
+				if (ufsel::bit::all_set(FLASH->CR, FLASH_CR_LOCK))
+					Flash::Unlock();
+
+				for (MemoryBlock const& page : erasedBlocks_) {
+					std::uint32_t const code = Flash::ErasePage(page.address);
+					if (!Flash::is_SR_ok(code)) {
+						canManager.SendHandshake(handshake::abort(AbortCode::FlashErase, code));
+						return HandshakeResponse::PageEraseFailed;
+					}
+				}
+				Flash::AwaitEndOfErasure();
+
+				if (transfer_bl_update_buffer() != WriteStatus::Ok) {
+					status_ = Status::error;
+					return HandshakeResponse::BufferTransferFailed;
+				}
+			}
 			return HandshakeResponse::Ok;
 
 		case Status::receivedChecksum:
 			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
 				return res;
+			Flash::Lock();
 
 			status_ = Status::done;
 			return HandshakeResponse::Ok;
+
 		case Status::done:
 			status_ = Status::error;
 			return HandshakeResponse::InternalStateMachineError;
@@ -423,6 +454,135 @@ namespace boot {
 			return HandshakeResponse::BootloaderInError;
 		}
 		assert_unreachable();
+	}
+
+	std::uint32_t FirmwareDownloader::calculate_checksum(std::uint32_t const data) {
+		std::uint32_t result = 0;
+		constexpr int half_words = sizeof(data) / sizeof(std::uint16_t);
+		for (int half = 0; half < half_words; ++half) {
+			int const shift = std::numeric_limits<std::uint16_t>::digits * half;
+			result += (data >> shift) & std::numeric_limits<std::uint16_t>::max();
+		}
+		return result;
+	}
+
+	int FirmwareDownloader::calculate_padding_width(std::uint32_t address, std::uint32_t const data, MemoryBlock const * next_block) {
+		std::uint32_t const data_end_address = address + sizeof(data); //this is the address one past last byte written
+		// The address one past the containing flash native type
+		std::uint32_t const native_type_end = (data_end_address + sizeof(Flash::nativeType) - 1) & ~(sizeof(Flash::nativeType) - 1);
+		// We either need to fill bytes from end of data to end of native type or less if the next block starts earlier
+		std::uint32_t const padding_end = next_block ? std::min(native_type_end, next_block->address) : native_type_end;
+
+		return padding_end - data_end_address;
+	}
+
+	void FirmwareDownloader::schedule_data_write(std::uint32_t const address, std::uint32_t const data, bool is_last_write_in_logical_block) {
+		if constexpr (sizeof(data) == sizeof(Flash::nativeType)) {
+			// No need to go through the for loop since only one element is written.
+			bool const success = Flash::ScheduleBufferedWrite(address, data);
+			assert(success);
+		}
+		else if constexpr (sizeof(data) > sizeof(Flash::nativeType)) {
+			auto data_copy = data;
+			for (std::size_t offset = 0; offset < sizeof(data_copy); offset += sizeof(Flash::nativeType)) {
+				if (bool const ret = Flash::ScheduleBufferedWrite<Flash::nativeType>(address + offset, data_copy); !ret)
+					assert(false);
+				data_copy >>= sizeof(Flash::nativeType) * 8;
+			}
+		}
+		else {
+			// sizeof(data) < sizeof(Flash::nativeType)
+			// need to add padding
+			if (!is_last_write_in_logical_block) {// more data to go, don't bother calculating padding yet
+				bool const scheduled = Flash::ScheduleBufferedWrite(address, data);
+				assert(scheduled);
+			}
+				// We are writing the last data of current logical memory block -> extend it to native flash type
+			else {
+				// We are writing a smaller integral type and no more data is comming... Padding should be added to data_to_write
+				MemoryBlock const * next_block = current_block_index_ + 1 < size(firmwareBlocks_) ? &firmwareBlocks_[current_block_index_ + 1] : nullptr;
+
+				int const padding_width = calculate_padding_width(address, data, next_block);
+				int const padding_offset = sizeof(data) * 8;
+
+				Flash::nativeType const padding = ufsel::bit::bitmask_of_width<Flash::nativeType>(padding_width * 8) << padding_offset;
+
+				bool const scheduled = Flash::ScheduleBufferedWrite(address, data | padding, sizeof(data) + padding_width);
+				assert(scheduled);
+			}
+		}
+	}
+
+	WriteStatus FirmwareDownloader::transfer_bl_update_buffer() {
+		using data_t = std::uint32_t;
+
+		for (MemoryBlock const& current_block : firmwareBlocks_) {
+			for (std::uint32_t address = current_block.address; address < end(current_block); address += sizeof(data_t)) {
+
+				bool const is_last_write_in_logical_block = address + sizeof(data_t) >= end(current_block);
+				int const word_index = (address - Flash::bootloaderAddress) / sizeof(data_t);
+				assert(word_index < bootloader_update_buffer_end - bootloader_update_buffer_begin);
+				data_t const data = bootloader_update_buffer_begin[word_index];
+
+				schedule_data_write(address, data, is_last_write_in_logical_block);
+				WriteStatus const writeStatus = update_flash_write_buffer();
+				if (is_last_write_in_logical_block)
+					assert(Flash::writeBufferIsEmpty());
+				if (writeStatus != WriteStatus::Ok && writeStatus != WriteStatus::InsufficientData) {
+					__BKPT();
+					return writeStatus;
+				}
+			}
+		}
+		return WriteStatus::Ok;
+	}
+
+	WriteStatus FirmwareDownloader::update_flash_write_buffer() {
+		int times_written = 0;
+		WriteStatus writeStatus = WriteStatus::Ok;
+		for (; ;++times_written) {
+			writeStatus = Flash::tryPerformingBufferedWrite();
+			if (writeStatus != WriteStatus::Ok)
+				break;
+		}
+		return writeStatus;
+	}
+
+	WriteStatus FirmwareDownloader::write(std::uint32_t const address, std::uint32_t const data) {
+		assert(address % sizeof(data) == 0 && "Address not aligned.");
+
+
+		if (bootloader_.updatingBootloader()) {
+			// Store the incoming data in RAM instead of flash directly. Wait for reception of the whole bootloader
+			assert(Flash::addressOrigin(address) == AddressSpace::BootloaderFlash);
+			int const word_index = (address - Flash::bootloaderAddress) / sizeof(data);
+			assert(word_index < bootloader_update_buffer_end - bootloader_update_buffer_begin);
+			bootloader_update_buffer_begin[word_index] = data;
+			return WriteStatus::Ok;
+		}
+		else {
+			MemoryBlock const & current_block = firmwareBlocks_[current_block_index_];
+			bool const is_last_write_in_logical_block = blockOffset_ + sizeof(data)  == current_block.length;
+
+			schedule_data_write(address, data, is_last_write_in_logical_block);
+			WriteStatus const writeStatus = update_flash_write_buffer();
+
+			if (is_last_write_in_logical_block)
+				assert(Flash::writeBufferIsEmpty());
+			return writeStatus;
+		}
+	}
+
+	void FirmwareDownloader::reset() {
+		status_ = Status::unitialized;
+		firmware_size_ = 0_B;
+		written_bytes_ = 0_B;
+		checksum_ = 0;
+
+		current_block_index_ = 0;
+		blockOffset_ = 0;
+
+		std::ranges::fill(bootloader_update_buffer_begin, bootloader_update_buffer_end, 0xcc'cc'cc'cc);
 	}
 
 	HandshakeResponse Bootloader::validateVectorTable(AddressSpace const expected_space, std::uint32_t const address) {

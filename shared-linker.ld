@@ -168,6 +168,15 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM
 
+    /* Buffer for new bootloader when updating */
+  . = ALIGN(4);
+  .bl_update :
+  {
+    bootloader_update_buffer_begin = .;
+    . = . + CompleteBootloaderSize + JumpTableSize;
+    bootloader_update_buffer_end = .;
+  } >RAM
+
 
 
   .jumpTableSection(NOLOAD) :
