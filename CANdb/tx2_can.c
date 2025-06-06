@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #ifndef TX_RECV_BUFFER_SIZE
-enum { TX_RECV_BUFFER_SIZE = 1024 };
+enum { TX_RECV_BUFFER_SIZE = 4 * 1024 };
 #endif
 #ifndef MAX_MESSAGES_IN_A_ROW
 enum { MAX_MESSAGES_IN_A_ROW = TX_RECV_BUFFER_SIZE / 8 / (8+8) };
