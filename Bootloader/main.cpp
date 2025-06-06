@@ -214,7 +214,9 @@ namespace boot {
 			setupRegularCanCallbacks();
 
 		for (;;) { //main loop
+
 			txProcess();
+			process_all_tx_fifos();
 
 			if (bootloader.startupCheckInProgress()) {
 				if (systemStartupTime.TimeElapsed() > customization::startupCanBusCheckDuration) {
@@ -259,6 +261,8 @@ namespace boot {
 				// This way time keeping is preserved at all times
 				++SystemTicks;
 			}
+
+			process_all_tx_fifos();
 
 			if constexpr (boot::rebootAfterHardfault) {
 				if (hardfaultEntryTime.TimeElapsed(boot::rebootDelayHardfault))

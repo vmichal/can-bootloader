@@ -26,11 +26,19 @@ namespace bsp::can {
 		}
 
 		//wait for bxCAN to synchronize with the bus (leave initialization)
-		void peripheralAwaitSynchronization(CAN_TypeDef& can) {
-			ufsel::bit::wait_until_cleared(can.MSR, CAN_MSR_INAK);
+		void peripheralAwaitSynchronization(bus_info_t const& bus_info) {
+			ufsel::bit::wait_until_cleared(bus_info.get_peripheral()->MSR, CAN_MSR_INAK);
 		}
 
-		void peripheralInit(CAN_TypeDef& can, unsigned prescaler) {
+		void peripheralInit(bus_info_t const& bus_info) {
+
+			CAN_TypeDef & can = *bus_info.get_peripheral();
+
+			constexpr Frequency APB1_frequency = boot::SYSCLK;
+			constexpr int quanta_per_bit = 16;
+
+			unsigned const prescaler = APB1_frequency / find_bus_info_by_bus(bus_CAN1).bitrate / quanta_per_bit;
+
 			using namespace ufsel;
 			//await acknowledge that the peripheral entered initialization mode
 			ufsel::bit::wait_until_set(can.MSR, CAN_MSR_INAK);
@@ -70,6 +78,33 @@ namespace bsp::can {
 		}
 	}
 
+	void write_message_for_transmission(bus_info_t const &bus, MessageData const& msg) {
+		CAN_TypeDef *const peripheral = bus.get_peripheral();
+
+		using namespace ufsel;
+		assert(has_empty_mailbox(peripheral));
+
+		std::array<std::uint32_t, 2> msg_data {0};
+		std::memcpy(msg_data.data(), &msg.data, msg.length);
+
+		//Get the code of an empty mailbox.
+		std::uint32_t const mailbox_index = ufsel::bit::sliceable_value{peripheral->TSR}[25_to, 24];
+		std::uint32_t const corresponding_bit = ufsel::bit::bit(std::countr_zero(CAN_TSR_TME0) + mailbox_index);
+		assert(ufsel::bit::all_set(peripheral->TSR, corresponding_bit)); //make sure that mailbox is really empty
+
+		auto &mailbox = peripheral->sTxMailBox[mailbox_index];
+
+		ufsel::bit::modify(std::ref(mailbox.TDTR), CAN_TDT0R_DLC, msg.length); //write the message length
+		if (msg.length > 0) //and lower and higher word of data
+			mailbox.TDLR = msg_data[0];
+		if (msg.length > 4)
+			mailbox.TDHR = msg_data[1];
+
+
+		//setup the identifier and request the transmission.
+		mailbox.TIR = ufsel::bit::bitmask(msg.id << std::countr_zero(CAN_TI0R_STID), CAN_TI0R_TXRQ);
+	}
+
 	void initialize() {
 		using namespace ufsel;
 
@@ -77,21 +112,18 @@ namespace bsp::can {
 		bit::set(std::ref(RCC->APB1ENR), RCC_APB1ENR_CAN1EN, RCC_APB1ENR_CAN2EN);
 		//wake up both peripherals and send them to initialization mode
 #if CAN1_used
-		peripheralRequestInitialization(*CAN1);
+		peripheralRequestInitialization(*find_bus_info_by_bus(bus_CAN1).get_peripheral());
 #endif
 #if CAN2_used
-		peripheralRequestInitialization(*CAN2);
+		peripheralRequestInitialization(*find_bus_info_by_bus(bus_CAN2).get_peripheral());
 #endif
-
-		constexpr Frequency APB1_frequency = boot::SYSCLK;
-		constexpr int quanta_per_bit = 16;
 
 		//Initialize peripherals
 #if CAN1_used
-		peripheralInit(*CAN1, APB1_frequency / can1_frequency / quanta_per_bit);
+		peripheralInit(find_bus_info_by_bus(bus_CAN1));
 #endif
 #if CAN2_used
-		peripheralInit(*CAN2, APB1_frequency / can2_frequency / quanta_per_bit);
+		peripheralInit(find_bus_info_by_bus(bus_CAN2));
 #endif
 
 		assert(std::ranges::all_of(candb_received_messages,[](unsigned id) {
@@ -125,67 +157,11 @@ namespace bsp::can {
 
 		//make sure CAN peripherals have snychronized with the bus
 #if CAN1_used
-		peripheralAwaitSynchronization(*CAN1);
+		peripheralAwaitSynchronization(find_bus_info_by_bus(bus_CAN1));
 #endif
 #if CAN2_used
-		peripheralAwaitSynchronization(*CAN2);
+		peripheralAwaitSynchronization(find_bus_info_by_bus(bus_CAN2));
 #endif
-	}
-}
-
-/* Implementation of function required by tx library.
-   These functions must use C linkage, because they are used by the code generated from CANdb (which is pure C). */
-
-constexpr auto bus_connected_to_CAN1 = bus_CAN1;
-constexpr auto bus_connected_to_CAN2 = bus_CAN2;
-
-
-static_assert(bus_connected_to_CAN1 != bus_UNDEFINED);
-static_assert(bus_connected_to_CAN2 != bus_UNDEFINED);
-
-extern "C" {
-	uint32_t txGetTimeMillis() {
-		return systemStartupTime.TimeElapsed().toMilliseconds();
-	}
-
-	int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length) {
-		return 0; //all messages are filtered by hardware
-	}
-
-	int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
-		using namespace ufsel;
-		if (bus == bus_ALL) {
-			int rc1 = CAN1_used ? txSendCANMessage(bus_connected_to_CAN1, id, data, length) : 1;
-			int rc2 = CAN2_used ? txSendCANMessage(bus_connected_to_CAN2, id, data, length) : 1;
-			return rc1 && rc2;
-		}
-		assert(bus == bus_connected_to_CAN1 || bus == bus_connected_to_CAN2);
-
-		CAN_TypeDef *const peripheral = bus == bus_connected_to_CAN1 ? CAN1 : CAN2;
-
-		if (ufsel::bit::all_cleared(peripheral->TSR, CAN_TSR_TME))
-			return -TX_SEND_BUFFER_OVERFLOW; //There is no empty mailbox
-
-		std::array<std::uint32_t, 2> msg_data {0};
-		std::memcpy(msg_data.data(), data, length);
-
-		//Get the code of an empty mailbox.
-		std::uint32_t const mailbox_index = ufsel::bit::sliceable_value{peripheral->TSR}[25_to, 24];
-		std::uint32_t const corresponding_bit = ufsel::bit::bit(std::countr_zero(CAN_TSR_TME0) + mailbox_index);
-		assert(ufsel::bit::all_set(peripheral->TSR, corresponding_bit)); //make sure that mailbox is really empty
-
-		auto &mailbox = peripheral->sTxMailBox[mailbox_index];
-
-		ufsel::bit::modify(std::ref(mailbox.TDTR), CAN_TDT0R_DLC, length); //write the message length
-		if (length > 0) //and lower and higher word of data
-			mailbox.TDLR = msg_data[0];
-		if (length > 4)
-			mailbox.TDHR = msg_data[1];
-
-
-		//setup the identifier and request the transmission.
-		mailbox.TIR = ufsel::bit::bitmask(id << std::countr_zero(CAN_TI0R_STID), CAN_TI0R_TXRQ);
-		return 0;
 	}
 }
 
@@ -200,7 +176,7 @@ extern "C" void CAN1_RX0_IRQHandler(void)
 	data[1] = CAN1->sFIFOMailBox[0].RDHR;
 
 	ufsel::bit::set(std::ref(CAN1->RF0R), CAN_RF0R_RFOM0);
-	txReceiveCANMessage(bus_connected_to_CAN1, id, data.data(), length);
+	txReceiveCANMessage(bsp::can::find_bus_info_by_peripheral(CAN1_BASE).candb_bus, id, data.data(), length);
 }
 
 extern "C" void CAN2_RX0_IRQHandler(void)
@@ -214,7 +190,7 @@ extern "C" void CAN2_RX0_IRQHandler(void)
 	data[1] = CAN2->sFIFOMailBox[0].RDHR;
 
 	ufsel::bit::set(std::ref(CAN2->RF0R), CAN_RF0R_RFOM0);
-	txReceiveCANMessage(bus_connected_to_CAN2, id, data.data(), length);
+	txReceiveCANMessage(bsp::can::find_bus_info_by_peripheral(CAN2_BASE).candb_bus, id, data.data(), length);
 }
 
 

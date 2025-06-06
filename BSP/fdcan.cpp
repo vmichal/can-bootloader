@@ -14,6 +14,8 @@
 
 #include <can_Bootloader.h>
 
+#include <CANdb/tx2/ringbuf.h>
+
 namespace bsp::can {
 	namespace {
 		struct bit_time_config {
@@ -349,36 +351,6 @@ namespace bsp::can {
 		// TODO document what this assignment is
 		peripheral->IR = 0xff'ff'ff'00;
 	}
-}
-
-extern "C" {
-uint32_t txGetTimeMillis() {
-	return systemStartupTime.TimeElapsed().toMilliseconds();
-}
-
-int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length) {
-	return 0; //all messages are filtered by hardware
-}
-
-int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, size_t const length) {
-	if (bus == bus_ALL) {
-		int rc1 = CAN1_used ? txSendCANMessage(bus_CAN1, id, data, length) : 1;
-		int rc2 = CAN2_used ? txSendCANMessage(bus_CAN2, id, data, length) : 1;
-		return rc1 && rc2;
-	}
-
-	using namespace ufsel;
-	auto& bus_info = bsp::can::find_bus_info_by_bus((candb_bus_t)bus);
-
-	if (!bsp::can::has_empty_mailbox(bus_info.get_peripheral()))
-		return -TX_SEND_BUFFER_OVERFLOW; //There is no empty mailbox
-
-	bsp::can::MessageData message {.id = id, .length = length};
-	std::memcpy(message.data.data(), data, length);
-
-	bsp::can::write_message_for_transmission(bus_info, message);
-	return 0;
-}
 }
 
 extern "C" void FDCAN1_IT0_IRQHandler(void) {

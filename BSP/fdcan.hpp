@@ -378,6 +378,6 @@ namespace bsp::can {
 		return get_last_error_code(can) == LEC::AckError;
 	};
 
-} // end namespace bsp::fdcan
+} // end namespace bsp::can
 
 #endif

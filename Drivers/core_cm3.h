@@ -1207,6 +1207,7 @@ static __INLINE void __disable_irq()              { __ASM volatile ("cpsid i"); 
 static __INLINE void __enable_fault_irq()         { __ASM volatile ("cpsie f"); }
 static __INLINE void __disable_fault_irq()        { __ASM volatile ("cpsid f"); }
 
+static __INLINE void __BKPT()                      { __ASM volatile ("bkpt"); }
 static __INLINE void __NOP()                      { __ASM volatile ("nop"); }
 static __INLINE void __WFI()                      { __ASM volatile ("wfi"); }
 static __INLINE void __WFE()                      { __ASM volatile ("wfe"); }

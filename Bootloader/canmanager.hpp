@@ -13,6 +13,8 @@
 
 namespace boot {
 
+	void process_all_tx_fifos();
+
 	class CanManager {
 
 		Bootloader_Handshake_t lastSentHandshake_;
