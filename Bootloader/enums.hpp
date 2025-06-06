@@ -121,10 +121,18 @@ namespace boot {
 		MemoryMapTransmit_Update_UninitPending = 1,
 		MemoryMapTransmit_Update_DoneYield = 2,
 		MemoryMapTransmit_Update_Error = 3,
+
 		FlashWrite = 4,
 		Assert = 5,
 		UnreachableCode = 6,
 		HardFault = 6,
 		FlashErase = 7,
+
+		CanSendFailedExitAck = 8,
+		CanSendFailedDataAck = 9,
+		CanSendFailedHandshakeAck = 10,
+		CanSendFailedYieldComm = 11,
+		CanSendFailedPingResponse = 12,
+		CanSendFailedHandshake = 13
 	};
 }

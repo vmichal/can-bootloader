@@ -58,15 +58,21 @@ namespace boot {
 			for (auto & b : bsp::can::bus_info) {
 				if (b.candb_bus == bus) {
 					FDCAN_GlobalTypeDef * const periph = b.get_peripheral();
-					while (!start.TimeElapsed(timeout) && !bsp::can::has_ack_error(periph) && has_pending_transmission(periph));
+					do {
+						process_all_tx_fifos();
+					} while (!start.TimeElapsed(timeout) && !bsp::can::has_ack_error(periph) && has_pending_transmission(periph));
 				}
 			}
 
 #else
 			if (bus == bus_CAN1)
-				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN1->TSR, CAN_TSR_TME));
+				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN1->TSR, CAN_TSR_TME)) {
+					process_all_tx_fifos();
+				}
 			else
-				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN2->TSR, CAN_TSR_TME));
+				while (!start.TimeElapsed(timeout) && !ufsel::bit::all_set(CAN2->TSR, CAN_TSR_TME)) {
+					process_all_tx_fifos();
+				}
 #endif
 		}
 
@@ -248,6 +254,8 @@ namespace boot {
 				canManager.SendHandshake(handshake::resume);
 				bootloader.stalled() = false;
 			}
+
+			canManager.update();
 		}
 
 	}

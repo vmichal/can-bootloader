@@ -84,7 +84,7 @@ namespace boot {
 			process_tx_fifo(bus);
 	}
 
-	void CanManager::SendSoftwareBuild() const {
+	void CanManager::SendSoftwareBuild() {
 
 		Bootloader_SoftwareBuild_t msg;
 		msg.DirtyRepo = ufsel::git::has_dirty_working_tree();
@@ -94,48 +94,50 @@ namespace boot {
 		send(msg);
 	}
 
-	void CanManager::SendExitAck(bool ok) const {
+	void CanManager::SendExitAck(bool ok) {
 		Bootloader_ExitAck_t message;
 		message.Target = customization::thisUnit;
 		message.Confirmed = ok;
 
-		for (;send(message););
+		if (send(message))
+			set_pending_abort_request(handshake::abort(AbortCode::CanSendFailedExitAck));
 	}
 
 
-	void CanManager::SendDataAck(std::uint32_t const address, WriteStatus const status) const {
+	void CanManager::SendDataAck(std::uint32_t const address, WriteStatus const status) {
 		Bootloader_DataAck_t message;
 
 		message.Address = address >> 2;
 		message.Result = toCan(status);
 
-		for (;send(message););
+		if (send(message))
+			set_pending_abort_request(handshake::abort(AbortCode::CanSendFailedDataAck));
 	}
 
-	void CanManager::SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) const {
+	void CanManager::SendHandshakeAck(Register reg, HandshakeResponse response, std::uint32_t val) {
 		Bootloader_HandshakeAck_t message;
 		message.Register = static_cast<Bootloader_Register>(reg);
 		message.Target = customization::thisUnit;
 		message.Response = static_cast<Bootloader_HandshakeResponse>(response);
 		message.Value = val;
 
-		for (;send(message););
+		if (send(message))
+			set_pending_abort_request(handshake::abort(AbortCode::CanSendFailedHandshakeAck));
 	}
 
-	void CanManager::SendTransactionMagic() const {
-		Bootloader_Handshake_t const msg = handshake::create(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
-
-		for (;send(msg););
+	void CanManager::SendTransactionMagic() {
+		SendHandshake(handshake::create(Register::TransactionMagic, Command::None, Bootloader::transactionMagic));
 	}
 
-	void CanManager::yieldCommunication() const {
+	void CanManager::yieldCommunication() {
 		Bootloader_CommunicationYield_t msg;
 		msg.Target = customization::thisUnit;
 
-		for (;send(msg););
+		if (send(msg))
+			set_pending_abort_request(handshake::abort(AbortCode::CanSendFailedYieldComm));
 	}
 
-	void CanManager::SendPingResponse(bool entering_bl) const {
+	void CanManager::SendPingResponse(bool entering_bl) {
 		Bootloader_PingResponse_t msg;
 
 		msg.Target = customization::thisUnit;
@@ -144,21 +146,19 @@ namespace boot {
 		msg.BL_SoftwareBuild = ufsel::git::commit_hash();
 		msg.BL_DirtyRepo = ufsel::git::has_dirty_working_tree();
 
-		for (;send(msg););
+		if (send(msg))
+			set_pending_abort_request(handshake::abort(AbortCode::CanSendFailedPingResponse));
 	}
 
 	void CanManager::SendHandshake(Bootloader_Handshake_t const& msg) {
 
-		for (;send(msg););
-		lastSentHandshake_ = msg;
+		if (send(msg))
+			set_pending_abort_request(handshake::abort(AbortCode::CanSendFailedHandshake));
+		else
+			lastSentHandshake_ = msg;
 	}
 
-	void CanManager::SendHandshake(Register reg, Command command, std::uint32_t value) {
-		return SendHandshake(handshake::create(reg, command, value));
-	}
-
-
-	void CanManager::SendBeacon(Status const BLstate, EntryReason const entryReason) const {
+	void CanManager::SendBeacon(Status const BLstate, EntryReason const entryReason) {
 		Bootloader_Beacon_t message;
 		message.State = static_cast<Bootloader_State>(BLstate);
 		message.Target = customization::thisUnit;
@@ -169,11 +169,13 @@ namespace boot {
 	}
 
 	void CanManager::RestartDataFrom(std::uint32_t address) {
-		return SendHandshake(handshake::create(Register::Command, Command::RestartFromAddress, address));
+		SendHandshake(handshake::create(Register::Command, Command::RestartFromAddress, address));
 	}
 
 	void CanManager::update() {
-
+		if (pending_abort_request_.has_value())
+			if (send(*pending_abort_request_) == 0)
+				pending_abort_request_.reset();
 	}
 
 } // end namespace boot

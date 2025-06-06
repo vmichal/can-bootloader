@@ -370,7 +370,7 @@ namespace boot {
 		constexpr Bootloader_Handshake_t transactionMagic = create(Register::TransactionMagic, Command::None, Bootloader::transactionMagic);
 		constexpr Bootloader_Handshake_t stall = create(Register::Command, Command::StallSubtransaction, 0);
 		constexpr Bootloader_Handshake_t resume = create(Register::Command, Command::ResumeSubtransaction, 0);
-		constexpr auto abort = [](AbortCode abort_code, std::uint32_t  aux_code) {
+		constexpr auto abort = [](AbortCode abort_code, std::uint32_t aux_code = 0) {
 			return create(Register::Command, Command::AbortTransaction, aux_code << 8 | static_cast<std::uint32_t>(abort_code));
 		};
 	}
