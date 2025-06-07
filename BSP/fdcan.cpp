@@ -298,24 +298,20 @@ namespace bsp::can {
 
 		auto & tx_buffer = ram->tx_buffers[write_index];
 		bool const is_extended = IS_EXT_ID(msg.id);
-		{
-			bit::sliceable_value T0(0);
-			T0[bit::slice::for_mask(is_extended ? message_RAM::TX_Buffer::T0_ID_Msk_EXT : message_RAM::TX_Buffer::T0_ID_Msk_STD)] = msg.id;
-			T0[bit::slice::for_mask(message_RAM::TX_Buffer::T0_XTD_Msk)] = is_extended;
-			tx_buffer.T0 = T0.value();
-		}
+
+		tx_buffer.T0 = bit::bitmask(
+				msg.id << (is_extended ? std::countr_zero(message_RAM::TX_Buffer::T0_ID_Msk_EXT) : std::countr_zero(message_RAM::TX_Buffer::T0_ID_Msk_STD)),
+				is_extended << std::countr_zero(message_RAM::TX_Buffer::T0_XTD_Msk)
+			);
 		auto const DLC = length_to_DLC(msg.length);
 		assert(DLC.has_value() && "You attempted to transmit a message of unsupported length!");
-		{
-			bit::sliceable_value T1(0);
-			// TODO here we have to permit FD frames, bitrate switching etc.
-			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_MM_Msk)] = 0; // ignore message marker (keep zero)
-			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_EFC_Msk)] = 0; // do not store TX event // TODO support this at least for Ocarina global timing synchronization
-			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_FDF_Msk)] = bus.fd_frame; // normal or FD frame
-			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_BRS_Msk)] = bus.bitrate_switching; // bit rate switching
-			T1[bit::slice::for_mask(message_RAM::TX_Buffer::T1_DLC_Msk)] = DLC.value();
-			tx_buffer.T1 = T1.value();
-		}
+		tx_buffer.T1 = bit::bitmask(
+				0 << std::countr_zero(message_RAM::TX_Buffer::T1_MM_Msk),// ignore message marker (keep zero)
+				0 << std::countr_zero(message_RAM::TX_Buffer::T1_EFC_Msk),// do not store TX event // TODO support this at least for Ocarina global timing synchronization
+				bus.fd_frame << std::countr_zero(message_RAM::TX_Buffer::T1_FDF_Msk), // normal or FD frame
+				bus.bitrate_switching  << std::countr_zero(message_RAM::TX_Buffer::T1_BRS_Msk), // bit rate switching
+				DLC.value() << std::countr_zero(message_RAM::TX_Buffer::T1_DLC_Msk)
+			);
 		int const word_count = (msg.length + sizeof(std::uint32_t) - 1) / sizeof(std::uint32_t);
 		// Copy the message data into Message RAM
 		// Cannot use std::copy here since it is strictly necessary to use word accesses
