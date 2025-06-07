@@ -8,6 +8,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Itertools.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Assert.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Time.cmake")
 string(APPEND CMAKE_CXX_FLAGS " -DUFSEL_USING_TIME")
+add_definitions(-DUFSEL_USING_UNITS -DUFSEL_USING_UNIT_LITERALS -DUFSEL_USING_CHEAP_ASSERT)
 
 add_definitions(-DECU_NAME=${ECU_NAME})
 add_definitions(-DHSE_FREQ=${HSE_FREQ})
@@ -56,9 +57,6 @@ include_directories(SYSTEM Drivers)
 include_directories(SYSTEM CANdb)
 include_directories(SYSTEM ufsel/include)
 include_directories(SYSTEM .)
-
-add_definitions(-DUFSEL_USING_UNITS -DUFSEL_USING_UNIT_LITERALS -DUFSEL_USING_ASSERT)
-
 
 set(HEX_FILE ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.bin)
