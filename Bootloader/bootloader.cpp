@@ -456,12 +456,11 @@ namespace boot {
 		assert_unreachable();
 	}
 
-	std::uint32_t FirmwareDownloader::calculate_checksum(std::uint32_t const data) {
+	std::uint32_t FirmwareDownloader::calculate_checksum(std::uint32_t data) {
 		std::uint32_t result = 0;
-		constexpr int half_words = sizeof(data) / sizeof(std::uint16_t);
-		for (int half = 0; half < half_words; ++half) {
-			int const shift = std::numeric_limits<std::uint16_t>::digits * half;
-			result += (data >> shift) & std::numeric_limits<std::uint16_t>::max();
+		while (data) {
+			result += data & std::numeric_limits<std::uint16_t>::max();
+			data >>= std::numeric_limits<std::uint16_t>::digits;
 		}
 		return result;
 	}
