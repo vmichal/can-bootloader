@@ -133,6 +133,8 @@ namespace boot {
 		CanSendFailedHandshakeAck = 10,
 		CanSendFailedYieldComm = 11,
 		CanSendFailedPingResponse = 12,
-		CanSendFailedHandshake = 13
+		CanSendFailedHandshake = 13,
+
+		CanRxBufferFull = 14,
 	};
 }

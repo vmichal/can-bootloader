@@ -20,6 +20,10 @@
 #include <BSP/fdcan.hpp>
 #include <BSP/gpio.hpp>
 
+extern "C" {
+	extern volatile int tx_error_flags;
+}
+
 /*After consulting with Patrik, disassembly proved that this variable is initialized as part of .data init.
 It is therefore available even before SystemInit is called and thus can be trusted to be valid before almost everything else.*/
 //Variable counting system interrupts. Can be queried by HAL_GetTick()
@@ -220,7 +224,10 @@ namespace boot {
 			setupRegularCanCallbacks();
 
 		for (;;) { //main loop
-
+			if (need_to_send<Bootloader_SoftwareBuild_t>())
+				canManager.SendSoftwareBuild();
+			if (need_to_send<Bootloader_Beacon_t>())
+				canManager.SendBeacon(bootloader.stalled() ? Status::ComunicationStalled: bootloader.status(), bootloader.entryReason());
 			txProcess();
 			process_all_tx_fifos();
 
@@ -233,10 +240,6 @@ namespace boot {
 				// Prevent the rest of main loop from executing when we are in the CAN bus startup check
 			}
 
-			if (need_to_send<Bootloader_SoftwareBuild_t>())
-				canManager.SendSoftwareBuild();
-			if (need_to_send<Bootloader_Beacon_t>())
-				canManager.SendBeacon(bootloader.stalled() ? Status::ComunicationStalled: bootloader.status(), bootloader.entryReason());
 
 			bool const some_data_received_long_time_ago = lastReceivedData.has_value() && lastReceivedData->TimeElapsed(1_s);
 			if (auto const expectedAddress = bootloader.expectedWriteLocation(); expectedAddress.has_value() && some_data_received_long_time_ago && !bootloader.stalled()) {
@@ -256,6 +259,11 @@ namespace boot {
 			}
 
 			canManager.update();
+
+			if (tx_error_flags) {
+				canManager.set_pending_abort_request(handshake::abort(AbortCode::CanRxBufferFull, 0));
+				tx_error_flags = 0;
+			}
 		}
 
 	}

@@ -5,22 +5,22 @@
 #include <stdbool.h>
 
 #ifndef TX_RECV_BUFFER_SIZE
-enum { TX_RECV_BUFFER_SIZE = 4 * 1024 };
+enum { TX_RECV_BUFFER_SIZE = 1024 };
 #endif
 #ifndef MAX_MESSAGES_IN_A_ROW
-enum { MAX_MESSAGES_IN_A_ROW = TX_RECV_BUFFER_SIZE / 8 / (8+8) };
+enum { MAX_MESSAGES_IN_A_ROW = 10 };
 #endif
 
-static uint8_t recv_buf[TX_RECV_BUFFER_SIZE];
-static ringbuf_t recv_rb = {.data = recv_buf, .size = TX_RECV_BUFFER_SIZE, .readpos = 0, .writepos = 0};
+uint8_t recv_buf[TX_RECV_BUFFER_SIZE];
+ringbuf_t recv_rb = {.data = recv_buf, .size = TX_RECV_BUFFER_SIZE, .readpos = 0, .writepos = 0};
 
-static volatile int flags = 0;
+volatile int tx_error_flags = 0;
 
 extern void candbHandleMessage(int bus, uint32_t timestamp, CAN_ID_t id, const uint8_t* payload, size_t payload_length);
 extern void HardFault_Handler();
 static void set_flag(int flag) {
 	// TODO: must be atomic
-	flags |= flag;
+	tx_error_flags |= flag;
 }
 
 int txReceiveCANMessage(int bus, CAN_ID_t id, const void* data, size_t length) {
