@@ -277,7 +277,6 @@ namespace boot {
 		Status status_ = Status::Ready;
 		bool stall_ = false;
 		TransactionType transactionType_ = TransactionType::Unknown;
-		CanManager& can_;
 		static inline EntryReason entryReason_ = EntryReason::Unknown;
 
 	public:
@@ -311,7 +310,7 @@ namespace boot {
 			assert(firmwareDownloader_.data_expected());
 			auto const ret = firmwareDownloader_.check_and_write(address, data);
 			if (firmwareDownloader_.expectedSize() == firmwareDownloader_.actualSize())
-				can_.SendDataAck(address, boot::WriteStatus::Ok);
+				canManager.SendDataAck(address, boot::WriteStatus::Ok);
 			return ret;
 		}
 
@@ -331,13 +330,12 @@ namespace boot {
 			return entryReason_ == EntryReason::StartupCanBusCheck;
 		}
 
-		explicit Bootloader(CanManager& can) :
+		explicit Bootloader() :
 			physicalMemoryMapTransmitter_{*this},
 			logicalMemoryMapReceiver_{*this},
 			physicalMemoryBlockEraser_{*this},
 			firmwareDownloader_{*this},
-			metadataReceiver_{*this},
-				can_{can} {}
+			metadataReceiver_{*this} {}
 
 		void reset() {
 			status_ = Status::Ready;
@@ -352,7 +350,7 @@ namespace boot {
 		}
 	};
 
-	inline Bootloader bootloader{ canManager };
+	inline Bootloader bootloader;
 
 	static_assert(Bootloader::transactionMagic == 0x696c6548); //This value is stated in the protocol description
 

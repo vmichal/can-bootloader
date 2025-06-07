@@ -786,10 +786,10 @@ namespace boot {
 				logicalMemoryMapReceiver_.startSubtransaction();
 				status_ = Status::ReceivingFirmwareMemoryMap;
 
-				can_.yieldCommunication();
+				canManager.yieldCommunication();
 			}
 			else
-				can_.SendHandshake(physicalMemoryMapTransmitter_.update());
+				canManager.SendHandshake(physicalMemoryMapTransmitter_.update());
 			return;
 		default:
 			status_ = Status::Error; //TODO make more concrete
