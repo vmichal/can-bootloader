@@ -158,14 +158,10 @@ namespace boot {
 
 		Status status_ = Status::unitialized;
 		InformationSize firmware_size_ = 0_B, written_bytes_ = 0_B;
-		std::uint32_t checksum_ = 0;
-
 		std::span<MemoryBlock const> erasedBlocks_;
 		std::span<MemoryBlock const> firmwareBlocks_;
 		std::size_t current_block_index_ = 0;
 		std::uint32_t blockOffset_ = 0;
-
-		std::uint32_t calculate_checksum(std::uint32_t const data);
 
 		static int calculate_padding_width(std::uint32_t address, std::uint32_t const data, MemoryBlock const * next_block);
 
@@ -193,7 +189,6 @@ namespace boot {
 			auto const write_status = write(address, data);
 
 			// Update internal counters etc
-			checksum_ += calculate_checksum(data);
 			written_bytes_ += InformationSize::fromBytes(sizeof(data));
 			blockOffset_ += sizeof(data);
 			if (blockOffset_ == firmwareBlocks_[current_block_index_].length) {

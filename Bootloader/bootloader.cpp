@@ -35,6 +35,19 @@ namespace boot {
 			return HandshakeResponse::Ok;
 		}
 
+		constexpr std::uint32_t calculate_checksum(std::span<MemoryBlock const> logical_memory_map) {
+			std::uint32_t result = 0;
+			for (auto const& block : logical_memory_map) {
+				for (int offset_in_block = 0; offset_in_block < block.length; offset_in_block += sizeof(std::uint32_t)) {
+					std::uint32_t data = ufsel::bit::access_register(block.address + offset_in_block);
+					while (data) {
+						result += data & std::numeric_limits<std::uint16_t>::max();
+						data >>= std::numeric_limits<std::uint16_t>::digits;
+					}
+				}
+			}
+			return result;
+		}
 	}
 
 	WriteStatus FirmwareDownloader::checkAddressBeforeWrite(std::uint32_t const address) {
@@ -408,11 +421,13 @@ namespace boot {
 
 		case Status::receivingData:
 			assert_unreachable();
-		case Status::noMoreDataExpected:
+		case Status::noMoreDataExpected: {
+
 			if (reg != Register::Checksum)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			if (value != checksum_)
+			std::uint32_t const volatile checksum = calculate_checksum(firmwareBlocks_);
+			if (value != checksum)
 				return HandshakeResponse::ChecksumMismatch;
 
 			status_ = Status::receivedChecksum;
@@ -439,6 +454,7 @@ namespace boot {
 			}
 			return HandshakeResponse::Ok;
 
+		}
 		case Status::receivedChecksum:
 			if (auto const res = checkMagic(reg, value); res != HandshakeResponse::Ok)
 				return res;
@@ -454,15 +470,6 @@ namespace boot {
 			return HandshakeResponse::BootloaderInError;
 		}
 		assert_unreachable();
-	}
-
-	std::uint32_t FirmwareDownloader::calculate_checksum(std::uint32_t data) {
-		std::uint32_t result = 0;
-		while (data) {
-			result += data & std::numeric_limits<std::uint16_t>::max();
-			data >>= std::numeric_limits<std::uint16_t>::digits;
-		}
-		return result;
 	}
 
 	int FirmwareDownloader::calculate_padding_width(std::uint32_t address, std::uint32_t const data, MemoryBlock const * next_block) {
@@ -576,7 +583,6 @@ namespace boot {
 		status_ = Status::unitialized;
 		firmware_size_ = 0_B;
 		written_bytes_ = 0_B;
-		checksum_ = 0;
 
 		current_block_index_ = 0;
 		blockOffset_ = 0;
