@@ -93,17 +93,16 @@ namespace boot {
 				//We want to abort any ongoing transaction or no transaction in progress
 
 				canManager.SendExitAck(true);
+				flushCAN(get_rx_bus<Bootloader_ExitReq_t>(), 500_ms);
 				if (data->InitializeApplication) {
-					flushCAN(get_rx_bus<Bootloader_ExitReq_t>(), 500_ms);
 					// The startup CAN check can be skipped in this case, because we have just received flash master's command to exit the bootloader.
 					// It is therefore reasonable to assume that the master won't ask us to enter bootloader in 50 ms
 					resetTo(BackupDomain::magic::app_skip_can_check);
 				}
 				else {
-					// We cannot reset the MCU here! We may be in the middle of bootloader update transaction when
-					// the flash memory is erased and the only copy of BL lives in RAM.
-					bootloader.reset();
-					lastReceivedData.reset();
+					// We can reset the MCU here since even during the bootloader update transaction the old
+					// bootloader is overwritten by the new one "atomically" (no new CAN messages can be handled at that time)
+					resetTo(BackupDomain::magic::bootloader);
 				}
 				return 0;
 				});
@@ -172,7 +171,7 @@ namespace boot {
 				});
 
 			Bootloader_DataAck_on_receive([](Bootloader_DataAck_t* data) -> int {
-				//TODO implement for firmware dumping
+				bootloader.processDataAck(data->Result);
 				return 0;
 				});
 
@@ -206,7 +205,7 @@ namespace boot {
 				if (ping->Target != customization::thisUnit)
 					return 2;
 
-				if (ping->BootloaderRequested && !bootloader.updatingBootloader())
+				if (ping->BootloaderRequested && !bootloader.transactionInProgress())
 					resetTo(BackupDomain::magic::bootloader);
 				return 0;
 			});
@@ -259,6 +258,8 @@ namespace boot {
 			}
 
 			canManager.update();
+
+			bootloader.update();
 
 			if (tx_error_flags) {
 				canManager.set_pending_abort_request(handshake::abort(AbortCode::CanRxBufferFull, 0));

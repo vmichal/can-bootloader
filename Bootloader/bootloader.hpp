@@ -25,10 +25,11 @@
 namespace boot {
 
 	enum class TransactionType {
-		Unknown,
-		Flashing,
-		BootloaderUpdate
-		//TODO implement FirmwareDump
+		Unknown = 0,
+		Flashing = 1,
+		BootloaderUpdate = 2,
+		FirmwareReadout = 3,
+		BootloaderReadout = 4,
 	};
 
 	class Bootloader;
@@ -109,6 +110,45 @@ namespace boot {
 			blocks_received_ = 0;
 			blocks_expected_ = 0;
 			status_ = Status::uninitialized;
+		}
+	};
+
+	// TODO Does not check handshake acknowledges!
+	class LogicalMemoryMapTransmitter : public BootloaderSubtransactionBase {
+		enum class Status {
+			uninitialized,
+			pending,
+			masterYielded,
+			sentInitialMagic,
+
+			sendingBlockAddress,
+			sendingBlockLength,
+			done,
+			error,
+		};
+
+		Status status_ = Status::uninitialized;
+		decltype(ApplicationJumpTable::logical_memory_blocks_) blocks_;
+		std::uint32_t block_count_ = 0;
+		std::uint32_t blocks_sent_ = 0;
+
+	public:
+		[[nodiscard]] bool done() const { return status_ == Status::done; }
+		[[nodiscard]] bool error() const { return status_ == Status::error; }
+		void startSubtransaction();
+		void endSubtransaction() { status_ = Status::done; }
+		void processYield() { status_ = Status::masterYielded; }
+		Bootloader_Handshake_t update();
+
+		[[nodiscard]]
+		std::span<MemoryBlock const> logical_memory_map() const { return std::span{blocks_.begin(), block_count_ }; }
+
+		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
+
+		void reset() {
+			status_ = Status::uninitialized;
+			blocks_sent_ = 0;
+			block_count_ = 0;
 		}
 	};
 
@@ -221,6 +261,56 @@ namespace boot {
 		void reset();
 	};
 
+	class FirmwareUploader : public BootloaderSubtransactionBase {
+		enum class Status {
+			uninitialized,
+			pending,
+
+			sendFirmwareSize,
+			waitingForFirmwareSizeAck,
+			sendData,
+			waitForDataAck,
+			sentChecksum,
+
+			done,
+			error,
+		};
+
+		Status status_ = Status::uninitialized;
+		std::uint32_t firmware_size_ = 0;
+		std::span<MemoryBlock const> logical_memory_map_;
+		MemoryBlock const* current_block_ = nullptr;
+		std::uint32_t offset_in_block_ = 0;
+
+	public:
+		[[nodiscard]] bool done() const { return status_ == Status::done; }
+		[[nodiscard]] bool error() const { return status_ == Status::error; }
+		[[nodiscard]] bool ack_expected() const { return status_ == Status::waitForDataAck; }
+		[[nodiscard]] bool sending_data() const { return status_ == Status::sendData; }
+		void startSubtransaction(std::span<MemoryBlock const> logical_memory_map) {
+			status_ = Status::pending;
+			logical_memory_map_ = logical_memory_map;
+			current_block_ = std::to_address(logical_memory_map.begin());
+		}
+		void endSubtransaction() { status_ = Status::done; }
+		void update();
+		void handle_data_ack();
+		void restart_from_address(std::uint32_t address) {
+			auto const containing_block = std::ranges::find_if(logical_memory_map_, [address](MemoryBlock const& block) { return block.contains_address(address);});
+			current_block_ = std::to_address(containing_block);
+			offset_in_block_ = address - containing_block->address;
+		}
+
+		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
+
+		void reset() {
+			status_ = Status::uninitialized;
+			firmware_size_ = 0;
+			current_block_ = nullptr;
+			offset_in_block_ = 0;
+		}
+	};
+
 	class MetadataReceiver : public BootloaderSubtransactionBase {
 		enum class Status {
 			unitialized,
@@ -252,6 +342,34 @@ namespace boot {
 		}
 	};
 
+	class MetadataTransmitter : public BootloaderSubtransactionBase {
+		enum class Status {
+			uninitialized,
+			pending,
+
+			sendInterruptVector,
+			sendEntryPoint,
+			sendEndMagic,
+
+			done,
+			error,
+		};
+
+		Status status_ = Status::uninitialized;
+
+	public:
+		[[nodiscard]] bool done() const { return status_ == Status::done; }
+		[[nodiscard]] bool error() const { return status_ == Status::error; }
+		void startSubtransaction() { status_ = Status::pending; }
+		void endSubtransaction() { status_ = Status::done; }
+		Bootloader_Handshake_t update();
+
+		using BootloaderSubtransactionBase::BootloaderSubtransactionBase;
+
+		void reset() {
+			status_ = Status::uninitialized;
+		}
+	};
 
 	class Bootloader {
 
@@ -263,11 +381,17 @@ namespace boot {
 			std::span<MemoryBlock const> logical_memory_blocks_;
 		};
 
+		// Subtransactions for flashing or bootloader update
 		PhysicalMemoryMapTransmitter physicalMemoryMapTransmitter_;
 		LogicalMemoryMapReceiver logicalMemoryMapReceiver_;
 		PhysicalMemoryBlockEraser physicalMemoryBlockEraser_;
 		FirmwareDownloader firmwareDownloader_;
 		MetadataReceiver metadataReceiver_;
+
+		// Subtransactions for firmware or bootloader readout
+		LogicalMemoryMapTransmitter logicalMemoryMapTransmitter_;
+		FirmwareUploader firmwareUploader_;
+		MetadataTransmitter metadataTransmitter_;
 
 		Status status_ = Status::Ready;
 		bool stall_ = false;
@@ -275,13 +399,14 @@ namespace boot {
 		static inline EntryReason entryReason_ = EntryReason::Unknown;
 
 	public:
+		[[nodiscard]] TransactionType transaction_type() const { return transactionType_; }
 		[[nodiscard]] bool updatingBootloader() const { return transactionType_ == TransactionType::BootloaderUpdate; }
 		[[nodiscard]] AddressSpace expectedAddressSpace() const { return updatingBootloader() ? AddressSpace::BootloaderFlash : AddressSpace::ApplicationFlash; }
 
 	private:
 		//Sets the jumpTable
 		void finishFlashingTransaction() const;
-		FirmwareData summarizeFirmwareData() const;
+		[[nodiscard]] FirmwareData summarizeFirmwareData() const;
 
 		constexpr static auto magic_ = "Heli";
 	public:
@@ -312,6 +437,7 @@ namespace boot {
 		HandshakeResponse setNewVectorTable(std::uint32_t isr_vector);
 		HandshakeResponse processHandshake(Register reg, Command command, std::uint32_t value);
 		void processHandshakeAck(HandshakeResponse response);
+		void processDataAck(Bootloader_WriteResult result);
 
 		Bootloader_Handshake_t processYield();
 		static HandshakeResponse validateVectorTable(AddressSpace expected_space, std::uint32_t address);
@@ -330,19 +456,12 @@ namespace boot {
 			logicalMemoryMapReceiver_{*this},
 			physicalMemoryBlockEraser_{*this},
 			firmwareDownloader_{*this},
-			metadataReceiver_{*this} {}
+			metadataReceiver_{*this},
+			logicalMemoryMapTransmitter_{*this},
+			firmwareUploader_{*this},
+			metadataTransmitter_{*this} {}
 
-		void reset() {
-			status_ = Status::Ready;
-			stall_ = false;
-			transactionType_ = TransactionType::Unknown;
-			physicalMemoryMapTransmitter_.reset();
-			logicalMemoryMapReceiver_.reset();
-			physicalMemoryBlockEraser_.reset();
-			firmwareDownloader_.reset();
-			metadataReceiver_.reset();
-			Flash::writeBuffer_.reset();
-		}
+		void update();
 	};
 
 	inline Bootloader bootloader;

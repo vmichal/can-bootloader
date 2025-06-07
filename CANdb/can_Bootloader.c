@@ -1,7 +1,7 @@
 #include "can_Bootloader.h"
 #include <string.h>
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 01. 06. 2025 (dd. mm. yyyy) at 02.43.35 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 07. 06. 2025 (dd. mm. yyyy) at 14.27.13 (hh.mm.ss)
 
 
 CAN_ID_t const candb_sent_messages[9] = {

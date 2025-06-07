@@ -84,6 +84,11 @@ namespace boot {
 			process_tx_fifo(bus);
 	}
 
+	int CanManager::get_tx_buffer_free_space() {
+		bsp::can::bus_info_t const& bus = bsp::can::find_bus_info_by_bus(Bootloader_Handshake_get_rx_bus());
+		return ringbufFreeSpace(&tx_rb[bus.bus_index]);
+	}
+
 	void CanManager::SendSoftwareBuild() {
 
 		Bootloader_SoftwareBuild_t msg;
@@ -103,6 +108,15 @@ namespace boot {
 			set_pending_abort_request(handshake::abort(AbortCode::CanSendFailedExitAck));
 	}
 
+	void CanManager::SendData(std::uint32_t address, std::uint32_t word) {
+		Bootloader_Data_t message;
+
+		message.Address = address >> 2;
+		message.Word = word;
+
+		if (send(message))
+			set_pending_abort_request(handshake::abort(AbortCode::CanSendFailedData));
+	}
 
 	void CanManager::SendDataAck(std::uint32_t const address, WriteStatus const status) {
 		Bootloader_DataAck_t message;

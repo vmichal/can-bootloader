@@ -36,7 +36,9 @@ namespace boot {
 		ResumeSubtransaction = Bootloader_Command_ResumeSubtransaction,
 		SetNewVectorTable = Bootloader_Command_SetNewVectorTable,
 		RestartFromAddress = Bootloader_Command_RestartFromAddress,
-		StartBootloaderUpdate = Bootloader_Command_StartBootloaderUpdate
+		StartBootloaderUpdate = Bootloader_Command_StartBootloaderUpdate,
+		StartFirmwareReadout = Bootloader_Command_StartFirmwareReadout,
+		StartBootloaderReadout = Bootloader_Command_StartBootloaderReadout,
 	};
 
 	enum class HandshakeResponse {
@@ -114,13 +116,16 @@ namespace boot {
 		ComunicationStalled = Bootloader_State_CommunicationStalled,
 		/* Everything's fucked up */
 		EFU = Bootloader_State_EFU,
+		TransmittingMemoryMap = Bootloader_State_TransmittingMemoryMap,
+		UploadingFirmware = Bootloader_State_DumpingFirmware,
+		TransmittingMetadata = Bootloader_State_SendingMetadata,
 	};
 
 	enum class AbortCode {
 		ProcessYield = 0,
-		MemoryMapTransmit_Update_UninitPending = 1,
-		MemoryMapTransmit_Update_DoneYield = 2,
-		MemoryMapTransmit_Update_Error = 3,
+		PhysicalMemoryMapTransmit_Update_UninitPending = 1,
+		PhysicalMemoryMapTransmit_Update_DoneYield = 2,
+		PhysicalMemoryMapTransmit_Update_Error = 3,
 
 		FlashWrite = 4,
 		Assert = 5,
@@ -136,5 +141,24 @@ namespace boot {
 		CanSendFailedHandshake = 13,
 
 		CanRxBufferFull = 14,
+
+		LogicalMemoryMapTransmit_Update_UninitPending = 15,
+		LogicalMemoryMapTransmit_Update_DoneYield = 16,
+		LogicalMemoryMapTransmit_Update_Error = 17,
+		LogicalMemoryMapTransmit_incorrect_transaction_type = 18,
+
+
+		MetadataTransmitter_Update_Uninit = 19,
+		MetadataTransmitter_Update_Done = 20,
+		MetadataTransmitter_Update_Error = 21,
+
+		FirmwareUpload_Update_Uninit = 22,
+		FirmwareUpload_Update_Done = 23,
+		FirmwareUpload_Update_Error = 24,
+		FirmwareUpload_incorrect_transaction_type = 25,
+
+		CanSendFailedData = 26,
+		LogicalMemoryMapBlockLengthNotMultipleOf4 = 27,
+		UnexpectedDataAck = 28
 	};
 }

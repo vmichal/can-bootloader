@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 01. 06. 2025 (dd. mm. yyyy) at 02.43.35 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 07. 06. 2025 (dd. mm. yyyy) at 14.27.13 (hh.mm.ss)
 
 typedef enum {
     // Vehicle CAN buses
@@ -61,12 +61,10 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_FSB = 4,
     /* Steering wheel */
     Bootloader_BootTarget_STW = 5,
-    /* Emergency Brake System Supervisor (DV only) */
-    Bootloader_BootTarget_EBSS = 6,
+    /* GEPD Battery */
+    Bootloader_BootTarget_GEPD = 6,
     /* SiC motor controller front */
     Bootloader_BootTarget_DRTF = 7,
-    /* Steering Actuator (DV only) */
-    Bootloader_BootTarget_SA = 8,
     /* SiC motor controller rear */
     Bootloader_BootTarget_DRTR = 9,
     /* Left wing Measurebox */
@@ -79,7 +77,7 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_VDCU = 13,
     /* Anti-roll bar control unit */
     Bootloader_BootTarget_ARB = 14,
-    /* Brake balance control */
+    /* Previous BB, now Can isol board for DV motor */
     Bootloader_BootTarget_BB = 15,
 };
 
@@ -100,6 +98,10 @@ enum Bootloader_Command {
     Bootloader_Command_StartBootloaderUpdate = 6,
     /* Update the application jump table with new value of the isr vector. If the jump table was not valid, fill other metadata with zeros. */
     Bootloader_Command_SetNewVectorTable = 7,
+    /* Sent by the master to request dump (readout) of the flashed application firmware. */
+    Bootloader_Command_StartFirmwareReadout = 8,
+    /* Sent by the master to request dump (readout) of the flashed bootloader code. */
+    Bootloader_Command_StartBootloaderReadout = 9,
 };
 
 enum Bootloader_EntryReason {
@@ -244,6 +246,12 @@ enum Bootloader_State {
     Bootloader_State_CommunicationStalled = 8,
     /* Everything's fucked up */
     Bootloader_State_EFU = 9,
+    /* BL is transmitting the memory map of current firmware or bootloader */
+    Bootloader_State_TransmittingMemoryMap = 10,
+    /* BL is sending firmware metadata */
+    Bootloader_State_SendingMetadata = 11,
+    /* BL is sending firmware data */
+    Bootloader_State_DumpingFirmware = 12,
 };
 
 enum Bootloader_WriteResult {

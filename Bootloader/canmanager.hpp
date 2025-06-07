@@ -32,6 +32,7 @@ namespace boot {
 		void SendSoftwareBuild();
 		void SendBeacon(Status const BLstate, EntryReason const entryReason);
 
+		void SendData(std::uint32_t address, std::uint32_t word);
 		void SendDataAck(std::uint32_t address, WriteStatus result);
 		void SendExitAck(bool exitPossible);
 		void SendPingResponse(bool entering_bl);
@@ -45,6 +46,8 @@ namespace boot {
 		Bootloader_Handshake_t const& lastSentHandshake() const { return lastSentHandshake_;}
 
 		void update();
+
+		int get_tx_buffer_free_space();
 	};
 
 	inline CanManager canManager;

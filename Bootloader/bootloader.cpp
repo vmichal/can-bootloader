@@ -16,7 +16,10 @@
 #include <ufsel/time.hpp>
 
 extern "C" {
+	// Defined in linker script
 	extern std::uint32_t bootloader_update_buffer_begin[], bootloader_update_buffer_end[];
+
+	void Reset_Handler();
 }
 
 namespace boot {
@@ -172,7 +175,7 @@ namespace boot {
 		case Status::uninitialized:
 		case Status::pending: //Update function shall not be reached with these states
 			status_ = Status::error;
-			return handshake::abort(AbortCode::MemoryMapTransmit_Update_UninitPending, static_cast<int>(status_));
+			return handshake::abort(AbortCode::PhysicalMemoryMapTransmit_Update_UninitPending, static_cast<int>(status_));
 
 		case Status::masterYielded:
 			status_ = Status::sentInitialMagic;
@@ -201,9 +204,9 @@ namespace boot {
 		case Status::shouldYield:
 		case Status::done:
 			status_ = Status::error;
-			return handshake::abort(AbortCode::MemoryMapTransmit_Update_DoneYield, static_cast<int>(status_));
+			return handshake::abort(AbortCode::PhysicalMemoryMapTransmit_Update_DoneYield, static_cast<int>(status_));
 		case Status::error:
-			return handshake::abort(AbortCode::MemoryMapTransmit_Update_Error, static_cast<int>(status_));
+			return handshake::abort(AbortCode::PhysicalMemoryMapTransmit_Update_Error, static_cast<int>(status_));
 		}
 		assert_unreachable();
 	}
@@ -300,6 +303,76 @@ namespace boot {
 			return HandshakeResponse::InternalStateMachineError;
 		case Status::error:
 			return HandshakeResponse::BootloaderInError;
+		}
+		assert_unreachable();
+	}
+
+	void LogicalMemoryMapTransmitter::startSubtransaction() {
+		status_ = Status::pending;
+
+		switch (bootloader_.transaction_type()) {
+			case TransactionType::BootloaderReadout:
+				// There is no way of telling, how many logical memory logical memory blocks the bootloader consists of (there is no JumpTable for it)
+				blocks_[0] = MemoryBlock{.address = Flash::bootloaderAddress, .length = Flash::bootloaderMemorySize};
+				block_count_ = 1;
+				break;
+
+			case TransactionType::FirmwareReadout:
+				if (jumpTable.has_valid_metadata()) {
+					block_count_ = jumpTable.logical_memory_block_count_;
+					std::copy_n(jumpTable.logical_memory_blocks_.begin(), block_count_, blocks_.begin());
+				}
+				else {
+					blocks_[0] = MemoryBlock{.address = Flash::applicationAddress, .length = Flash::applicationMemorySize};
+					block_count_ = 1;
+				}
+				break;
+
+			default:
+				canManager.SendHandshake(handshake::abort(AbortCode::LogicalMemoryMapTransmit_incorrect_transaction_type, static_cast<int>(bootloader_.transaction_type())));
+		}
+	}
+
+	Bootloader_Handshake_t LogicalMemoryMapTransmitter::update() {
+		//the first "available" block. Bootloader is located in preceding memory pages.
+		std::uint32_t const firstBlockIndex = bootloader_.updatingBootloader() ? customization::firstBlockAvailableToBootloader : customization::firstBlockAvailableToApplication;
+		std::uint32_t const pagesToSend = bootloader_.updatingBootloader() ? PhysicalMemoryMap::bootloaderPages() : PhysicalMemoryMap::applicationPages();
+
+		switch (status_) {
+			case Status::uninitialized:
+			case Status::pending: //Update function shall not be reached with these states
+				status_ = Status::error;
+				return handshake::abort(AbortCode::LogicalMemoryMapTransmit_Update_UninitPending, static_cast<int>(status_));
+
+			case Status::masterYielded:
+				status_ = Status::sentInitialMagic;
+				return handshake::transactionMagic;
+
+			case Status::sentInitialMagic:
+				status_ = Status::sendingBlockAddress;
+				return handshake::create(Register::NumLogicalMemoryBlocks, Command::None, block_count_);
+
+			case Status::sendingBlockAddress: {
+				if (blocks_sent_ == block_count_) { //we have sent all available blocks
+					status_ = Status::done;
+					return handshake::transactionMagic;
+				}
+				status_ = Status::sendingBlockLength;
+				auto const currentBlock = blocks_[blocks_sent_];
+				return handshake::create(Register::LogicalBlockStart, Command::None, currentBlock.address);
+
+			}
+			case Status::sendingBlockLength: {
+				status_ = Status::sendingBlockAddress;
+				auto const currentBlock = blocks_[blocks_sent_];
+				++blocks_sent_;
+				return handshake::create(Register::LogicalBlockLength, Command::None, currentBlock.length);
+			}
+			case Status::done:
+				status_ = Status::error;
+				return handshake::abort(AbortCode::LogicalMemoryMapTransmit_Update_DoneYield, static_cast<int>(status_));
+			case Status::error:
+				return handshake::abort(AbortCode::LogicalMemoryMapTransmit_Update_Error, static_cast<int>(status_));
 		}
 		assert_unreachable();
 	}
@@ -590,6 +663,96 @@ namespace boot {
 		std::ranges::fill(bootloader_update_buffer_begin, bootloader_update_buffer_end, 0xcc'cc'cc'cc);
 	}
 
+	void FirmwareUploader::update() {
+
+		switch (status_) {
+			case Status::uninitialized: //Update function shall not be reached with these states
+				status_ = Status::error;
+				canManager.set_pending_abort_request(handshake::abort(AbortCode::FirmwareUpload_Update_Uninit, static_cast<int>(status_)));
+				return;
+
+			case Status::pending:
+				status_ = Status::sendFirmwareSize;
+				canManager.SendTransactionMagic();
+				return;
+
+			case Status::sendFirmwareSize:
+				switch (bootloader_.transaction_type()) {
+					case TransactionType::BootloaderReadout:
+						// There is no way of telling, how big the bootloader actually is (there is no JumpTable for it)
+						firmware_size_ = Flash::bootloaderMemorySize;
+						break;
+
+					case TransactionType::FirmwareReadout:
+						firmware_size_ = jumpTable.has_valid_metadata() ? jumpTable.firmwareSize_ : 0;
+						break;
+
+					default:
+						canManager.set_pending_abort_request(handshake::abort(AbortCode::FirmwareUpload_incorrect_transaction_type, static_cast<int>(bootloader_.transaction_type())));
+						break;
+				}
+				status_ = Status::waitingForFirmwareSizeAck;
+				canManager.SendHandshake(handshake::create(Register::FirmwareSize, Command::None, firmware_size_));
+				return;
+
+			case Status::waitingForFirmwareSizeAck:
+				status_ = Status::sendData;
+				[[fallthrough]];
+
+			case Status::sendData: {
+
+				if (canManager.get_tx_buffer_free_space() <= min_reserved_tx_buffer_bytes)
+					return; // Can't proceed now, buffer is almost full!
+
+				std::uint32_t const absolute_address = current_block_->address + offset_in_block_;
+				std::uint32_t const word = ufsel::bit::access_register(absolute_address);
+				canManager.SendData(absolute_address, word);
+
+				offset_in_block_ += sizeof(std::uint32_t);
+
+				if (offset_in_block_ > current_block_->length) {
+					canManager.set_pending_abort_request(handshake::abort(AbortCode::LogicalMemoryMapBlockLengthNotMultipleOf4, current_block_->length));
+					__BKPT();
+				}
+
+				if (offset_in_block_ == current_block_->length) {
+					offset_in_block_ = 0;
+					if (++current_block_ == std::to_address(logical_memory_map_.end()))
+						status_ = Status::waitForDataAck;
+				}
+
+				return;
+			}
+			case Status::waitForDataAck:
+				// No handshake expected now
+				status_ = Status::error;
+				canManager.set_pending_abort_request(handshake::abort(AbortCode::UnexpectedDataAck));
+				return;
+
+			case Status::sentChecksum:
+				status_ = Status::done;
+				canManager.SendTransactionMagic();
+				return;
+
+			case Status::done:
+				status_ = Status::error;
+				canManager.set_pending_abort_request(handshake::abort(AbortCode::FirmwareUpload_Update_Done, static_cast<int>(status_)));
+				return;
+			case Status::error:
+				canManager.set_pending_abort_request(handshake::abort(AbortCode::FirmwareUpload_Update_Error, static_cast<int>(status_)));
+				return;
+		}
+		assert_unreachable();
+	}
+
+	void FirmwareUploader::handle_data_ack() {
+		if (ack_expected()) {
+			canManager.SendHandshake(handshake::create(Register::Checksum, Command::None, calculate_checksum(logical_memory_map_)));
+			status_ = Status::sentChecksum;
+		}
+		//TODO handle unexpected DataAck?
+	}
+
 	HandshakeResponse Bootloader::validateVectorTable(AddressSpace const expected_space, std::uint32_t const address) {
 
 		if (Flash::addressOrigin(address) != expected_space)
@@ -657,12 +820,77 @@ namespace boot {
 		assert_unreachable();
 	}
 
+	Bootloader_Handshake_t MetadataTransmitter::update() {
+		switch (status_) {
+			case Status::uninitialized: //Update function shall not be reached with these states
+				status_ = Status::error;
+				return handshake::abort(AbortCode::MetadataTransmitter_Update_Uninit, static_cast<int>(status_));
+
+			case Status::pending:
+				status_ = Status::sendInterruptVector;
+				return handshake::transactionMagic;
+
+			case Status::sendInterruptVector: {
+
+				std::uint32_t isr_vector_to_send = 0;
+				switch (bootloader_.transaction_type()) {
+					case TransactionType::BootloaderReadout:
+						// TODO this is the best estimate of BL isr vector we currently have. Can't use pointer to interrupt_routines since that resides in CCM_RAM
+						isr_vector_to_send = Flash::bootloaderAddress;
+						break;
+
+					case TransactionType::FirmwareReadout:
+						isr_vector_to_send = jumpTable.has_valid_metadata() ? jumpTable.interruptVector_ : 0;
+						break;
+
+					default:
+						return handshake::abort(AbortCode::LogicalMemoryMapTransmit_incorrect_transaction_type, static_cast<int>(bootloader_.transaction_type()));
+				}
+				status_ = Status::sendEntryPoint;
+				return handshake::create(Register::InterruptVector, Command::None, isr_vector_to_send);
+			}
+
+			case Status::sendEntryPoint: {
+
+				std::uint32_t entry_point_to_send = 0;
+				switch (bootloader_.transaction_type()) {
+					case TransactionType::BootloaderReadout:
+						entry_point_to_send = reinterpret_cast<std::uint32_t>(&Reset_Handler);
+						break;
+
+					case TransactionType::FirmwareReadout:
+						entry_point_to_send = jumpTable.has_valid_metadata() ? ufsel::bit::access_register(jumpTable.interruptVector_ + 4) : 0;
+						break;
+
+					default:
+						return handshake::abort(AbortCode::LogicalMemoryMapTransmit_incorrect_transaction_type, static_cast<int>(bootloader_.transaction_type()));
+				}
+				status_ = Status::sendEndMagic;
+				return handshake::create(Register::EntryPoint, Command::None, entry_point_to_send);
+			}
+
+			case Status::sendEndMagic:
+				status_ = Status::done;
+				return handshake::transactionMagic;
+
+			case Status::done:
+				status_ = Status::error;
+				return handshake::abort(AbortCode::MetadataTransmitter_Update_Done, static_cast<int>(status_));
+			case Status::error:
+				return handshake::abort(AbortCode::MetadataTransmitter_Update_Error, static_cast<int>(status_));
+		}
+		assert_unreachable();
+	}
+
 
 	Bootloader_Handshake_t Bootloader::processYield() {
 		switch (status_) {
 		case Status::TransmittingPhysicalMemoryBlocks:
 			physicalMemoryMapTransmitter_.processYield();
 			return physicalMemoryMapTransmitter_.update(); //send the initial transaction magic straight away
+		case Status::TransmittingMemoryMap:
+			logicalMemoryMapTransmitter_.processYield();
+			return logicalMemoryMapTransmitter_.update(); //send the initial transaction magic straight away
 		default:
 			status_ = Status::Error; //TODO make more concrete
 			return handshake::abort(AbortCode::ProcessYield, static_cast<int>(status_));
@@ -719,6 +947,12 @@ namespace boot {
 				transactionType_ = command == Command::StartTransactionFlashing ? TransactionType::Flashing : TransactionType::BootloaderUpdate;
 				physicalMemoryMapTransmitter_.startSubtransaction();
 				return HandshakeResponse::Ok;
+			case Command::StartFirmwareReadout:
+			case Command::StartBootloaderReadout:
+				status_ = Status::TransmittingMemoryMap;
+				transactionType_ = command == Command::StartFirmwareReadout ? TransactionType::FirmwareReadout : TransactionType::BootloaderReadout;
+				logicalMemoryMapTransmitter_.startSubtransaction();
+				return HandshakeResponse::Ok;
 			case Command::SetNewVectorTable: {
 
 				auto const response = setNewVectorTable(value);
@@ -729,12 +963,13 @@ namespace boot {
 			default:
 				return HandshakeResponse::UnknownTransactionType;
 			}
-			assert_unreachable();
+			break;
 
 		case Status::TransmittingPhysicalMemoryBlocks:
 			//During this stage the bootloader transmits data. The master therefore should not proceed
 			return HandshakeResponse::HandshakeNotExpected;
 
+		// Flash or bootloader update path:
 		case Status::ReceivingFirmwareMemoryMap: {
 
 			auto const result = logicalMemoryMapReceiver_.receive(reg, command, value);
@@ -774,16 +1009,36 @@ namespace boot {
 			}
 			return result;
 		}
+
+		// Readout path:
+		case Status::TransmittingMemoryMap:
+			//During this stage the bootloader transmits data. The master therefore should not proceed
+			return HandshakeResponse::HandshakeNotExpected;
+
+		case Status::UploadingFirmware:
+			if (reg == Register::Command && command == Command::RestartFromAddress) {
+				firmwareUploader_.restart_from_address(value);
+				return HandshakeResponse::Ok;
+			}
+			else
+				return HandshakeResponse::HandshakeNotExpected;
+
+		case Status::TransmittingMetadata:
+			//During this stage the bootloader transmits data. The master therefore should not proceed
+			return HandshakeResponse::HandshakeNotExpected;
+
+
+		// Error path:
 		case Status::EFU:
 		case Status::Error:
 		case Status::ComunicationStalled:
 			return HandshakeResponse::BootloaderInError;
 		}
-
 		assert_unreachable();
 	}
 
 	void Bootloader::processHandshakeAck(HandshakeResponse const response) {
+		// TODO this should check the response
 		switch (status_) {
 		case Status::TransmittingPhysicalMemoryBlocks:
 			if (physicalMemoryMapTransmitter_.shouldYield()) {
@@ -797,6 +1052,41 @@ namespace boot {
 			else
 				canManager.SendHandshake(physicalMemoryMapTransmitter_.update());
 			return;
+
+		case Status::TransmittingMemoryMap:
+			// TODO this actually never checks the handshake response...
+			if (logicalMemoryMapTransmitter_.done()) {
+				logicalMemoryMapTransmitter_.endSubtransaction();
+				status_ = Status::TransmittingMetadata;
+
+				metadataTransmitter_.startSubtransaction();
+				canManager.SendHandshake(metadataTransmitter_.update());
+			}
+			else
+				canManager.SendHandshake(logicalMemoryMapTransmitter_.update());
+			return;
+
+		case Status::TransmittingMetadata:
+			if (metadataTransmitter_.done()) {
+				metadataTransmitter_.endSubtransaction();
+				status_ = Status::UploadingFirmware;
+
+				firmwareUploader_.startSubtransaction(logicalMemoryMapTransmitter_.logical_memory_map());
+				firmwareUploader_.update();
+			}
+			else
+				canManager.SendHandshake(metadataTransmitter_.update());
+			return;
+
+		case Status::UploadingFirmware:
+			if (firmwareUploader_.done()) {
+				firmwareUploader_.endSubtransaction();
+				status_ = Status::Ready;
+			}
+			else
+				firmwareUploader_.update();
+
+			return;
 		default:
 			status_ = Status::Error; //TODO make more concrete
 			return;
@@ -804,8 +1094,29 @@ namespace boot {
 		assert_unreachable();
 	}
 
+	void Bootloader::processDataAck(Bootloader_WriteResult result) {
+		switch (status_) {
+			case Status::UploadingFirmware:
+				firmwareUploader_.handle_data_ack();
+				break;
 
+			default:
+				assert_unreachable();
+		}
+	}
 
+	void Bootloader::update() {
+		switch (status_) {
+			case Status::UploadingFirmware:
+				if (firmwareUploader_.sending_data())
+					firmwareUploader_.update();
+				break;
+
+			default:
+				// No operation, everything is handled from CAN message handlers such as processHandshake
+				break;
+		}
+	}
 
 	void Bootloader::setEntryReason(EntryReason reason) {
 		bool const requested_during_startup_check = entryReason_ == EntryReason::StartupCanBusCheck && reason == EntryReason::Requested;
