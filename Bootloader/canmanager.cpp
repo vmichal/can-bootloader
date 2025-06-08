@@ -84,9 +84,9 @@ namespace boot {
 			process_tx_fifo(bus);
 	}
 
-	int CanManager::get_tx_buffer_free_space() {
+	int CanManager::get_tx_buffer_size() {
 		bsp::can::bus_info_t const& bus = bsp::can::find_bus_info_by_bus(Bootloader_Handshake_get_rx_bus());
-		return ringbufFreeSpace(&tx_rb[bus.bus_index]);
+		return ringbufSize(&tx_rb[bus.bus_index]);
 	}
 
 	void CanManager::SendSoftwareBuild() {

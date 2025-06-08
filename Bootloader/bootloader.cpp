@@ -701,7 +701,7 @@ namespace boot {
 
 			case Status::sendData: {
 
-				if (canManager.get_tx_buffer_free_space() <= min_reserved_tx_buffer_bytes)
+				if (canManager.get_tx_buffer_size() > max_tx_buffer_fill_by_data)
 					return; // Can't proceed now, buffer is almost full!
 
 				std::uint32_t const absolute_address = current_block_->address + offset_in_block_;

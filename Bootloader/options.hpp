@@ -332,8 +332,8 @@ namespace boot {
 	constexpr std::uint32_t smallestPageSize = (*std::min_element(physicalMemoryBlocks.begin(), physicalMemoryBlocks.end(),[](auto const &a, auto const &b) {return a.length < b.length;} )).length;
 	constexpr static std::size_t flash_write_buffer_size = 1024;
 
-	// Minimal number of bytes of the tx_buffer that are not filled when transmitting firmware via the Data message
-	constexpr static int min_reserved_tx_buffer_bytes = 256;
+	// Prevents the FirmwareUploader from flooding the tx buffer
+	constexpr static int max_tx_buffer_fill_by_data = (16 + 8) * 5;
 }
 
 

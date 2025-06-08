@@ -47,7 +47,7 @@ namespace boot {
 
 		void update();
 
-		int get_tx_buffer_free_space();
+		int get_tx_buffer_size();
 	};
 
 	inline CanManager canManager;
