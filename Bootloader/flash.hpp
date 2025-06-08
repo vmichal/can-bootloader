@@ -47,16 +47,16 @@ namespace boot {
 	};
 
 	enum class WriteStatus {
-		Ok,
-		NotInErasedMemory,
-		MemoryProtected,
-		NotInFlash,
-		AlreadyWritten,
-		NotReady,
-		DiscontinuousWriteAccess,
-		InsufficientData,
-		NotAligned,
-		OtherError,
+		Ok = 0,
+		NotInErasedMemory = 1,
+		MemoryProtected = 2,
+		NotInFlash = 3,
+		AlreadyWritten = 4,
+		NotReady = 5,
+		DiscontinuousWriteAccess = 6,
+		InsufficientData = 7,
+		NotAligned = 8,
+		OtherError = 9,
 	};
 
 	template<typename T>

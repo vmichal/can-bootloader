@@ -53,7 +53,7 @@ namespace boot {
 		}
 	}
 
-	WriteStatus FirmwareDownloader::checkAddressBeforeWrite(std::uint32_t const address) {
+	WriteStatus FirmwareDownloader::checkAddressBeforeWrite(std::uint32_t const address, std::uint32_t const data) const {
 
 		AddressSpace const origin = Flash::addressOrigin(address);
 		switch (origin) {
@@ -71,10 +71,14 @@ namespace boot {
 			return WriteStatus::NotInFlash;
 		}
 
+		if (address % sizeof(data) != 0)
+			return WriteStatus::NotAligned;
+
 		assert(Flash::isBootloaderAddress(address) == bootloader_.updatingBootloader());
 
-		if (expectedWriteLocation() != address)
-			return WriteStatus::DiscontinuousWriteAccess;
+		std::uint32_t const expected_address = expectedWriteLocation();
+		if (address != expected_address)
+			return address < expected_address ? WriteStatus::AlreadyWritten : WriteStatus::DiscontinuousWriteAccess;
 
 		//see whether this is not the same page as the last one written.
 		//if it is, we can let the write continue.

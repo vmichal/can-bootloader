@@ -19,8 +19,9 @@ namespace boot {
 	namespace {
 		Bootloader_WriteResult toCan(boot::WriteStatus s) {
 			switch (s) {
-			case boot::WriteStatus::AlreadyWritten:
-				return Bootloader_WriteResult_AlreadyWritten;
+			// Already written is now ok
+			//case boot::WriteStatus::AlreadyWritten:
+			//	return Bootloader_WriteResult_AlreadyWritten;
 
 			case boot::WriteStatus::MemoryProtected:
 			case boot::WriteStatus::NotInErasedMemory:
@@ -30,6 +31,7 @@ namespace boot {
 
 			case boot::WriteStatus::Ok:
 			case boot::WriteStatus::InsufficientData:
+			case boot::WriteStatus::AlreadyWritten:
 				return Bootloader_WriteResult_Ok;
 
 			case boot::WriteStatus::DiscontinuousWriteAccess:

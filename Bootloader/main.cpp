@@ -151,6 +151,7 @@ namespace boot {
 				switch (ret) {
 					case WriteStatus::Ok:
 					case WriteStatus::InsufficientData:
+					case WriteStatus::AlreadyWritten: // Allow "rewrites" of locations we have already written to
 						return 0;
 					case WriteStatus::DiscontinuousWriteAccess:
 					case WriteStatus::NotInFlash: {

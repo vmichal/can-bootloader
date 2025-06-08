@@ -214,17 +214,14 @@ namespace boot {
 		static WriteStatus update_flash_write_buffer();
 
 	public:
-		WriteStatus checkAddressBeforeWrite(std::uint32_t address);
+		WriteStatus checkAddressBeforeWrite(std::uint32_t address, std::uint32_t data) const;
 
 		WriteStatus check_and_write(std::uint32_t address, std::uint32_t const data) {
 			if (!data_expected())
 				return WriteStatus::NotReady;
 
-			if (WriteStatus const ret = checkAddressBeforeWrite(address); ret != WriteStatus::Ok)
+			if (WriteStatus const ret = checkAddressBeforeWrite(address, data); ret != WriteStatus::Ok)
 				return ret;
-
-			if (address % sizeof(data) != 0)
-				return WriteStatus::NotAligned;
 
 			auto const write_status = write(address, data);
 
