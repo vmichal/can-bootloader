@@ -38,11 +38,13 @@ namespace boot {
 			return HandshakeResponse::Ok;
 		}
 
-		constexpr std::uint32_t calculate_checksum(std::span<MemoryBlock const> logical_memory_map) {
+		constexpr std::uint32_t calculate_checksum(std::span<MemoryBlock const> logical_memory_map, bool is_bootloader) {
 			std::uint32_t result = 0;
 			for (auto const& block : logical_memory_map) {
-				for (int offset_in_block = 0; offset_in_block < block.length; offset_in_block += sizeof(std::uint32_t)) {
-					std::uint32_t data = ufsel::bit::access_register(block.address + offset_in_block);
+				for (std::uint32_t address = block.address; address < end(block); address += sizeof(std::uint32_t)) {
+					std::uint32_t data = is_bootloader
+							? bootloader_update_buffer_begin[(address - Flash::bootloaderAddress) / sizeof(std::uint32_t)]
+							: ufsel::bit::access_register(address);
 					while (data) {
 						result += data & std::numeric_limits<std::uint16_t>::max();
 						data >>= std::numeric_limits<std::uint16_t>::digits;
@@ -503,7 +505,7 @@ namespace boot {
 			if (reg != Register::Checksum)
 				return HandshakeResponse::HandshakeSequenceError;
 
-			std::uint32_t const volatile checksum = calculate_checksum(firmwareBlocks_);
+			std::uint32_t const volatile checksum = calculate_checksum(firmwareBlocks_, bootloader_.updatingBootloader());
 			if (value != checksum)
 				return HandshakeResponse::ChecksumMismatch;
 
@@ -751,7 +753,7 @@ namespace boot {
 
 	void FirmwareUploader::handle_data_ack() {
 		if (ack_expected()) {
-			canManager.SendHandshake(handshake::create(Register::Checksum, Command::None, calculate_checksum(logical_memory_map_)));
+			canManager.SendHandshake(handshake::create(Register::Checksum, Command::None, calculate_checksum(logical_memory_map_, false)));
 			status_ = Status::sentChecksum;
 		}
 		//TODO handle unexpected DataAck?
