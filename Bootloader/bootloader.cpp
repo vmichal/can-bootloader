@@ -499,7 +499,7 @@ namespace boot {
 			return HandshakeResponse::Ok;
 
 		case Status::receivingData:
-			assert_unreachable();
+			return HandshakeResponse::HandshakeNotExpected;
 		case Status::noMoreDataExpected: {
 
 			if (reg != Register::Checksum)
