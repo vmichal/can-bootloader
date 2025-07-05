@@ -26,15 +26,7 @@ class Config:
 	can2 : Optional[CAN]
 
 def build_configuration(data : Config):
-	try:
-		os.mkdir(f'build')
-	except FileExistsError:
-		pass
-
-	try:
-		os.mkdir(f'build/{data.car}_{data.ecu}',)
-	except FileExistsError:
-		pass
+	os.makedirs(f'build/{data.car}_{data.ecu}', exist_ok=True)
 
 	def format_pin(pin):
 		# All "old" (pre-CTU24 ECUs) had their CAN peripherals allocated such that the pin alternate function was always 9
