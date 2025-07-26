@@ -72,7 +72,7 @@ def parse_args():
 	parser = argparse.ArgumentParser(description="Build eForce Prague Formula bootloader.")
 
 	# Add mutually exclusive group
-	parser.add_argument('--all', action='store_true', help="If set, process all cars and vehicles.")
+	parser.add_argument('--all', action='store_true', help="If set, process all units.")
 	parser.add_argument('car', nargs='?', help="Provide a car name.")
 	parser.add_argument('ecu', nargs='?', help="Provide an ECU name.")
 
@@ -131,7 +131,8 @@ if __name__ == '__main__':
 
 	if args.all:
 		for data in reversed(build_data):
-			build_configuration(data)
+			if args.car is None or data.car == args.car:
+				build_configuration(data)
 	else:
 
 		if None in (args.car, args.ecu):
