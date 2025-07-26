@@ -323,7 +323,7 @@ namespace boot {
 	static_assert(customization::flashProgrammingParallelism == 16 || customization::flashProgrammingParallelism == 32 || customization::flashProgrammingParallelism == 64, "Unsupported flash programming parallelism!");
 
 	constexpr bool rebootAfterHardfault = true;
-	constexpr auto rebootDelayHardfault = 10_s;
+	constexpr auto rebootDelayHardfault = 2_s;
 
 	constexpr Frequency SYSCLK = 64_MHz;
 

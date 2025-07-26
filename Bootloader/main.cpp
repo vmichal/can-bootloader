@@ -275,6 +275,8 @@ namespace boot {
 	extern "C" [[noreturn]] void EverythingsFuckedUpHandler(Bootloader_Handshake_t abort_handshake) {
 		Timestamp const hardfaultEntryTime = Timestamp::Now();
 
+		__disable_irq(); // May need to disable interrupts, especially in case we got here in thread mode
+
 		for (;;) {
 			if (ufsel::bit::all_set(SysTick->CTRL, SysTick_CTRL_COUNTFLAG_Msk)) {
 				// When invoked from HF handler, SysTick interrupt would never occur

@@ -130,7 +130,6 @@ namespace boot {
 		FlashWrite = 4,
 		Assert = 5,
 		UnreachableCode = 6,
-		HardFault = 6,
 		FlashErase = 7,
 
 		CanSendFailedExitAck = 8,
@@ -161,5 +160,6 @@ namespace boot {
 		LogicalMemoryMapBlockLengthNotMultipleOf4 = 27,
 		UnexpectedDataAck = 28,
 		VeryUnexpectedDataAck = 29,
+		HardFault = 30,
 	};
 }

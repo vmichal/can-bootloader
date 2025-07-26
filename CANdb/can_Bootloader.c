@@ -47,7 +47,7 @@ int32_t Bootloader_Beacon_last_sent;
 int32_t Bootloader_SoftwareBuild_last_sent;
 
 void candbInit(void) {
-    canInitMsgStatus(&Bootloader_Handshake_status, bus_UNDEFINED, -1);
+    canInitMsgStatus(&Bootloader_Handshake_status, bus_ALL, -1);
     canInitMsgStatus(&Bootloader_HandshakeAck_status, bus_UNDEFINED, -1);
     canInitMsgStatus(&Bootloader_CommunicationYield_status, bus_UNDEFINED, -1);
     canInitMsgStatus(&Bootloader_Data_status, bus_UNDEFINED, -1);
