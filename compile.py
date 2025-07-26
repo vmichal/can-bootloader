@@ -1,5 +1,6 @@
 #!/bin/python3
 import sys, os, collections, subprocess, dataclasses, argparse
+import concurrent.futures
 
 from typing import Optional
 
@@ -73,6 +74,7 @@ def parse_args():
 
 	# Add mutually exclusive group
 	parser.add_argument('--all', action='store_true', help="If set, process all units.")
+	parser.add_argument('--workers', type=int, default=1, help="Number of workers in parallel.")
 	parser.add_argument('car', nargs='?', help="Provide a car name.")
 	parser.add_argument('ecu', nargs='?', help="Provide an ECU name.")
 
@@ -111,7 +113,6 @@ if __name__ == '__main__':
 		Config(car='CTU24', ecu='MBOXR', mcu='g4', hse_mhz=12, can1=None, can2=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11, AF=9), TX=Pin(port='A', pin=12, AF=9))),
 		Config(car='CTU24', ecu='STW', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11, AF=9), TX=Pin(port='A', pin=12, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12, AF=9), TX=Pin(port='B', pin=13, AF=9))),
 
-		# TODO fill
 		Config(car='CTU24', ecu='DSH', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0, AF=9), TX=Pin(port='D', pin=1, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5, AF=9), TX=Pin(port='B', pin=6, AF=9))),
 
 		# CTU25 (this information is also listed in the thread https://discord.com/channels/1141355470108499979/1250739945052704779)
@@ -129,10 +130,12 @@ if __name__ == '__main__':
 
 	args = parse_args()
 
+	configurations_to_build = []
+
 	if args.all:
 		for data in reversed(build_data):
 			if args.car is None or data.car == args.car:
-				build_configuration(data)
+				configurations_to_build.append(data)
 	else:
 
 		if None in (args.car, args.ecu):
@@ -140,10 +143,12 @@ if __name__ == '__main__':
 
 		for data in build_data:
 			if data.car.lower() == args.car.lower() and data.ecu.lower() == args.ecu.lower():
-				build_configuration(data)
+				configurations_to_build.append(data)
 				break
 		else:
 			print(f'Could not find configuration for {args.car} {args.ecu}')
 
+	with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as executor:
+		executor.map(build_configuration, configurations_to_build)
 
 
