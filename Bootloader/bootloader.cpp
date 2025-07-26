@@ -1100,15 +1100,17 @@ namespace boot {
 		assert_unreachable();
 	}
 
-	void Bootloader::processDataAck(Bootloader_WriteResult result) {
+	bool Bootloader::processDataAck(Bootloader_WriteResult result) {
 		switch (status_) {
 			case Status::UploadingFirmware:
 				firmwareUploader_.handle_data_ack();
+				return true;
 				break;
 
 			default:
-				assert_unreachable();
+				return false;
 		}
+		assert_unreachable();
 	}
 
 	void Bootloader::update() {

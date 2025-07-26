@@ -159,6 +159,7 @@ namespace boot {
 
 		CanSendFailedData = 26,
 		LogicalMemoryMapBlockLengthNotMultipleOf4 = 27,
-		UnexpectedDataAck = 28
+		UnexpectedDataAck = 28,
+		VeryUnexpectedDataAck = 29,
 	};
 }

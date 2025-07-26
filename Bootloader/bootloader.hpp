@@ -434,7 +434,7 @@ namespace boot {
 		HandshakeResponse setNewVectorTable(std::uint32_t isr_vector);
 		HandshakeResponse processHandshake(Register reg, Command command, std::uint32_t value);
 		void processHandshakeAck(HandshakeResponse response);
-		void processDataAck(Bootloader_WriteResult result);
+		bool processDataAck(Bootloader_WriteResult result);
 
 		Bootloader_Handshake_t processYield();
 		static HandshakeResponse validateVectorTable(AddressSpace expected_space, std::uint32_t address);

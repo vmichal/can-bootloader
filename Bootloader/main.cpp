@@ -172,7 +172,9 @@ namespace boot {
 				});
 
 			Bootloader_DataAck_on_receive([](Bootloader_DataAck_t* data) -> int {
-				bootloader.processDataAck(data->Result);
+				bool const result = bootloader.processDataAck(data->Result);
+				if (!result)
+					canManager.SendHandshake(handshake::abort(AbortCode::VeryUnexpectedDataAck, 0));
 				return 0;
 				});
 
