@@ -12,6 +12,7 @@
 
 #include <ufsel/bit.hpp>
 #include <ufsel/assert.hpp>
+#include <ufsel/traits.hpp>
 #include "options.hpp"
 
 #include <span>
@@ -60,7 +61,7 @@ namespace boot {
 	};
 
 	template<typename T>
-	concept WriteableIntegral = std::is_same_v<T, std::uint16_t> || std::is_same_v<T, std::uint32_t> || std::is_same_v<T, std::uint64_t>;
+	concept WriteableIntegral = ufsel::traits::type_is_one_of_v<T, std::uint16_t, std::uint32_t, std::uint64_t>;
 
 	template<std::size_t CAPACITY>
 	struct FlashWriteBuffer {
