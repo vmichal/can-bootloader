@@ -20,9 +20,6 @@
 #include <BSP/fdcan.hpp>
 #include <BSP/gpio.hpp>
 
-extern "C" {
-	extern volatile int tx_error_flags;
-}
 
 /*After consulting with Patrik, disassembly proved that this variable is initialized as part of .data init.
 It is therefore available even before SystemInit is called and thus can be trusted to be valid before almost everything else.*/
@@ -263,11 +260,6 @@ namespace boot {
 			canManager.update();
 
 			bootloader.update();
-
-			if (tx_error_flags) {
-				canManager.set_pending_abort_request(handshake::abort(AbortCode::CanRxBufferFull, 0));
-				tx_error_flags = 0;
-			}
 		}
 
 	}

@@ -161,5 +161,6 @@ namespace boot {
 		UnexpectedDataAck = 28,
 		VeryUnexpectedDataAck = 29,
 		HardFault = 30,
+		txLibError = 31,
 	};
 }

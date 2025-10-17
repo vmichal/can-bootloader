@@ -55,6 +55,12 @@ namespace boot {
 
 		constinit inline std::array<ringbuf_t, bsp::can::num_used_buses> tx_rb = initialize_tx_ringbuffers();
 
+		struct tx_fifo_message_header {
+			CAN_ID_t id;
+			uint8_t length;
+		};
+		static_assert(sizeof(tx_fifo_message_header) == 8);
+
 		inline void process_tx_fifo(bsp::can::bus_info_t const& bus_info) {
 			ringbuf_t & rb = tx_rb[bus_info.bus_index];
 			auto * const peripheral = bus_info.get_peripheral();
@@ -65,7 +71,7 @@ namespace boot {
 
 				// Read message header & data. The message in the rx buffer may not yet be complete,
 				// in that case we abort and try again next time.
-				CAN_msg_header hdr;
+				tx_fifo_message_header hdr;
 				bool const header_ok = ringbufTryRead(&rb, (uint8_t*) &hdr, sizeof(hdr), &read_pos) == sizeof(hdr);
 				assert(header_ok); //well, what else do we have..
 
@@ -200,6 +206,15 @@ namespace boot {
    These functions must use C linkage, because they are used by the code generated from CANdb (which is pure C). */
 
 extern "C" {
+
+void txHandleError(txError error, int bus, CAN_ID_t id, const void * data, size_t length) {
+	using namespace boot;
+	if (error == TX_RECV_BUFFER_OVERFLOW)
+		canManager.set_pending_abort_request(handshake::abort(AbortCode::CanRxBufferFull, int(error) << 16 | length << 8 | bus));
+	else
+		canManager.set_pending_abort_request(handshake::abort(AbortCode::txLibError, int(error) << 16 | length << 8 | bus));
+}
+
 uint32_t txGetTimeMillis() {
 	return systemStartupTime.TimeElapsed().toMilliseconds();
 }
@@ -225,7 +240,7 @@ int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, s
 	if (!ringbufCanWrite(&rb, required_size))
 		return 1;
 
-	struct CAN_msg_header hdr = {0, bus, id, (uint16_t)length};
+	boot::tx_fifo_message_header hdr{ .id = id, .length = (uint8_t)length};
 	ringbufWriteUnchecked(&rb, (const uint8_t*) &hdr, sizeof(hdr));
 	ringbufWriteUnchecked(&rb, (const uint8_t*) data, length);
 

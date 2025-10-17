@@ -22,14 +22,17 @@ extern "C" {
 
 typedef uint32_t CAN_ID_t;
 
-enum {
+typedef enum {
+	TX_OK = 0,
 	TX_RECV_BUFFER_OVERFLOW = (1<<0),
 	TX_SEND_BUFFER_OVERFLOW = (1<<1),
 	TX_UNHANDLED_MESSAGE = (1<<2),
 	TX_IO_ERROR = (1<<3),
 	TX_NOT_IMPLEMENTED = (1<<4),
 	TX_BAD_IRQ = (1<<5),
-};
+	TX_LENGTH_MISMATCH = (1<<6),
+	TX_RECV_BUFFER_CORRUPTED = (1<<7),
+} txError;
 
 int txReceiveCANMessage(int bus, CAN_ID_t id, const void* data, size_t length);
 void txProcess(void);
@@ -41,6 +44,7 @@ bool txBufferGettingEmpty();
 uint32_t txGetTimeMillis(void);
 int txHandleCANMessage(uint32_t timestamp, int bus, CAN_ID_t id, const void* data, size_t length);
 int txSendCANMessage(int bus, CAN_ID_t id, const void* data, size_t length);
+void txHandleError(txError error, int bus, CAN_ID_t id, const void * data, size_t length);
 
 #ifdef __cplusplus
 }

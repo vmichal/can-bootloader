@@ -11,6 +11,8 @@ include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/DummySyscalls.cmake")
 string(APPEND CMAKE_CXX_FLAGS " -DUFSEL_USING_TIME")
 add_definitions(-DUFSEL_USING_UNITS -DUFSEL_USING_UNIT_LITERALS -DUFSEL_USING_CHEAP_ASSERT)
 
+add_definitions("-DTX_RECV_BUFFER_SIZE=(16*1024)")
+
 add_definitions(-DECU_NAME=${ECU_NAME})
 add_definitions(-DHSE_FREQ=${HSE_FREQ})
 

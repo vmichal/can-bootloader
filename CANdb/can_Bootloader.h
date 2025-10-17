@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 07. 06. 2025 (dd. mm. yyyy) at 14.27.13 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 17. 10. 2025 (dd. mm. yyyy) at 17.15.12 (hh.mm.ss)
 
 typedef enum {
     // Vehicle CAN buses
@@ -17,12 +17,12 @@ typedef enum {
     bus_CAN2 = 1,
     bus_UNDEFINED = 12,
     // Other constants useful to the software
-    bus_ALL = 13, // Send to all vehicle buses (e.g. unit SoftwareBuild)
-    bus_FORWARD = 14, // Represents a local CAN the ECU forwards messages to (e.g. CTU24 PDL, VDCU and QUAD LV Conn).
+    bus_ALL = 15, // Send to all vehicle buses (e.g. unit SoftwareBuild)
+    bus_FORWARD = 16, // Represents a local CAN the ECU forwards messages to (e.g. CTU24 PDL, VDCU and QUAD LV Conn).
 } candb_bus_t;
 
 enum { Bootloader_Handshake_id          = STD_ID(0x620) };
-enum { Bootloader_Handshake_tx_bus      = bus_UNDEFINED };
+enum { Bootloader_Handshake_tx_bus      = bus_CAN2 };
 enum { Bootloader_HandshakeAck_id       = STD_ID(0x621) };
 enum { Bootloader_HandshakeAck_tx_bus   = bus_UNDEFINED };
 enum { Bootloader_CommunicationYield_id = STD_ID(0x622) };
@@ -67,7 +67,7 @@ enum Bootloader_BootTarget {
     Bootloader_BootTarget_DRTF = 7,
     /* SiC motor controller rear */
     Bootloader_BootTarget_DRTR = 9,
-    /* Left wing Measurebox */
+    /* Formerly left wing Measurebox, now sidewing MBOX */
     Bootloader_BootTarget_MBOXL = 10,
     /* Right wing Measurebox */
     Bootloader_BootTarget_MBOXR = 11,
@@ -366,6 +366,9 @@ typedef struct Bootloader_Ping_t {
 
 	/* Shall the targeted unit reset into bootloader? */
 	uint8_t	BootloaderRequested;
+
+	/* The target ECU is kindly asked to reduce traffic on this bus */
+	uint8_t	SilenceRequested;
 } Bootloader_Ping_t;
 
 
@@ -443,77 +446,85 @@ typedef struct Bootloader_SoftwareBuild_t {
 
 void        candbInit              (void);
 
-int Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
-int Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, enum Bootloader_BootTarget* Target_out, uint32_t* Value_out);
+bool Bootloader_decode_Handshake_s(const uint8_t* bytes, size_t length, Bootloader_Handshake_t* data_out);
+bool Bootloader_decode_Handshake(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_Command* Command_out, enum Bootloader_BootTarget* Target_out, uint32_t* Value_out);
 int Bootloader_send_Handshake_s(const Bootloader_Handshake_t* data);
-int Bootloader_get_Handshake(Bootloader_Handshake_t* data_out);
+uint32_t Bootloader_get_Handshake(Bootloader_Handshake_t* data_out);
 uint32_t Bootloader_Handshake_get_flags(void);
 void Bootloader_Handshake_on_receive(int (*callback)(Bootloader_Handshake_t* data));
 candb_bus_t Bootloader_Handshake_get_rx_bus(void);
+bool Bootloader_Handshake_ever_received(void);
 int Bootloader_send_Handshake(enum Bootloader_Register Register, enum Bootloader_Command Command, enum Bootloader_BootTarget Target, uint32_t Value);
 candb_bus_t Bootloader_Handshake_get_tx_bus(void);
 
-int Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootloader_HandshakeAck_t* data_out);
-int Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_BootTarget* Target_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out);
+bool Bootloader_decode_HandshakeAck_s(const uint8_t* bytes, size_t length, Bootloader_HandshakeAck_t* data_out);
+bool Bootloader_decode_HandshakeAck(const uint8_t* bytes, size_t length, enum Bootloader_Register* Register_out, enum Bootloader_BootTarget* Target_out, enum Bootloader_HandshakeResponse* Response_out, uint32_t* Value_out);
 int Bootloader_send_HandshakeAck_s(const Bootloader_HandshakeAck_t* data);
-int Bootloader_get_HandshakeAck(Bootloader_HandshakeAck_t* data_out);
+uint32_t Bootloader_get_HandshakeAck(Bootloader_HandshakeAck_t* data_out);
 uint32_t Bootloader_HandshakeAck_get_flags(void);
 void Bootloader_HandshakeAck_on_receive(int (*callback)(Bootloader_HandshakeAck_t* data));
 candb_bus_t Bootloader_HandshakeAck_get_rx_bus(void);
+bool Bootloader_HandshakeAck_ever_received(void);
 int Bootloader_send_HandshakeAck(enum Bootloader_Register Register, enum Bootloader_BootTarget Target, enum Bootloader_HandshakeResponse Response, uint32_t Value);
 candb_bus_t Bootloader_HandshakeAck_get_tx_bus(void);
 
-int Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out);
-int Bootloader_decode_CommunicationYield(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
+bool Bootloader_decode_CommunicationYield_s(const uint8_t* bytes, size_t length, Bootloader_CommunicationYield_t* data_out);
+bool Bootloader_decode_CommunicationYield(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out);
 int Bootloader_send_CommunicationYield_s(const Bootloader_CommunicationYield_t* data);
-int Bootloader_get_CommunicationYield(Bootloader_CommunicationYield_t* data_out);
+uint32_t Bootloader_get_CommunicationYield(Bootloader_CommunicationYield_t* data_out);
 uint32_t Bootloader_CommunicationYield_get_flags(void);
 void Bootloader_CommunicationYield_on_receive(int (*callback)(Bootloader_CommunicationYield_t* data));
 candb_bus_t Bootloader_CommunicationYield_get_rx_bus(void);
+bool Bootloader_CommunicationYield_ever_received(void);
 int Bootloader_send_CommunicationYield(enum Bootloader_BootTarget Target);
 candb_bus_t Bootloader_CommunicationYield_get_tx_bus(void);
 
-int Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
-int Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint32_t* Word_out);
+bool Bootloader_decode_Data_s(const uint8_t* bytes, size_t length, Bootloader_Data_t* data_out);
+bool Bootloader_decode_Data(const uint8_t* bytes, size_t length, uint32_t* Address_out, uint32_t* Word_out);
 int Bootloader_send_Data_s(const Bootloader_Data_t* data);
-int Bootloader_get_Data(Bootloader_Data_t* data_out);
+uint32_t Bootloader_get_Data(Bootloader_Data_t* data_out);
 uint32_t Bootloader_Data_get_flags(void);
 void Bootloader_Data_on_receive(int (*callback)(Bootloader_Data_t* data));
 candb_bus_t Bootloader_Data_get_rx_bus(void);
+bool Bootloader_Data_ever_received(void);
 int Bootloader_send_Data(uint32_t Address, uint32_t Word);
 candb_bus_t Bootloader_Data_get_tx_bus(void);
 
-int Bootloader_decode_DataAck_s(const uint8_t* bytes, size_t length, Bootloader_DataAck_t* data_out);
-int Bootloader_decode_DataAck(const uint8_t* bytes, size_t length, uint32_t* Address_out, enum Bootloader_WriteResult* Result_out);
+bool Bootloader_decode_DataAck_s(const uint8_t* bytes, size_t length, Bootloader_DataAck_t* data_out);
+bool Bootloader_decode_DataAck(const uint8_t* bytes, size_t length, uint32_t* Address_out, enum Bootloader_WriteResult* Result_out);
 int Bootloader_send_DataAck_s(const Bootloader_DataAck_t* data);
-int Bootloader_get_DataAck(Bootloader_DataAck_t* data_out);
+uint32_t Bootloader_get_DataAck(Bootloader_DataAck_t* data_out);
 uint32_t Bootloader_DataAck_get_flags(void);
 void Bootloader_DataAck_on_receive(int (*callback)(Bootloader_DataAck_t* data));
 candb_bus_t Bootloader_DataAck_get_rx_bus(void);
+bool Bootloader_DataAck_ever_received(void);
 int Bootloader_send_DataAck(uint32_t Address, enum Bootloader_WriteResult Result);
 candb_bus_t Bootloader_DataAck_get_tx_bus(void);
 
-int Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out);
-int Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* Force_out, uint8_t* InitializeApplication_out);
-int Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
+bool Bootloader_decode_ExitReq_s(const uint8_t* bytes, size_t length, Bootloader_ExitReq_t* data_out);
+bool Bootloader_decode_ExitReq(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* Force_out, uint8_t* InitializeApplication_out);
+uint32_t Bootloader_get_ExitReq(Bootloader_ExitReq_t* data_out);
 uint32_t Bootloader_ExitReq_get_flags(void);
 void Bootloader_ExitReq_on_receive(int (*callback)(Bootloader_ExitReq_t* data));
 candb_bus_t Bootloader_ExitReq_get_rx_bus(void);
+bool Bootloader_ExitReq_ever_received(void);
 
-int Bootloader_decode_Ping_s(const uint8_t* bytes, size_t length, Bootloader_Ping_t* data_out);
-int Bootloader_decode_Ping(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* BootloaderRequested_out);
-int Bootloader_get_Ping(Bootloader_Ping_t* data_out);
+bool Bootloader_decode_Ping_s(const uint8_t* bytes, size_t length, Bootloader_Ping_t* data_out);
+bool Bootloader_decode_Ping(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, uint8_t* BootloaderRequested_out, uint8_t* SilenceRequested_out);
+uint32_t Bootloader_get_Ping(Bootloader_Ping_t* data_out);
 uint32_t Bootloader_Ping_get_flags(void);
 void Bootloader_Ping_on_receive(int (*callback)(Bootloader_Ping_t* data));
 candb_bus_t Bootloader_Ping_get_rx_bus(void);
+bool Bootloader_Ping_ever_received(void);
 
-int Bootloader_decode_Beacon_s(const uint8_t* bytes, size_t length, Bootloader_Beacon_t* data_out);
-int Bootloader_decode_Beacon(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, enum Bootloader_State* State_out, enum Bootloader_EntryReason* EntryReason_out, uint16_t* FlashSize_out);
+bool Bootloader_decode_Beacon_s(const uint8_t* bytes, size_t length, Bootloader_Beacon_t* data_out);
+bool Bootloader_decode_Beacon(const uint8_t* bytes, size_t length, enum Bootloader_BootTarget* Target_out, enum Bootloader_State* State_out, enum Bootloader_EntryReason* EntryReason_out, uint16_t* FlashSize_out);
 int Bootloader_send_Beacon_s(const Bootloader_Beacon_t* data);
-int Bootloader_get_Beacon(Bootloader_Beacon_t* data_out);
+uint32_t Bootloader_get_Beacon(Bootloader_Beacon_t* data_out);
 uint32_t Bootloader_Beacon_get_flags(void);
 void Bootloader_Beacon_on_receive(int (*callback)(Bootloader_Beacon_t* data));
 candb_bus_t Bootloader_Beacon_get_rx_bus(void);
+bool Bootloader_Beacon_ever_received(void);
 bool Bootloader_Beacon_has_timed_out(void);
 int Bootloader_send_Beacon(enum Bootloader_BootTarget Target, enum Bootloader_State State, enum Bootloader_EntryReason EntryReason, uint16_t FlashSize);
 candb_bus_t Bootloader_Beacon_get_tx_bus(void);
@@ -538,6 +549,7 @@ bool Bootloader_SoftwareBuild_need_to_send(void);
 template <typename T> bool        need_to_send   ();
 template <typename T> candb_bus_t get_rx_bus     ();
 template <typename T> bool        has_timed_out  ();
+template <typename T> bool        ever_received  ();
 template <typename T> candb_bus_t get_tx_bus   ();
 
 inline int send(const Bootloader_Handshake_t& data) {
@@ -547,6 +559,11 @@ inline int send(const Bootloader_Handshake_t& data) {
 template <>
 inline candb_bus_t get_rx_bus<Bootloader_Handshake_t>() {
     return Bootloader_Handshake_get_rx_bus();
+}
+
+template <>
+inline bool ever_received<Bootloader_Handshake_t>() {
+    return Bootloader_Handshake_ever_received();
 }
 
 template <>
@@ -564,6 +581,11 @@ inline candb_bus_t get_rx_bus<Bootloader_HandshakeAck_t>() {
 }
 
 template <>
+inline bool ever_received<Bootloader_HandshakeAck_t>() {
+    return Bootloader_HandshakeAck_ever_received();
+}
+
+template <>
 inline candb_bus_t get_tx_bus<Bootloader_HandshakeAck_t>() {
     return Bootloader_HandshakeAck_get_tx_bus();
 }
@@ -575,6 +597,11 @@ inline int send(const Bootloader_CommunicationYield_t& data) {
 template <>
 inline candb_bus_t get_rx_bus<Bootloader_CommunicationYield_t>() {
     return Bootloader_CommunicationYield_get_rx_bus();
+}
+
+template <>
+inline bool ever_received<Bootloader_CommunicationYield_t>() {
+    return Bootloader_CommunicationYield_ever_received();
 }
 
 template <>
@@ -592,6 +619,11 @@ inline candb_bus_t get_rx_bus<Bootloader_Data_t>() {
 }
 
 template <>
+inline bool ever_received<Bootloader_Data_t>() {
+    return Bootloader_Data_ever_received();
+}
+
+template <>
 inline candb_bus_t get_tx_bus<Bootloader_Data_t>() {
     return Bootloader_Data_get_tx_bus();
 }
@@ -606,6 +638,11 @@ inline candb_bus_t get_rx_bus<Bootloader_DataAck_t>() {
 }
 
 template <>
+inline bool ever_received<Bootloader_DataAck_t>() {
+    return Bootloader_DataAck_ever_received();
+}
+
+template <>
 inline candb_bus_t get_tx_bus<Bootloader_DataAck_t>() {
     return Bootloader_DataAck_get_tx_bus();
 }
@@ -616,8 +653,18 @@ inline candb_bus_t get_rx_bus<Bootloader_ExitReq_t>() {
 }
 
 template <>
+inline bool ever_received<Bootloader_ExitReq_t>() {
+    return Bootloader_ExitReq_ever_received();
+}
+
+template <>
 inline candb_bus_t get_rx_bus<Bootloader_Ping_t>() {
     return Bootloader_Ping_get_rx_bus();
+}
+
+template <>
+inline bool ever_received<Bootloader_Ping_t>() {
+    return Bootloader_Ping_ever_received();
 }
 
 template <>
@@ -637,6 +684,11 @@ inline bool has_timed_out<Bootloader_Beacon_t>() {
 template <>
 inline candb_bus_t get_rx_bus<Bootloader_Beacon_t>() {
     return Bootloader_Beacon_get_rx_bus();
+}
+
+template <>
+inline bool ever_received<Bootloader_Beacon_t>() {
+    return Bootloader_Beacon_ever_received();
 }
 
 template <>

@@ -16,25 +16,25 @@ enum { CAN_MESSAGE_SIZE = 8 };
 
 struct CAN_msg_header {
 	uint32_t timestamp;
-	int bus;
 	CAN_ID_t id;
-	uint16_t length;
+	uint8_t bus;
+	uint8_t length;
 };
 
 typedef struct {
-	uint32_t flags;
-	int32_t timeout;
-	int32_t timestamp;
-	int rx_bus;
+	uint32_t timestamp;
+	uint32_t timeout;
+	uint16_t flags;
+	uint8_t rx_bus;
 
 	void (*on_receive)(void);
 } CAN_msg_status_t;
 
-enum {
+typedef enum {
 	CAN_MSG_PENDING = 1,
 	CAN_MSG_RECEIVED = 2,
 	CAN_MSG_MISSED = 4,
-};
+} txFlags;
 
 void canInitMsgStatus(CAN_msg_status_t*, int default_bus, int timeout);
 void canUpdateMsgStatusOnReceive(CAN_msg_status_t*, int bus_origin, uint32_t timestamp);
@@ -46,8 +46,8 @@ void canUpdateMsgStatusOnReceive(CAN_msg_status_t*, int bus_origin, uint32_t tim
 
 inline float helper_ConvertValueToCAN(float value, float offset, float factor, float min, float max) {
 
-	auto const clamped = value < min ? min : value > max ? max : value;
-	auto const normalized = clamped - offset;
+	float const clamped = value < min ? min : value > max ? max : value;
+	float const normalized = clamped - offset;
 	return normalized / factor;
 }
 
