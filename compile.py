@@ -84,19 +84,23 @@ def parse_args():
 if __name__ == '__main__':
 
 	build_data : list[Config] = [
-		Config(car='FSE10', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
-		Config(car='FSE10', ecu='DSH', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
+		# Support for MCUs other than g4 is dropped from this compile script...
+		# The code still exists, but it does not currently compile for them, e.g. due to insufficient memory allocated in the linker script.
+		# To use the bootloader on these platforms, further work is necessary
+
+		#Config(car='FSE10', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
+		#Config(car='FSE10', ecu='DSH', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=500, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
 
 		# FSE12
-		Config(car='FSE12', ecu='DSH', mcu='f1', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
-		Config(car='FSE12', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
-		Config(car='FSE12', ecu='PDL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
-		Config(car='FSE12', ecu='FSB', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='B', pin=8), TX=Pin(port='B', pin=9)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
-		Config(car='FSE12', ecu='STW', mcu='f7', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
-		Config(car='FSE12', ecu='DRTR', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0), TX=Pin(port='D', pin=1)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))), # corresponds to Disruptor V1_1
-		Config(car='FSE12', ecu='DRTF', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0), TX=Pin(port='D', pin=1)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))), # corresponds to Disruptor V1_1
-		Config(car='FSE12', ecu='MBOXL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
-		Config(car='FSE12', ecu='MBOXR', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
+		#Config(car='FSE12', ecu='DSH', mcu='f1', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
+		#Config(car='FSE12', ecu='AMS', mcu='f1', hse_mhz=8, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
+		#Config(car='FSE12', ecu='PDL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
+		#Config(car='FSE12', ecu='FSB', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='B', pin=8), TX=Pin(port='B', pin=9)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))),
+		#Config(car='FSE12', ecu='STW', mcu='f7', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=CAN(peripheral='CAN2', bitrate_khz=1000, RX=Pin(port='B', pin=12),TX=Pin(port='B',pin= 13))),
+		#Config(car='FSE12', ecu='DRTR', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0), TX=Pin(port='D', pin=1)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))), # corresponds to Disruptor V1_1
+		#Config(car='FSE12', ecu='DRTF', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0), TX=Pin(port='D', pin=1)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5), TX=Pin(port='B', pin=6))), # corresponds to Disruptor V1_1
+		#Config(car='FSE12', ecu='MBOXL', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
+		#Config(car='FSE12', ecu='MBOXR', mcu='f4', hse_mhz=12, can1=CAN(peripheral='CAN1', bitrate_khz=1000, RX=Pin(port='A', pin=11), TX=Pin(port='A', pin=12)), can2=None),
 
 		# CTU24 (this information is also listed in the thread https://discord.com/channels/1141355470108499979/1250739945052704779)
 		Config(car='CTU24', ecu='DRTR', mcu='g4', hse_mhz=12, can1=CAN(peripheral='FDCAN1', bitrate_khz=1000, RX=Pin(port='D', pin=0, AF=9), TX=Pin(port='D', pin=1, AF=9)), can2=CAN(peripheral='FDCAN2', bitrate_khz=1000, RX=Pin(port='B', pin=5, AF=9), TX=Pin(port='B', pin=6, AF=9))), # corresponds to Disruptor V1_2
