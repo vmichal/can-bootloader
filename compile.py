@@ -1,4 +1,4 @@
-#!/bin/python3
+#!python
 import sys, os, collections, subprocess, dataclasses, argparse
 import concurrent.futures
 
