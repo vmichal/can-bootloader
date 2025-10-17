@@ -16,7 +16,7 @@ set (CMAKE_C_STANDARD 11)
 set (CMAKE_CXX_STANDARD 20)
 
 SET(DEVICE_FLAGS "-mcpu=cortex-m4 -mthumb -mfloat-abi=soft")
-SET(OPTIMIZATIONS_FLAGS "-g3 -O${OPTIMIZATION_LEVEL} -funsigned-char -funsigned-bitfields -ffunction-sections -fdata-sections -fdiagnostics-color=always -fstack-protector-strong -finline-small-functions -findirect-inlining -fstack-usage")
+SET(OPTIMIZATIONS_FLAGS "-g3 -O${OPTIMIZATION_LEVEL} -funsigned-char -funsigned-bitfields -ffunction-sections -fdata-sections -fdiagnostics-color=always -fno-stack-protector -finline-small-functions -findirect-inlining -fstack-usage")
 
 SET(DEFINES "-DBUILDING_BOOTLOADER -DSTM32G474xx -DBOOT_STM32G4 -DTX_WITH_CANDB=1 -D__weak='__attribute__((weak))' -D__packed='__attribute__((__packed__))'")
 

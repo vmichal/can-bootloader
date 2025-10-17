@@ -159,7 +159,6 @@ namespace boot {
 		assert(ufsel::bit::all_cleared(firmware.interruptVector_, isrVectorAlignmentMask));
 
 		//The page must have been cleared before
-		constexpr auto empty = std::numeric_limits<decltype(jumpTable.magic1_)>::max();
 		assert(jumpTable.isErased());
 
 		//entry point is not stored as it can be derived from the isr vector
@@ -340,10 +339,6 @@ namespace boot {
 	}
 
 	Bootloader_Handshake_t LogicalMemoryMapTransmitter::update() {
-		//the first "available" block. Bootloader is located in preceding memory pages.
-		std::uint32_t const firstBlockIndex = bootloader_.updatingBootloader() ? customization::firstBlockAvailableToBootloader : customization::firstBlockAvailableToApplication;
-		std::uint32_t const pagesToSend = bootloader_.updatingBootloader() ? PhysicalMemoryMap::bootloaderPages() : PhysicalMemoryMap::applicationPages();
-
 		switch (status_) {
 			case Status::uninitialized:
 			case Status::pending: //Update function shall not be reached with these states

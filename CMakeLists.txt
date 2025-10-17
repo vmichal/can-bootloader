@@ -7,6 +7,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Units.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Itertools.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Assert.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/Time.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/ufsel/cmake/DummySyscalls.cmake")
 string(APPEND CMAKE_CXX_FLAGS " -DUFSEL_USING_TIME")
 add_definitions(-DUFSEL_USING_UNITS -DUFSEL_USING_UNIT_LITERALS -DUFSEL_USING_CHEAP_ASSERT)
 
@@ -51,7 +52,7 @@ set(SRC
         CANdb/can_Bootloader.c
         )
 
-add_executable(${PROJECT_NAME}.elf ${SRC} ${CAN_SRC})
+add_executable(${PROJECT_NAME}.elf ${SRC} ${UFSEL_SRC})
 
 include_directories(SYSTEM Drivers)
 include_directories(SYSTEM CANdb)

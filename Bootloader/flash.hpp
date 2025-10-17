@@ -301,7 +301,7 @@ namespace boot {
 
 	};
 
-	struct ApplicationJumpTable {
+	struct alignas(Flash::nativeType) ApplicationJumpTable {
 		constexpr static std::uint32_t expected_magic1_value = 0xb16'b00b5;
 		constexpr static std::uint32_t expected_magic2_value = 0xcafe'babe;
 		constexpr static std::uint32_t expected_magic3_value = 0xdead'beef;

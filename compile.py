@@ -74,7 +74,7 @@ def parse_args():
 
 	# Add mutually exclusive group
 	parser.add_argument('--all', action='store_true', help="If set, process all units.")
-	parser.add_argument('--workers', type=int, default=1, help="Number of workers in parallel.")
+	parser.add_argument('--workers', type=int, default=1, help="Number of workers in parallel, default 1.")
 	parser.add_argument('car', nargs='?', help="Provide a car name.")
 	parser.add_argument('ecu', nargs='?', help="Provide an ECU name.")
 
