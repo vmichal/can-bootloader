@@ -57,10 +57,9 @@ namespace boot {
 			std::uint64_t data_;
 		};
 
-		constexpr static std::size_t capacity_bytes = CAPACITY * sizeof(record);
-		static_assert(std::has_single_bit(capacity_bytes));
-		char buffer_[capacity_bytes];
-		ringbuf_t ringbuf {.data = reinterpret_cast<std::uint8_t*>(buffer_), .size = capacity_bytes, .readpos = 0, .writepos = 0};
+		constexpr static std::size_t capacity = CAPACITY;
+		record buffer[capacity];
+		ringbuf_t ringbuf {.data = reinterpret_cast<std::uint8_t*>(buffer), .size = CAPACITY, .readpos = 0, .writepos = 0};
 
 		void reset() {
 			ringbuf.readpos = ringbuf.writepos = 0;
@@ -78,7 +77,7 @@ namespace boot {
 			//cannot read anything, since there is not that many elements
 			assert(ringbufSize(&ringbuf) >= (offset + 1) * sizeof(record));
 
-			size_t readpos = (ringbuf.readpos + offset * sizeof(record)) % capacity_bytes;
+			size_t readpos = (ringbuf.readpos + offset * sizeof(record)) % capacity;
 			record result;
 			ringbufTryRead(&ringbuf, reinterpret_cast<std::uint8_t *>(&result), sizeof(record), &readpos);
 			return result;
@@ -89,7 +88,7 @@ namespace boot {
 			assert(ringbufSize(&ringbuf) >= count * sizeof(record));
 
 			//advance the read index.
-			ringbuf.readpos = (ringbuf.readpos + count * sizeof(record)) % capacity_bytes;
+			ringbuf.readpos = (ringbuf.readpos + count * sizeof(record)) % capacity;
 		}
 
 		[[nodiscard]] std::size_t size() const { return ringbufSize(&ringbuf) / sizeof(record); }
