@@ -26,20 +26,6 @@ namespace boot {
 
 	constexpr std::uint32_t end(MemoryBlock const & block) { return block.address + block.length; }
 
-	template<std::size_t bits>
-	auto deduce_int_type_of_size() {
-		static_assert(bits == 8 || bits == 16 || bits == 32 || bits == 64, "Can't deduce any integer type of this width!");
-
-		if constexpr (bits == 8)
-			return std::uint8_t{0};
-		else if constexpr (bits == 16)
-			return std::uint16_t{0};
-		else if constexpr (bits == 32)
-			return std::uint32_t{0};
-		else if constexpr (bits == 64)
-			return std::uint64_t{0};
-	}
-
 	enum class AddressSpace {
 		BootloaderFlash,
 		JumpTable,
@@ -115,7 +101,7 @@ namespace boot {
 		friend struct ApplicationJumpTable;
 		static inline FlashWriteBuffer<flash_write_buffer_size> writeBuffer_;
 
-		using nativeType = decltype(deduce_int_type_of_size<customization::flashProgrammingParallelism>());
+		using nativeType = ufsel::traits::uint_of_size_t<customization::flashProgrammingParallelism / 8>;
 		static_assert(std::is_unsigned_v<nativeType>, "Flash native type shall be unsigned to prevent problems with signed overflow.");
 
 		constexpr static bool pagesHaveSameSize() { return customization::physicalBlockSizePolicy == PhysicalBlockSizes::same; };
