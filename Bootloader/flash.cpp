@@ -248,13 +248,13 @@ namespace boot {
 	}
 
 	void ApplicationJumpTable::writeToFlash() {
-		assert(reinterpret_cast<std::uint32_t>(&jumpTable) == Flash::jumpTableAddress && "Sanity check of consistent addresses.");
-		assert(this != &jumpTable && "Jump table in flash must not be initialized from itself.");
+		assert(reinterpret_cast<std::uint32_t>(&jumpTable) == Flash::jumpTableAddress); // Sanity check of consistent addresses.
+		assert(this != &jumpTable); // Jump table in flash must not be initialized from itself.
 
 		// Go from the end, since magics are in the front of jump table and we want them written last
 		// Metadata shall be written iff they are valid.
 		std::size_t const valid_data_length = has_valid_metadata() ? sizeof(MemoryBlock) * logical_memory_block_count_ : 0;
-		std::size_t const length_in_bytes = bytes_before_segment_array + valid_data_length;
+		std::size_t const length_in_bytes = offsetof(ApplicationJumpTable, logical_memory_blocks_) + valid_data_length;
 		assert(length_in_bytes % sizeof(Flash::nativeType) == 0 && "The application jump table must span a whole number of flash native types.");
 		Flash::nativeType const * data_array = reinterpret_cast<Flash::nativeType *>(this);
 

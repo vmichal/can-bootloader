@@ -291,10 +291,11 @@ namespace boot {
 		constexpr static std::uint32_t expected_magic2_value = 0xcafe'babe;
 		constexpr static std::uint32_t expected_magic3_value = 0xdead'beef;
 		constexpr static std::uint32_t expected_magic4_value = 0xfeed'd06e;
+		constexpr static std::uint32_t expected_magic5_value = 0xface'b00c;
 
 		constexpr static std::uint32_t metadata_valid_magic_value = 0x0f0c'd150;
 
-		constexpr static int members_before_segment_array = 8;
+		constexpr static int members_before_segment_array = 10; // This count has to be kept in sync with the number of members that precede the logical_memory_blocks_ array, otherwise static assert fails
 		constexpr static std::size_t bytes_before_segment_array = sizeof(std::uint32_t) * members_before_segment_array;
 
 		std::uint32_t magic1_;
@@ -306,9 +307,11 @@ namespace boot {
 		std::uint32_t interruptVector_;
 		std::uint32_t magic3_;
 		std::uint32_t firmwareSize_;
-		std::uint32_t logical_memory_block_count_;
 		std::uint32_t magic4_;
-		std::array<MemoryBlock, (smallestPageSize - bytes_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
+		std::uint32_t logical_memory_block_count_;
+		std::uint32_t magic5_;
+		// Padding is inserted here on systems with 64 flash parallelism due to the alignment requirement 
+		alignas(Flash::nativeType) std::array<MemoryBlock, (smallestPageSize - bytes_before_segment_array) / sizeof(MemoryBlock)> logical_memory_blocks_;
 
 		//Returns true iff all magics are valid
 		[[nodiscard]]
@@ -329,10 +332,9 @@ namespace boot {
 
 		void writeToFlash();
 	};
-	static_assert(offsetof(ApplicationJumpTable, logical_memory_blocks_) == ApplicationJumpTable::bytes_before_segment_array);
-	static_assert(ApplicationJumpTable::bytes_before_segment_array % sizeof(Flash::nativeType) == 0, "Jump table is not suitable for this MCU's flash layout.");
-
-	static_assert(sizeof(ApplicationJumpTable) <= smallestPageSize, "The application jump table must fit within one page of flash.");
+	static_assert(offsetof(ApplicationJumpTable, logical_memory_blocks_) % sizeof(Flash::nativeType) == 0, "Jump table is not suitable for this MCU's flash layout.");
+	static_assert(sizeof(MemoryBlock) % sizeof(Flash::nativeType) == 0);
+	static_assert(sizeof(ApplicationJumpTable) == smallestPageSize, "The application jump table must fit within one page of flash.");
 
 	static_assert(std::is_trivially_constructible_v<ApplicationJumpTable>, "If the jump table was not trivially constructible in order not to overwrite data present in flash memory.");
 	inline ApplicationJumpTable jumpTable __attribute__((section("jumpTableSection")));
