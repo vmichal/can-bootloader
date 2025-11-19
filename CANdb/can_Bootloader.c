@@ -1,7 +1,7 @@
 #include "can_Bootloader.h"
 #include <string.h>
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 17. 10. 2025 (dd. mm. yyyy) at 17.15.12 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 19. 11. 2025 (dd. mm. yyyy) at 03.02.56 (hh.mm.ss)
 
 
 CAN_ID_t const candb_sent_messages[9] = {
@@ -548,7 +548,7 @@ uint32_t Bootloader_get_Beacon(Bootloader_Beacon_t* data_out) {
         return 0;
 
 #ifndef CANDB_IGNORE_TIMEOUTS
-    if (txGetTimeMillis() - (uint32_t)Bootloader_Beacon_status.timestamp > Bootloader_Beacon_timeout)
+    if (txGetTimeMillis() - Bootloader_Beacon_status.timestamp > Bootloader_Beacon_timeout)
         return 0;
 #endif
 

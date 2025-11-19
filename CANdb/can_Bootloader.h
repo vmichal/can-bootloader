@@ -9,7 +9,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-//CANdb code model v2 (enhanced again) generated for Bootloader on 17. 10. 2025 (dd. mm. yyyy) at 17.15.12 (hh.mm.ss)
+//CANdb code model v2 (enhanced again) generated for Bootloader on 19. 11. 2025 (dd. mm. yyyy) at 03.02.56 (hh.mm.ss)
 
 typedef enum {
     // Vehicle CAN buses

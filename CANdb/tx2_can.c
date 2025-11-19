@@ -43,7 +43,7 @@ int txReceiveCANMessage(int bus, CAN_ID_t id, const void* data, size_t length) {
 		return -TX_RECV_BUFFER_OVERFLOW;
 	}
 
-	struct CAN_msg_header hdr = {txGetTimeMillis(), bus, id, length};
+	struct CAN_msg_header hdr = {txGetTimeMillis(), id, bus, length}; // Structure changed in 2025
 	ringbufWriteUnchecked(&recv_rb, (const uint8_t*) &hdr, sizeof(hdr));
 	ringbufWriteUnchecked(&recv_rb, (const uint8_t*) data, length);
 

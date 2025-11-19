@@ -93,8 +93,11 @@ namespace boot {
 	}
 
 	int CanManager::get_tx_buffer_size() {
-		bsp::can::bus_info_t const& bus = bsp::can::find_bus_info_by_bus(Bootloader_Handshake_get_rx_bus());
-		return ringbufSize(&tx_rb[bus.bus_index]);
+		candb_bus_t const bus_id = Bootloader_Handshake_get_rx_bus();
+		assert(bus_id != bus_UNDEFINED);
+		assert(bus_id != bus_ALL);
+		bsp::can::bus_info_t const& bus_info = bsp::can::find_bus_info_by_bus(bus_id);
+		return ringbufSize(&tx_rb[bus_info.bus_index]);
 	}
 
 	void CanManager::SendSoftwareBuild() {
@@ -231,6 +234,8 @@ int txSendCANMessage(int const bus, CAN_ID_t const id, const void* const data, s
 	}
 
 	using namespace ufsel;
+	assert(bus != bus_UNDEFINED);
+	assert(bus != bus_ALL);
 	auto const& bus_info = bsp::can::find_bus_info_by_bus((candb_bus_t)bus);
 
 	const size_t required_size = sizeof(struct CAN_msg_header) + length;
