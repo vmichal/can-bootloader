@@ -316,6 +316,6 @@ extern "C" void Reset_Handler() {
 }
 
 extern "C" void SysTick_Handler() {
-	++SystemTicks;
+	SystemTicks += 1;
 }
 

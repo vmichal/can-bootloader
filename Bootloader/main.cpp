@@ -273,7 +273,7 @@ namespace boot {
 			if (ufsel::bit::all_set(SysTick->CTRL, SysTick_CTRL_COUNTFLAG_Msk)) {
 				// When invoked from HF handler, SysTick interrupt would never occur
 				// This way time keeping is preserved at all times
-				++SystemTicks;
+				SystemTicks += 1;
 			}
 
 			process_all_tx_fifos();

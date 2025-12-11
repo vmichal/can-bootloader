@@ -47,7 +47,7 @@ namespace boot {
 		consteval auto initialize_tx_ringbuffers() {
 			std::array<ringbuf_t, bsp::can::num_used_buses> result;
 
-			for (int i = 0; i < bsp::can::num_used_buses; ++i)
+			for (std::size_t i = 0; i < bsp::can::num_used_buses; ++i)
 				result[i] = ringbuf_t{.data = tx_buf[i].data(), .size = tx_buf[i].size(), .readpos = 0, .writepos = 0};
 
 			return result;

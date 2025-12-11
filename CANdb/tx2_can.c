@@ -61,7 +61,6 @@ void txProcess(void) {
 	struct CAN_msg_header hdr;
 	uint8_t msg_data[CAN_MESSAGE_SIZE];
 
-
 	// As long as there is pending data in the rx buffer, but do not allow more than some specified number
 	for (int i = 0;i < TX_MAX_MSGS_PROCESSED_IN_A_ROW;++i) {
 		if (tx_irq_error.error_flags != TX_OK) {
@@ -76,12 +75,12 @@ void txProcess(void) {
 		// Read message header & data. The message in the rx buffer may not yet be complete,
 		// in that case we abort and try again next time.
 		bool const header_ok = ringbufTryRead(&recv_rb, (uint8_t*) &hdr, sizeof(hdr), &read_pos) == sizeof(hdr);
-
+		
 		if (!header_ok)
 			txHandleError(TX_RECV_BUFFER_CORRUPTED, 0, 0, NULL, 0); //well, what else do we have..
-
+		
 		bool const message_ok = ringbufTryRead(&recv_rb, msg_data, hdr.length, &read_pos) == hdr.length;
-
+		
 		if (!message_ok)
 			txHandleError(TX_RECV_BUFFER_CORRUPTED, hdr.bus, hdr.id, NULL, hdr.length); //well, what else do we have..
 
