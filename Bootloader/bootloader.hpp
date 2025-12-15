@@ -378,7 +378,8 @@ namespace boot {
 			std::span<MemoryBlock const> logical_memory_blocks_;
 		};
 
-		// Subtransactions for flashing or bootloader update
+		// All subtrainsactions are mutually exclusive, so the need to save memory arised, wrap them in std::variant/union
+		// Subtransactions for flashing or bootloader update.
 		PhysicalMemoryMapTransmitter physicalMemoryMapTransmitter_;
 		LogicalMemoryMapReceiver logicalMemoryMapReceiver_;
 		PhysicalMemoryBlockEraser physicalMemoryBlockEraser_;
