@@ -69,7 +69,7 @@ add_custom_command(
         TARGET ${PROJECT_NAME}.elf
         COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${HEX_FILE}
         # COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
-        COMMENT "Building ${HEX_FILE} \nBuilding ${BIN_FILE}")
+        COMMENT "Building ${HEX_FILE} \\nBuilding ${BIN_FILE}")
 
 add_custom_command(
         POST_BUILD
