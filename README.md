@@ -1,6 +1,6 @@
 # VoMi's CAN Bootloader
 
-Developed and maintained with love by Vojtěch Michal (vojta.michall@email.cz, +420 739 121 407, Discord `vojtechmichal`)<br/>
+Developed and maintained by Vojtěch Michal (Discord `vojtechmichal`)<br/>
 since season 2020/2021 at eForce (FEE) Prague Formula.
 
 Our custom solution for flashing ECU firmware over vehicle CAN buses designed because...
